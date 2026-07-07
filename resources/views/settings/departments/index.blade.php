@@ -1,0 +1,87 @@
+@extends('layouts.app')
+
+@section('title', 'Pengaturan Departemen')
+
+@section('content')
+<x-sf.page-header
+    title="Pengaturan Departemen"
+    subtitle="Departemen operasional pemakai item"
+    back="{{ route('settings.index') }}"
+/>
+
+<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-5xl mx-auto w-full space-y-5">
+    @if($errors->any())
+        <div class="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {{ $errors->first() }}
+        </div>
+    @endif
+
+    <x-sf.card title="Daftar Departemen">
+        <div class="hidden lg:grid grid-cols-[1fr_2fr_1fr_auto] gap-3 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-100">
+            <span>Kode</span>
+            <span>Nama Departemen</span>
+            <span>Operasional</span>
+            <span class="text-right">Aksi</span>
+        </div>
+
+        <div class="divide-y divide-gray-50">
+            @foreach($departments as $department)
+                <div class="py-3" x-data="{ editing: false }">
+                    <form method="POST" action="{{ route('settings.departments.update', $department) }}" class="grid grid-cols-1 lg:grid-cols-[1fr_2fr_1fr_auto] gap-3 items-center">
+                        @csrf
+                        @method('PUT')
+
+                        <div>
+                            <span class="lg:hidden sf-label">Kode</span>
+                            <span x-show="!editing" class="font-semibold text-gray-900">{{ $department->code }}</span>
+                            <input x-show="editing" x-cloak name="code" value="{{ $department->code }}" class="sf-input text-base uppercase">
+                        </div>
+
+                        <div>
+                            <span class="lg:hidden sf-label">Nama Departemen</span>
+                            <span x-show="!editing" class="text-gray-700">{{ $department->name }}</span>
+                            <input x-show="editing" x-cloak name="name" value="{{ $department->name }}" class="sf-input text-base">
+                        </div>
+
+                        <div>
+                            <span class="lg:hidden sf-label">Operasional</span>
+                            <span x-show="!editing" class="{{ $department->is_operational ? 'badge-active' : 'badge-inactive' }}">
+                                {{ $department->is_operational ? 'YA' : 'TIDAK' }}
+                            </span>
+                            <label x-show="editing" x-cloak class="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gray-700">
+                                <input type="checkbox" name="is_operational" value="1" @checked($department->is_operational) class="rounded border-gray-300 text-primary-700 focus:ring-primary-500">
+                                Operasional
+                            </label>
+                        </div>
+
+                        <div class="flex justify-end gap-2">
+                            <button type="button" x-show="!editing" class="sf-btn-secondary text-xs px-3 py-1.5 min-h-11" @click="editing = true">Edit</button>
+                            <button type="submit" x-show="editing" x-cloak class="sf-btn-primary text-xs px-3 py-1.5 min-h-11">Simpan</button>
+                            <button type="button" x-show="editing" x-cloak class="sf-btn-secondary text-xs px-3 py-1.5 min-h-11" @click="editing = false">Batal</button>
+                        </div>
+                    </form>
+
+                    <form method="POST" action="{{ route('settings.departments.destroy', $department) }}" class="mt-2 flex justify-end">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="sf-btn-danger text-xs px-3 py-1.5 min-h-11">Hapus</button>
+                    </form>
+                </div>
+            @endforeach
+        </div>
+    </x-sf.card>
+
+    <x-sf.card title="+ Tambah Departemen">
+        <form method="POST" action="{{ route('settings.departments.store') }}" class="grid grid-cols-1 lg:grid-cols-[1fr_2fr_auto] gap-3 items-end">
+            @csrf
+            <x-sf.form-group label="Kode" for="code" :required="true">
+                <input id="code" name="code" value="{{ old('code') }}" class="sf-input text-base uppercase" maxlength="32" required>
+            </x-sf.form-group>
+            <x-sf.form-group label="Nama" for="name" :required="true">
+                <input id="name" name="name" value="{{ old('name') }}" class="sf-input text-base" maxlength="255" required>
+            </x-sf.form-group>
+            <button type="submit" class="sf-btn-primary">Simpan</button>
+        </form>
+    </x-sf.card>
+</div>
+@endsection
