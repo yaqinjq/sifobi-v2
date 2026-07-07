@@ -28,13 +28,22 @@ class LoginController extends Controller
 
         $remember = $request->boolean('remember');
 
-        if (! Auth::attempt(array_merge($credentials, ['status' => 'ACTIVE']), $remember)) {
+        if (! Auth::attempt($credentials, $remember)) {
             return back()
                 ->withErrors(['email' => 'Email atau password tidak sesuai.'])
                 ->onlyInput('email');
         }
 
+        if (strtoupper((string) Auth::user()->status) !== 'ACTIVE') {
+            Auth::logout();
+
+            return back()
+                ->withErrors(['email' => 'Akun Anda sedang non-aktif. Hubungi administrator.'])
+                ->onlyInput('email');
+        }
+
         $request->session()->regenerate();
+        $request->user()->forceFill(['last_login_at' => now()])->save();
 
         return redirect()->intended(route('dashboard'));
     }
@@ -49,4 +58,3 @@ class LoginController extends Controller
         return redirect()->route('login');
     }
 }
-

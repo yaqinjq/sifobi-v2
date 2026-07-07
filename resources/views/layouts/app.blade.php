@@ -174,7 +174,20 @@
             @endcan
 
             @can('manage_settings')
-                @php $settingsActive = request()->routeIs('settings.*'); @endphp
+                @php $settingsActive = request()->routeIs('settings.*') && ! request()->routeIs('settings.users.*'); @endphp
+                @can('manage_users')
+                    <a href="{{ route('settings.users.index') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+                              {{ request()->routeIs('settings.users.*') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m0-4a4 4 0 100-8 4 4 0 000 8zm8 0a4 4 0 100-8 4 4 0 000 8z"/>
+                        </svg>
+                        Manajemen User
+                        @if(request()->routeIs('settings.users.*'))
+                            <span class="ml-auto w-1.5 h-1.5 rounded-full bg-primary-400"></span>
+                        @endif
+                    </a>
+                @endcan
                 <a href="{{ route('settings.index') }}"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
                           {{ $settingsActive ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">

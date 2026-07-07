@@ -24,10 +24,20 @@ use App\Http\Controllers\Settings\ItemJenisController;
 use App\Http\Controllers\Settings\OutletController;
 use App\Http\Controllers\Settings\SettingsController;
 use App\Http\Controllers\Settings\SupplierController;
+use App\Http\Controllers\Settings\UserController;
 use App\Http\Controllers\Stock\StockBalanceController;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome');
+Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+
+    $mode = config('app.landing_mode', 'saas');
+    $mode = in_array($mode, ['saas', 'mko'], true) ? $mode : 'saas';
+
+    return view("landing.{$mode}");
+})->name('home')->middleware('guest');
 
 if (config('app.debug')) {
     Route::get('/test-db', DatabaseDebugController::class)->name('debug.test-db');
@@ -36,6 +46,8 @@ if (config('app.debug')) {
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->name('login.store');
+    Route::redirect('/register', '/login')->name('register');
+    Route::redirect('/forgot-password', '/login')->name('password.request');
 });
 
 Route::middleware('auth')->group(function (): void {
@@ -65,6 +77,16 @@ Route::middleware('auth')->group(function (): void {
             Route::resource('suppliers', SupplierController::class)
                 ->only(['index', 'store', 'update', 'destroy'])
                 ->names('suppliers');
+
+            Route::middleware('permission:manage_users')->group(function (): void {
+                Route::resource('users', UserController::class)
+                    ->only(['index', 'create', 'store', 'edit', 'update'])
+                    ->names('users');
+                Route::patch('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])
+                    ->name('users.toggle-status');
+                Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])
+                    ->name('users.reset-password');
+            });
 
             Route::middleware('permission:manage_brands_outlets')->group(function (): void {
                 Route::resource('brands', BrandController::class)

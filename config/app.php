@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'landing_mode' => env('LANDING_PAGE_MODE', 'saas'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

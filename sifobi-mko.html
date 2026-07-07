@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIFOBI — Sistem Inventori MKO Group</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green-900:#0a1f12;--green-800:#0f2918;--green-700:#1B4332;--green-600:#2D6A4F;
+  --green-500:#40916C;--green-400:#52B788;--green-200:#B7E4C7;--green-100:#D8F3DC;--green-50:#F0FFF4;
+  --amber:#D97706;--amber-50:#FFFBEB;--amber-light:#FEF3C7;
+  --white:#FFFFFF;--gray-50:#F8FAFC;--gray-100:#F1F5F9;--gray-200:#E2E8F0;
+  --gray-400:#94A3B8;--gray-500:#64748B;--gray-600:#475569;--gray-800:#1E293B;--gray-900:#0F172A;
+  --font-head:'Plus Jakarta Sans',sans-serif;
+  --font-body:'Inter',sans-serif;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-body);color:var(--gray-900);background:var(--white);overflow-x:hidden}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--green-900);padding:10px 5%;text-align:center}
+.topbar-text{font-size:13px;color:rgba(255,255,255,0.7)}
+.topbar-text strong{color:#4ade80}
+
+/* ── NAVBAR ── */
+nav{background:var(--white);border-bottom:1px solid var(--gray-100);padding:0 5%;position:sticky;top:0;z-index:100}
+.nav-inner{max-width:1200px;margin:0 auto;height:68px;display:flex;align-items:center;justify-content:space-between}
+.nav-left{display:flex;align-items:center;gap:32px}
+.nav-logo{display:flex;align-items:center;gap:12px;text-decoration:none}
+.nav-logo-wrap{display:flex;align-items:center;gap:8px}
+.nav-logo-badge{background:var(--green-700);color:var(--white);font-family:var(--font-head);font-weight:800;font-size:13px;padding:6px 12px;border-radius:8px;letter-spacing:0.5px}
+.nav-divider{width:1px;height:28px;background:var(--gray-200)}
+.nav-group{font-size:12px;color:var(--gray-400);font-weight:500}
+.nav-group strong{display:block;font-size:14px;color:var(--gray-800);font-weight:700}
+.nav-links{display:flex;align-items:center;gap:28px}
+.nav-links a{text-decoration:none;color:var(--gray-600);font-size:14px;font-weight:500;transition:color 0.2s}
+.nav-links a:hover{color:var(--green-700)}
+.btn-login{padding:10px 24px;background:var(--green-700);color:var(--white);text-decoration:none;border-radius:10px;font-size:14px;font-weight:600;transition:all 0.2s}
+.btn-login:hover{background:var(--green-600)}
+
+/* ── HERO INTERNAL ── */
+.hero{background:var(--gray-50);border-bottom:1px solid var(--gray-200);padding:80px 5% 60px}
+.hero-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;gap:60px;align-items:center}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--green-50);border:1px solid var(--green-200);border-radius:100px;padding:5px 14px;margin-bottom:24px}
+.hero-eyebrow-dot{width:6px;height:6px;background:var(--green-500);border-radius:50%}
+.hero-eyebrow-text{font-size:12px;font-weight:600;color:var(--green-700);text-transform:uppercase;letter-spacing:0.5px}
+.hero h1{font-family:var(--font-head);font-size:clamp(30px,4vw,48px);font-weight:800;color:var(--gray-900);line-height:1.2;letter-spacing:-1px;margin-bottom:20px}
+.hero h1 span{color:var(--green-700)}
+.hero-desc{font-size:17px;color:var(--gray-600);line-height:1.7;margin-bottom:36px;max-width:460px}
+.hero-stats{display:flex;gap:32px;margin-bottom:36px}
+.hero-stat{text-align:center}
+.hero-stat-num{font-family:var(--font-head);font-size:32px;font-weight:800;color:var(--green-700);line-height:1}
+.hero-stat-label{font-size:12px;color:var(--gray-500);margin-top:4px}
+.hero-stat-divider{width:1px;background:var(--gray-200)}
+.hero-login-box{background:var(--white);border:1.5px solid var(--gray-200);border-radius:20px;padding:36px;box-shadow:0 4px 24px rgba(0,0,0,0.06)}
+.login-title{font-family:var(--font-head);font-size:20px;font-weight:700;color:var(--gray-900);margin-bottom:6px}
+.login-sub{font-size:14px;color:var(--gray-500);margin-bottom:24px}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+.form-input{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:15px;font-family:var(--font-body);color:var(--gray-900);outline:none;transition:border-color 0.2s;background:var(--gray-50)}
+.form-input:focus{border-color:var(--green-500);background:var(--white)}
+.btn-submit{width:100%;padding:13px;background:var(--green-700);color:var(--white);border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:background 0.2s;margin-top:4px}
+.btn-submit:hover{background:var(--green-600)}
+.login-forgot{text-align:center;margin-top:14px;font-size:13px;color:var(--gray-400)}
+.login-forgot a{color:var(--green-600);text-decoration:none}
+.login-secure{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:20px;padding-top:20px;border-top:1px solid var(--gray-100);font-size:12px;color:var(--gray-400)}
+
+/* ── BRANDS SECTION ── */
+.brands{padding:60px 5%;background:var(--white)}
+.brands-inner{max-width:1200px;margin:0 auto}
+.brands-title{font-size:13px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:1px;text-align:center;margin-bottom:28px}
+.brands-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.brand-pill{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:100px;padding:10px 22px;font-size:13px;font-weight:600;color:var(--gray-700);transition:all 0.2s}
+.brand-pill:hover{background:var(--green-50);border-color:var(--green-300);color:var(--green-800)}
+.brand-count{font-size:11px;color:var(--gray-400);margin-left:6px}
+
+/* ── MODUL SECTION ── */
+.modules{padding:80px 5%;background:var(--gray-50)}
+.modules-inner{max-width:1200px;margin:0 auto}
+.modules-header{margin-bottom:48px}
+.section-eyebrow{font-size:12px;font-weight:700;color:var(--green-600);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.section-title{font-family:var(--font-head);font-size:clamp(24px,3vw,36px);font-weight:800;color:var(--gray-900);letter-spacing:-0.5px}
+.modules-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.module-card{background:var(--white);border:1px solid var(--gray-200);border-radius:16px;padding:24px;transition:all 0.2s}
+.module-card:hover{border-color:var(--green-400);box-shadow:0 4px 16px rgba(27,67,50,0.07);transform:translateY(-2px)}
+.module-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:20px}
+.module-icon.green{background:var(--green-50)}
+.module-icon.amber{background:var(--amber-50)}
+.module-title{font-family:var(--font-head);font-size:15px;font-weight:700;color:var(--gray-900);margin-bottom:6px}
+.module-desc{font-size:13px;color:var(--gray-500);line-height:1.6}
+.module-status{display:inline-flex;align-items:center;gap:4px;margin-top:12px;font-size:11px;font-weight:600;color:var(--green-700);background:var(--green-50);padding:3px 10px;border-radius:100px}
+.module-status-dot{width:5px;height:5px;border-radius:50%;background:var(--green-500)}
+
+/* ── ROLE SECTION ── */
+.roles{padding:80px 5%;background:var(--white)}
+.roles-inner{max-width:1200px;margin:0 auto}
+.roles-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:40px}
+.role-card{border:1px solid var(--gray-200);border-radius:16px;padding:24px;position:relative;overflow:hidden}
+.role-accent{position:absolute;top:0;left:0;right:0;height:4px;border-radius:16px 16px 0 0}
+.role-title{font-family:var(--font-head);font-size:16px;font-weight:700;color:var(--gray-900);margin-bottom:4px;margin-top:4px}
+.role-desc{font-size:13px;color:var(--gray-500);margin-bottom:16px;line-height:1.5}
+.role-perms{display:flex;flex-direction:column;gap:6px}
+.role-perm{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray-600)}
+.role-perm-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* ── CONTACT ── */
+.contact{padding:80px 5%;background:var(--green-700)}
+.contact-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+.contact h2{font-family:var(--font-head);font-size:clamp(24px,3vw,36px);font-weight:800;color:var(--white);margin-bottom:14px;letter-spacing:-0.5px}
+.contact p{font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;margin-bottom:28px}
+.contact-info{display:flex;flex-direction:column;gap:14px}
+.contact-item{display:flex;gap:12px;align-items:flex-start}
+.contact-item-icon{width:36px;height:36px;background:rgba(255,255,255,0.12);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
+.contact-item-label{font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}
+.contact-item-val{font-size:14px;color:var(--white);font-weight:500}
+.contact-form{background:var(--white);border-radius:20px;padding:32px}
+.contact-form .form-input{background:var(--white)}
+.contact-form textarea{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:15px;font-family:var(--font-body);color:var(--gray-900);outline:none;resize:vertical;min-height:100px;transition:border-color 0.2s}
+.contact-form textarea:focus{border-color:var(--green-500)}
+
+/* ── FOOTER ── */
+footer{background:var(--gray-900);padding:36px 5%;color:rgba(255,255,255,0.5)}
+.footer-inner{max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.footer-logo{font-family:var(--font-head);font-weight:800;color:var(--white);font-size:18px}
+.footer-copy{font-size:13px}
+.footer-links-f{display:flex;gap:24px}
+.footer-links-f a{text-decoration:none;color:rgba(255,255,255,0.4);font-size:13px;transition:color 0.2s}
+.footer-links-f a:hover{color:var(--green-400)}
+
+@media(max-width:968px){
+  .hero-inner{grid-template-columns:1fr}
+  .modules-grid{grid-template-columns:repeat(2,1fr)}
+  .roles-grid{grid-template-columns:1fr 1fr}
+  .contact-inner{grid-template-columns:1fr}
+  .footer-inner{flex-direction:column;text-align:center}
+}
+@media(max-width:576px){
+  .modules-grid{grid-template-columns:1fr}
+  .roles-grid{grid-template-columns:1fr}
+  .hero-stats{flex-wrap:wrap;gap:20px}
+  .hero-stat-divider{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="topbar-text">Sistem Inventori Internal <strong>MKO Group</strong> — Hanya untuk penggunaan karyawan yang berwenang</span>
+</div>
+
+<nav>
+  <div class="nav-inner">
+    <div class="nav-left">
+      <a class="nav-logo" href="#">
+        <div class="nav-logo-wrap">
+          <div class="nav-logo-badge">SIFOBI</div>
+          <div class="nav-divider"></div>
+          <div class="nav-group">
+            <span>Inventory System</span>
+            <strong>MKO Group</strong>
+          </div>
+        </div>
+      </a>
+      <div class="nav-links">
+        <a href="#modul">Modul</a>
+        <a href="#akses">Hak Akses</a>
+        <a href="#bantuan">Bantuan</a>
+      </div>
+    </div>
+    <a href="/login" class="btn-login">Masuk ke Sistem</a>
+  </div>
+</nav>
+
+<!-- HERO INTERNAL -->
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-eyebrow">
+        <div class="hero-eyebrow-dot"></div>
+        <span class="hero-eyebrow-text">Sistem Aktif — Versi 2.0 MVP</span>
+      </div>
+      <h1>Portal Inventori<br><span>MKO Group</span><br>untuk Semua Outlet</h1>
+      <p class="hero-desc">Satu platform untuk mengelola stok bahan baku, penerimaan barang, dan opname harian di seluruh outlet MKO Group — dari mana saja, kapan saja.</p>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-num">53</div>
+          <div class="hero-stat-label">Outlet Aktif</div>
+        </div>
+        <div class="hero-stat-divider"></div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">9</div>
+          <div class="hero-stat-label">Brand</div>
+        </div>
+        <div class="hero-stat-divider"></div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">6</div>
+          <div class="hero-stat-label">PT / Legal Entity</div>
+        </div>
+        <div class="hero-stat-divider"></div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">1.852</div>
+          <div class="hero-stat-label">Karyawan</div>
+        </div>
+      </div>
+      <div style="background:var(--amber-light);border-left:3px solid var(--amber);border-radius:0 10px 10px 0;padding:12px 16px;font-size:13px;color:#92400E;max-width:460px">
+        <strong>Akses terbatas.</strong> Gunakan akun yang sudah diberikan oleh admin IT. Hubungi IT jika belum memiliki akun.
+      </div>
+    </div>
+    <div class="hero-login-box">
+      <div class="login-title">Masuk ke SIFOBI</div>
+      <div class="login-sub">Gunakan email perusahaan MKO Group</div>
+      <form action="/login" method="POST">
+        <div class="form-group">
+          <label class="form-label">Email Perusahaan</label>
+          <input type="email" class="form-input" placeholder="nama@mykopiogroup.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-input" placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn-submit">Masuk ke Sistem</button>
+      </form>
+      <div class="login-forgot">
+        Lupa password? <a href="/forgot-password">Reset di sini</a>
+      </div>
+      <div class="login-secure">
+        🔒 Koneksi aman · Data terenkripsi
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BRANDS -->
+<section class="brands">
+  <div class="brands-inner">
+    <div class="brands-title">Brand dalam sistem SIFOBI MKO Group</div>
+    <div class="brands-grid">
+      <div class="brand-pill">My Kopi-O! <span class="brand-count">23 outlet</span></div>
+      <div class="brand-pill">Quali <span class="brand-count">15 outlet</span></div>
+      <div class="brand-pill">Kampong Melayu <span class="brand-count">6 outlet</span></div>
+      <div class="brand-pill">Malay Village <span class="brand-count">4 outlet</span></div>
+      <div class="brand-pill">Penang's House <span class="brand-count">3 outlet</span></div>
+      <div class="brand-pill">Maulo <span class="brand-count">2 outlet</span></div>
+      <div class="brand-pill">MKO Production</div>
+      <div class="brand-pill">Quali Production</div>
+      <div class="brand-pill">Office / Admin</div>
+    </div>
+  </div>
+</section>
+
+<!-- MODUL -->
+<section class="modules" id="modul">
+  <div class="modules-inner">
+    <div class="modules-header">
+      <div class="section-eyebrow">Modul Sistem</div>
+      <div class="section-title">Fitur yang tersedia di SIFOBI v2</div>
+    </div>
+    <div class="modules-grid">
+      <div class="module-card">
+        <div class="module-icon green">📦</div>
+        <div class="module-title">Open Stock</div>
+        <div class="module-desc">Input stok awal per outlet, batch multi-item, target gudang atau stok harian.</div>
+        <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon green">📋</div>
+        <div class="module-title">Opname Harian</div>
+        <div class="module-desc">Opname per shift dengan input utuh & ecer. Offline-capable untuk outlet sinyal buruk.</div>
+        <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon green">🚚</div>
+        <div class="module-title">Penerimaan Barang</div>
+        <div class="module-desc">Terima dari OCIA/Roastery, CK, Purchasing, Supplier Luar — lengkap dengan approval.</div>
+        <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon amber">🗑️</div>
+        <div class="module-title">Spoil & Waste</div>
+        <div class="module-desc">Catat pemborosan dengan foto bukti. Deteksi otomatis jika foto duplikat.</div>
+        <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon green">📊</div>
+        <div class="module-title">Stok Gudang & Laporan</div>
+        <div class="module-desc">Pantau balance stok real-time. Laporan mutasi, spoil, penerimaan. Export Excel.</div>
+        <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon green">🔗</div>
+        <div class="module-title">Integrasi OCIA</div>
+        <div class="module-desc">Sync outlet dan order kopi ke sistem roastery OCIA/OMEO secara otomatis.</div>
+        <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon green">🏷️</div>
+        <div class="module-title">Master Data</div>
+        <div class="module-desc">Item, satuan, konversi, kategori, jenis bahan, outlet mapping — semua terkelola.</div>
+        <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon amber">🍽️</div>
+        <div class="module-title">Recipe & HPP</div>
+        <div class="module-desc">Resep versioned, BOM multi-level, kalkulator HPP dengan foto plating.</div>
+        <div class="module-status" style="color:var(--amber);background:var(--amber-light)"><span class="module-status-dot" style="background:var(--amber)"></span>Sprint 2</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HAK AKSES -->
+<section class="roles" id="akses">
+  <div class="roles-inner">
+    <div class="section-eyebrow">Hak Akses</div>
+    <div class="section-title">Akses disesuaikan per jabatan</div>
+    <div class="roles-grid">
+      <div class="role-card">
+        <div class="role-accent" style="background:var(--green-700)"></div>
+        <div class="role-title">Super Admin / IT</div>
+        <div class="role-desc">Akses penuh ke seluruh sistem, user management, dan konfigurasi</div>
+        <div class="role-perms">
+          <div class="role-perm"><div class="role-perm-dot" style="background:var(--green-500)"></div>Semua modul & settings</div>
+          <div class="role-perm"><div class="role-perm-dot" style="background:var(--green-500)"></div>Kelola user & role</div>
+          <div class="role-perm"><div class="role-perm-dot" style="background:var(--green-500)"></div>Konfigurasi integrasi</div>
+        </div>
+      </div>
+      <div class="role-card">
+        <div class="role-accent" style="background:var(--green-500)"></div>
+        <div class="role-title">General Finance</div>
+        <div class="role-desc">Akses laporan semua brand & outlet, master data keuangan</div>
+        <div class="role-perms">
+          <div class="role-perm"><div class="role-perm-dot" style="background:var(--green-500)"></div>Laporan konsolidasi group</div>
+          <div class="role-perm"><div class="role-perm-dot" style="background:var(--green-500)"></div>Master item & HPP</div>
+          <div class="role-perm"><div class="role-perm-dot" style="background:var(--green-500)"></div>Import/Export Excel</div>
+        </div>
+      </div>
+      <div class="role-card">
+        <div class="role-accent" style="background:var(--amber)"></div>
+        <div class="role-title">Manager Area</div>
+        <div class="role-desc">Pantau dan approve transaksi outlet di area yang ditugaskan</div>
+        <div class="role-perms">
+          <div class="role-perm"><div class="role-perm-dot" style="background:var(--amber)"></div>Lihat semua outlet area</div>
+          <div class="role-perm"><div class="role-perm-dot" style="background:var(--amber)"></div>Approve PO & opname</div>
+          <div class="role-perm"><div class="role-perm-dot" style="background:var(--amber)"></div>Laporan area</div>
+        </div>
+      </div>
+      <div class="role-card">
+        <div class="role-accent" style="background:#0284C7"></div>
+        <div class="role-title">PIC Outlet</div>
+        <div class="role-desc">Kelola operasional harian 1 outlet yang ditugaskan</div>
+        <div class="role-perms">
+          <div class="role-perm"><div class="role-perm-dot" style="background:#0284C7"></div>Approve spoil & penerimaan</div>
+          <div class="role-perm"><div class="role-perm-dot" style="background:#0284C7"></div>Monitor stok outlet</div>
+          <div class="role-perm"><div class="role-perm-dot" style="background:#0284C7"></div>Submit PO ke roastery/CK</div>
+        </div>
+      </div>
+      <div class="role-card">
+        <div class="role-accent" style="background:#7C3AED"></div>
+        <div class="role-title">Staff Bar / Kitchen</div>
+        <div class="role-desc">Input opname, spoil, dan stok harian dari HP</div>
+        <div class="role-perms">
+          <div class="role-perm"><div class="role-perm-dot" style="background:#7C3AED"></div>Input opname harian</div>
+          <div class="role-perm"><div class="role-perm-dot" style="background:#7C3AED"></div>Catat spoil & waste</div>
+          <div class="role-perm"><div class="role-perm-dot" style="background:#7C3AED"></div>Terima barang datang</div>
+        </div>
+      </div>
+      <div class="role-card">
+        <div class="role-accent" style="background:#DC2626"></div>
+        <div class="role-title">Sekretaris Owner</div>
+        <div class="role-desc">Akses penuh laporan dan ringkasan eksekutif</div>
+        <div class="role-perms">
+          <div class="role-perm"><div class="role-perm-dot" style="background:#DC2626"></div>Semua laporan & export</div>
+          <div class="role-perm"><div class="role-perm-dot" style="background:#DC2626"></div>Dashboard eksekutif</div>
+          <div class="role-perm"><div class="role-perm-dot" style="background:#DC2626"></div>Ringkasan semua brand</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KONTAK IT -->
+<section class="contact" id="bantuan">
+  <div class="contact-inner">
+    <div>
+      <h2>Butuh bantuan atau akses?</h2>
+      <p>Hubungi tim IT MKO Group untuk pembuatan akun baru, reset password, atau laporan masalah teknis.</p>
+      <div class="contact-info">
+        <div class="contact-item">
+          <div class="contact-item-icon">📧</div>
+          <div>
+            <div class="contact-item-label">Email IT Support</div>
+            <div class="contact-item-val">it@mykopiogroup.com</div>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="contact-item-icon">💬</div>
+          <div>
+            <div class="contact-item-label">WhatsApp IT</div>
+            <div class="contact-item-val">+62 812-XXXX-XXXX</div>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="contact-item-icon">⏰</div>
+          <div>
+            <div class="contact-item-label">Jam Dukungan</div>
+            <div class="contact-item-val">Senin–Jumat · 08.00–17.00 WIB</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="contact-form">
+      <div class="login-title" style="font-size:18px;margin-bottom:4px">Kirim Pesan ke IT</div>
+      <div class="login-sub" style="margin-bottom:20px">Respons dalam 1×24 jam kerja</div>
+      <div class="form-group">
+        <label class="form-label">Nama Lengkap</label>
+        <input type="text" class="form-input" placeholder="Nama Anda">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email / WhatsApp</label>
+        <input type="text" class="form-input" placeholder="Kontak Anda">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Outlet / Jabatan</label>
+        <input type="text" class="form-input" placeholder="Contoh: Staff Bar · MKO Grand City">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pesan / Kendala</label>
+        <textarea class="form-input" placeholder="Jelaskan masalah atau permintaan Anda..."></textarea>
+      </div>
+      <button class="btn-submit" style="background:var(--green-700)">Kirim Pesan</button>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">SIFOBI <span style="font-size:12px;font-weight:400;color:rgba(255,255,255,0.3);margin-left:8px">by MKO Group IT</span></div>
+    <div class="footer-copy">© 2026 My Kopi-O Group · Sistem untuk internal · v2.0 MVP</div>
+    <div class="footer-links-f">
+      <a href="#">Panduan User</a>
+      <a href="#">Release Notes</a>
+      <a href="#bantuan">IT Support</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

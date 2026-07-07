@@ -12,6 +12,13 @@
             <a href="{{ route('settings.app') }}" class="sf-btn-primary mt-4 w-full">Kelola</a>
         </x-sf.card>
 
+        @can('manage_users')
+            <x-sf.card title="Manajemen User">
+                <p class="text-sm text-gray-500 min-h-10">Tambah, edit, atur role, outlet, dan status akses user.</p>
+                <a href="{{ route('settings.users.index') }}" class="sf-btn-primary mt-4 w-full">Kelola</a>
+            </x-sf.card>
+        @endcan
+
         <x-sf.card title="Jenis Bahan">
             <p class="text-sm text-gray-500 min-h-10">Kelola kategori bisnis item untuk kebutuhan Finance.</p>
             <a href="{{ route('settings.item-jenises.index') }}" class="sf-btn-primary mt-4 w-full">Kelola</a>
