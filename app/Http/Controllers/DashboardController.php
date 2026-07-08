@@ -2,14 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Modules\Core\Models\Outlet;
-use App\Modules\Inventory\Models\Item;
 use App\Modules\Operations\Models\OpenStock;
 use App\Modules\Operations\Models\OpnameSession;
 use App\Modules\Operations\Models\SpoilWaste;
 use App\Modules\Receiving\Models\GoodsReceipt;
-use App\Modules\Stock\Models\StockBalance;
-use App\Modules\Stock\Models\StockMutation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -18,38 +14,42 @@ class DashboardController extends Controller
 {
     public function __invoke(Request $request): View
     {
+        ini_set('memory_limit', '256M');
+
         $user = $request->user();
         $tenantId = $user->tenant_id;
 
-        $tenantScope = fn ($query) => $tenantId
-            ? $query->where('tenant_id', $tenantId)
-            : $query;
+        $tenantTable = fn (string $table) => $tenantId
+            ? DB::table($table)->where('tenant_id', $tenantId)
+            : DB::table($table);
 
         return view('dashboard.index', [
             'user' => $user,
             'roles' => $user->getRoleNames()->values(),
             'metrics' => [
-                'total_outlets' => $tenantScope(Outlet::query())->count(),
-                'total_items' => $tenantScope(Item::query())->where('is_active', true)->count(),
-                'total_stock_mutations' => $tenantScope(StockMutation::query())->count(),
-                'total_stock_balances' => $tenantScope(StockBalance::query())->count(),
-                'open_stock_pending' => $tenantScope(OpenStock::query())->whereIn('status', ['DRAFT', 'PENDING'])->count(),
-                'open_stock_draft' => $tenantScope(OpenStock::query())->where('status', OpenStock::STATUS_DRAFT)->count(),
-                'open_stock_posted' => $tenantScope(OpenStock::query())->where('status', OpenStock::STATUS_POSTED)->count(),
-                'item_aktif' => $tenantScope(Item::query())->where('is_active', true)->count(),
-                'open_stock_today' => $tenantScope(OpenStock::query())->whereDate('created_at', today())->count(),
-                'stok_menipis' => $tenantScope(StockBalance::query())->where('qty_on_hand', '<=', 0)->count(),
-                'spoil_today' => $tenantScope(SpoilWaste::query())->whereDate('recorded_date', today())->count(),
-                'penerimaan_pending' => $tenantScope(GoodsReceipt::query())->where('status', GoodsReceipt::STATUS_SUBMITTED)->count(),
-                'opname_draft' => $tenantScope(OpnameSession::query())->where('status', OpnameSession::STATUS_DRAFT)->whereDate('opname_date', today())->count(),
-                'opname_pending' => $tenantScope(OpnameSession::query())->where('status', OpnameSession::STATUS_SUBMITTED)->count(),
-                'receiving_pending_review' => $tenantScope(GoodsReceipt::query())->where('status', GoodsReceipt::STATUS_SUBMITTED)->count(),
-                'spoil_pending_approval' => $tenantScope(SpoilWaste::query())->where('approval_status', 'PENDING')->count(),
+                'total_outlets' => $tenantTable('outlets')->count(),
+                'total_items' => $tenantTable('items')->where('is_active', true)->count(),
+                'total_stock_mutations' => $tenantTable('stock_mutations')->count(),
+                'total_stock_balances' => $tenantTable('stock_balances')->count(),
+                'open_stock_pending' => $tenantTable('open_stocks')->whereIn('status', ['DRAFT', 'PENDING'])->count(),
+                'open_stock_draft' => $tenantTable('open_stocks')->where('status', OpenStock::STATUS_DRAFT)->count(),
+                'open_stock_posted' => $tenantTable('open_stocks')->where('status', OpenStock::STATUS_POSTED)->count(),
+                'item_aktif' => $tenantTable('items')->where('is_active', true)->count(),
+                'open_stock_today' => $tenantTable('open_stocks')->whereDate('created_at', today())->count(),
+                'stok_menipis' => $tenantTable('stock_balances')->where('qty_on_hand', '<=', 0)->count(),
+                'spoil_today' => $tenantTable('spoil_wastes')->whereDate('recorded_date', today())->count(),
+                'penerimaan_pending' => $tenantTable('goods_receipts')->where('status', GoodsReceipt::STATUS_SUBMITTED)->count(),
+                'opname_draft' => $tenantTable('opname_sessions')->where('status', OpnameSession::STATUS_DRAFT)->whereDate('opname_date', today())->count(),
+                'opname_pending' => $tenantTable('opname_sessions')->where('status', OpnameSession::STATUS_SUBMITTED)->count(),
+                'receiving_pending_review' => $tenantTable('goods_receipts')->where('status', GoodsReceipt::STATUS_SUBMITTED)->count(),
+                'spoil_pending_approval' => $tenantTable('spoil_wastes')->where('status', SpoilWaste::STATUS_PENDING)->count(),
             ],
             'latestMutations' => DB::table('stock_mutations as sm')
                 ->join('items as i', 'i.id', '=', 'sm.item_id')
-                ->where('sm.tenant_id', $tenantId)
+                ->when($tenantId, fn ($query) => $query->where('sm.tenant_id', $tenantId))
                 ->select([
+                    'sm.id',
+                    'sm.item_id',
                     'sm.performed_at',
                     'sm.mutation_type',
                     'sm.qty_change',
@@ -57,7 +57,7 @@ class DashboardController extends Controller
                     'i.canonical_sku',
                 ])
                 ->orderByDesc('sm.performed_at')
-                ->limit(5)
+                ->limit(10)
                 ->get(),
         ]);
     }
