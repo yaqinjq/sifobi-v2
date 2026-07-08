@@ -368,7 +368,7 @@ footer{background:var(--gray-900);padding:60px 5% 36px;color:rgba(255,255,255,0.
           <div class="notif-sub">Susu UHT · barusan</div>
         </div>
         <div class="floating-alert">
-          <div class="alert-icon">⚠️</div>
+          <div class="alert-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></div>
           <div class="alert-text">Gula Semut kritis!</div>
           <div class="alert-sub">Sisa &lt; 500gr</div>
         </div>
@@ -571,7 +571,7 @@ footer{background:var(--gray-900);padding:60px 5% 36px;color:rgba(255,255,255,0.
           <div class="phone-topbar">
             <div class="phone-greeting">Selamat pagi,</div>
             <div class="phone-name">Budi Santoso</div>
-            <div class="phone-outlet">📍 MKO Grand City</div>
+            <div class="phone-outlet"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg> MKO Grand City</div>
           </div>
           <div class="phone-kpis">
             <div class="phone-kpi">
@@ -588,7 +588,7 @@ footer{background:var(--gray-900);padding:60px 5% 36px;color:rgba(255,255,255,0.
             </div>
             <div class="phone-kpi">
               <div class="phone-kpi-label">Opname</div>
-              <div class="phone-kpi-val" style="color:#16a34a">✓</div>
+              <div class="phone-kpi-val" style="color:#16a34a"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><path d="M20 6L9 17l-5-5"/></svg></div>
             </div>
           </div>
           <div class="phone-section">
@@ -606,7 +606,7 @@ footer{background:var(--gray-900);padding:60px 5% 36px;color:rgba(255,255,255,0.
             <div class="phone-item">
               <div class="phone-item-dot" style="background:#d97706"></div>
               <span class="phone-item-name">Sirup Hazelnut</span>
-              <span class="phone-item-qty">2 botol ⚠️</span>
+              <span class="phone-item-qty">2 botol <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></span>
             </div>
           </div>
           <div class="phone-nav">

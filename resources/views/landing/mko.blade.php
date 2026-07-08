@@ -234,7 +234,7 @@ footer{background:var(--gray-900);padding:36px 5%;color:rgba(255,255,255,0.5)}
         Lupa password? <a href="{{ route('password.request') }}">Reset di sini</a>
       </div>
       <div class="login-secure">
-        ðŸ”’ Koneksi aman Â· Data terenkripsi
+        Koneksi aman Â· Data terenkripsi
       </div>
     </div>
   </div>
@@ -267,49 +267,49 @@ footer{background:var(--gray-900);padding:36px 5%;color:rgba(255,255,255,0.5)}
     </div>
     <div class="modules-grid">
       <div class="module-card">
-        <div class="module-icon green">ðŸ“¦</div>
+        <div class="module-icon green"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><path d="M20 7H4C2.9 7 2 7.9 2 9v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z"/><path d="M16 3H8L6 7h12l-2-4z"/></svg></div>
         <div class="module-title">Open Stock</div>
         <div class="module-desc">Input stok awal per outlet, batch multi-item, target gudang atau stok harian.</div>
         <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
       </div>
       <div class="module-card">
-        <div class="module-icon green">ðŸ“‹</div>
+        <div class="module-icon green"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg></div>
         <div class="module-title">Opname Harian</div>
         <div class="module-desc">Opname per shift dengan input utuh & ecer. Offline-capable untuk outlet sinyal buruk.</div>
         <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
       </div>
       <div class="module-card">
-        <div class="module-icon green">ðŸšš</div>
+        <div class="module-icon green"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
         <div class="module-title">Penerimaan Barang</div>
         <div class="module-desc">Terima dari OCIA/Roastery, CK, Purchasing, Supplier Luar â€” lengkap dengan approval.</div>
         <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
       </div>
       <div class="module-card">
-        <div class="module-icon amber">ðŸ—‘ï¸</div>
+        <div class="module-icon amber"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></div>
         <div class="module-title">Spoil & Waste</div>
         <div class="module-desc">Catat pemborosan dengan foto bukti. Deteksi otomatis jika foto duplikat.</div>
         <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
       </div>
       <div class="module-card">
-        <div class="module-icon green">ðŸ“Š</div>
+        <div class="module-icon green"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
         <div class="module-title">Stok Gudang & Laporan</div>
         <div class="module-desc">Pantau balance stok real-time. Laporan mutasi, spoil, penerimaan. Export Excel.</div>
         <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
       </div>
       <div class="module-card">
-        <div class="module-icon green">ðŸ”—</div>
+        <div class="module-icon green"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></div>
         <div class="module-title">Integrasi OCIA</div>
         <div class="module-desc">Sync outlet dan order kopi ke sistem roastery OCIA/OMEO secara otomatis.</div>
         <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
       </div>
       <div class="module-card">
-        <div class="module-icon green">ðŸ·ï¸</div>
+        <div class="module-icon green"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
         <div class="module-title">Master Data</div>
         <div class="module-desc">Item, satuan, konversi, kategori, jenis bahan, outlet mapping â€” semua terkelola.</div>
         <div class="module-status"><span class="module-status-dot"></span>Aktif</div>
       </div>
       <div class="module-card">
-        <div class="module-icon amber">ðŸ½ï¸</div>
+        <div class="module-icon amber"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div>
         <div class="module-title">Recipe & HPP</div>
         <div class="module-desc">Resep versioned, BOM multi-level, kalkulator HPP dengan foto plating.</div>
         <div class="module-status" style="color:var(--amber);background:var(--amber-light)"><span class="module-status-dot" style="background:var(--amber)"></span>Sprint 2</div>
@@ -396,21 +396,21 @@ footer{background:var(--gray-900);padding:36px 5%;color:rgba(255,255,255,0.5)}
       <p>Hubungi tim IT MKO Group untuk pembuatan akun baru, reset password, atau laporan masalah teknis.</p>
       <div class="contact-info">
         <div class="contact-item">
-          <div class="contact-item-icon">ðŸ“§</div>
+          <div class="contact-item-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/><path d="M22 6l-10 7L2 6"/></svg></div>
           <div>
             <div class="contact-item-label">Email IT Support</div>
             <div class="contact-item-val">it@mykopiogroup.com</div>
           </div>
         </div>
         <div class="contact-item">
-          <div class="contact-item-icon">ðŸ’¬</div>
+          <div class="contact-item-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><path d="M21 15a4 4 0 01-4 4H7l-4 4V7a4 4 0 014-4h10a4 4 0 014 4v8z"/></svg></div>
           <div>
             <div class="contact-item-label">WhatsApp IT</div>
             <div class="contact-item-val">+62 812-XXXX-XXXX</div>
           </div>
         </div>
         <div class="contact-item">
-          <div class="contact-item-icon">â°</div>
+          <div class="contact-item-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
           <div>
             <div class="contact-item-label">Jam Dukungan</div>
             <div class="contact-item-val">Seninâ€“Jumat Â· 08.00â€“17.00 WIB</div>
