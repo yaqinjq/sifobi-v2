@@ -19,31 +19,30 @@ class LoginController extends Controller
         return view('auth.login');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
         $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
+            'email'    => ['required', 'email'],
+            'password' => ['required'],
         ]);
 
-        $remember = $request->boolean('remember');
-
-        if (! Auth::attempt($credentials, $remember)) {
+        if (!Auth::attempt($credentials, $request->boolean('remember'))) {
             return back()
-                ->withErrors(['email' => 'Email atau password tidak sesuai.'])
+                ->withErrors(['email' => 'Email atau password salah.'])
                 ->onlyInput('email');
         }
 
-        if (strtoupper((string) Auth::user()->status) !== 'ACTIVE') {
-            Auth::logout();
-
-            return back()
-                ->withErrors(['email' => 'Akun Anda sedang non-aktif. Hubungi administrator.'])
-                ->onlyInput('email');
+        // Update last login — WAJIB pakai try-catch agar tidak crash
+        try {
+            Auth::user()->forceFill([
+                'last_login_at' => now()
+            ])->saveQuietly();
+        } catch (\Exception $e) {
+            // Jika kolom belum ada, login tetap lanjut
+            \Log::warning('last_login_at update failed: ' . $e->getMessage());
         }
 
         $request->session()->regenerate();
-        $request->user()->forceFill(['last_login_at' => now()])->save();
 
         return redirect()->intended(route('dashboard'));
     }
