@@ -643,62 +643,67 @@ footer{background:var(--gray-900);padding:60px 5% 36px;color:rgba(255,255,255,0.
     <div class="pricing-header">
       <div class="section-eyebrow">Harga Transparan</div>
       <h2 class="section-title">Flat monthly, tidak ada biaya tersembunyi</h2>
-      <p class="section-desc">Pilih paket sesuai skala bisnis Anda. Semua paket sudah termasuk unlimited user dan unlimited transaksi.</p>
+      <p class="section-desc">Pilih paket sesuai skala bisnis Anda. Semua paket sudah termasuk transaksi tidak terbatas.</p>
     </div>
     <div class="pricing-grid">
       <div class="price-card">
         <div class="price-name">Starter</div>
-        <div class="price-desc">Untuk bisnis F&B dengan 1–3 outlet</div>
+        <div class="price-desc">Cocok untuk warung kopi, kafe, atau restoran 1 outlet</div>
         <div class="price-amount">
-          <span class="price-currency">Rp</span><span class="price-num">299</span><span style="font-size:16px;color:var(--gray-400)">rb</span>
+          <span class="price-currency">Rp</span><span class="price-num">99</span><span style="font-size:16px;color:var(--gray-400)">rb</span>
         </div>
-        <div class="price-period">per bulan per outlet</div>
-        <div class="price-per">Tagihan bulanan · tidak ada kontrak</div>
+        <div class="price-period">per bulan</div>
+        <div class="price-per">1 outlet · tagihan bulanan</div>
         <ul class="price-features">
-          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Open Stock & Opname Harian</li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Stok & Opname Harian</li>
           <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Penerimaan Barang 4 sumber</li>
           <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Spoil & Waste Tracking</li>
           <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Laporan & Export Excel</li>
-          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Maksimal 1 brand</li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>5 user (1 PIC + 4 Staff)</li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Support via WhatsApp</li>
         </ul>
         <a href="{{ route('register') }}" class="price-btn price-btn-outline">Mulai Coba Gratis</a>
       </div>
       <div class="price-card featured">
         <div class="price-popular">Paling Populer</div>
-        <div class="price-name">Business</div>
-        <div class="price-desc">Untuk chain F&B dengan 4–20 outlet</div>
+        <div class="price-name">Growth</div>
+        <div class="price-desc">Untuk chain F&B yang sedang berkembang</div>
         <div class="price-amount">
-          <span class="price-currency">Rp</span><span class="price-num">199</span><span style="font-size:16px;color:var(--gray-400)">rb</span>
+          <span class="price-currency">Rp</span><span class="price-num">249</span><span style="font-size:16px;color:var(--gray-400)">rb</span>
         </div>
-        <div class="price-period">per bulan per outlet</div>
-        <div class="price-per">Hemat 33% vs Starter · min. 4 outlet</div>
+        <div class="price-period">per bulan</div>
+        <div class="price-per">hingga 5 outlet · hemat 50% vs Starter</div>
         <ul class="price-features">
           <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Semua fitur Starter</li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Hingga 5 outlet sekaligus</li>
           <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Multi-brand tidak terbatas</li>
           <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Dashboard Manager Area</li>
-          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Integrasi sistem eksternal</li>
-          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Laporan konsolidasi group</li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>User tidak terbatas</li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Laporan konsolidasi semua outlet</li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Integrasi sistem eksternal (API)</li>
         </ul>
         <a href="{{ route('register') }}" class="price-btn price-btn-solid">Mulai Coba Gratis</a>
       </div>
       <div class="price-card">
         <div class="price-name">Enterprise</div>
-        <div class="price-desc">Untuk grup F&B dengan 20+ outlet</div>
+        <div class="price-desc">Untuk grup F&B dengan 6+ outlet atau kebutuhan khusus</div>
         <div class="price-amount">
           <span style="font-family:var(--font-head);font-size:36px;font-weight:800;color:var(--gray-900)">Custom</span>
         </div>
         <div class="price-period">Negosiasi sesuai skala</div>
         <div class="price-per">Hubungi tim kami untuk penawaran</div>
         <ul class="price-features">
-          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Semua fitur Business</li>
-          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Dedicated server & DB</li>
-          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Custom integrasi POS</li>
-          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>SLA & dukungan prioritas</div></li>
-          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Training onsite tim Anda</li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Semua fitur Growth</li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Outlet tidak terbatas</li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Database dedicated (isolasi penuh)</li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Custom integrasi POS & delivery</li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>SLA & dukungan prioritas 24/7</div></li>
+          <li><div class="price-check"><svg viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg></div>Training & onboarding onsite</li>
         </ul>
         <a href="mailto:hello@sifobi.id" class="price-btn price-btn-outline">Hubungi Kami</a>
       </div>
     </div>
+    <p style="text-align:center;color:var(--gray-500);font-size:14px;margin-top:32px;line-height:2">✓ Coba gratis 14 hari — tidak perlu kartu kredit<br>✓ Bisa upgrade atau downgrade kapan saja<br>✓ Data Anda tetap aman jika berhenti berlangganan</p>
   </div>
 </section>
 
