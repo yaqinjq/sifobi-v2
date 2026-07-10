@@ -27,9 +27,24 @@ class OpenStockController extends Controller
     public function index(Request $request): View
     {
         $tenantId = $request->user()->tenant_id;
+        $sortable = [
+            'date',
+            'outlet_code',
+            'department_name',
+            'item_name',
+            'stock_target',
+            'qty_whole',
+            'qty_loose',
+            'qty_in_base_unit',
+            'status',
+        ];
+        $sort = in_array($request->string('sort')->toString(), $sortable, true)
+            ? $request->string('sort')->toString()
+            : 'date';
+        $direction = $request->string('direction')->toString() === 'asc' ? 'asc' : 'desc';
 
         $query = OpenStock::query()
-            ->with(['outlet', 'item.inventoryUnit', 'unit', 'postedBy', 'createdBy'])
+            ->with(['outlet', 'department', 'item.baseUnit', 'item.inventoryUnit', 'item.purchaseUnit', 'unit', 'postedBy', 'createdBy'])
             ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId));
 
         if ($request->filled('status')) {
@@ -48,10 +63,33 @@ class OpenStockController extends Controller
             );
         }
 
-        $openStocks = $query->latest('business_date')->latest()->limit(100)->get();
+        if ($sort === 'item_name') {
+            $query->join('items', 'items.id', '=', 'open_stocks.item_id')
+                ->orderBy('items.name', $direction)
+                ->select('open_stocks.*');
+        } elseif ($sort === 'outlet_code') {
+            $query->join('outlets', 'outlets.id', '=', 'open_stocks.outlet_id')
+                ->orderBy('outlets.code', $direction)
+                ->select('open_stocks.*');
+        } elseif ($sort === 'department_name') {
+            $query->leftJoin('departments', 'departments.id', '=', 'open_stocks.department_id')
+                ->orderBy('departments.name', $direction)
+                ->select('open_stocks.*');
+        } elseif ($sort === 'date') {
+            $query->orderBy('open_stocks.business_date', $direction);
+        } else {
+            $query->orderBy('open_stocks.'.$sort, $direction);
+        }
+
+        $openStocks = $query
+            ->orderBy('open_stocks.id', 'desc')
+            ->paginate(25)
+            ->withQueryString();
 
         return view('operations.open-stocks.index', [
             'openStocks' => $openStocks,
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 

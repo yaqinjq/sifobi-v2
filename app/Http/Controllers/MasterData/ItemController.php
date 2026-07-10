@@ -27,6 +27,12 @@ class ItemController extends Controller
         $search = $request->string('q')->toString();
         $typeFilter = $request->string('type')->toString();
         $statusFilter = $request->string('status')->toString();
+        $outletFilter = $request->string('outlet_id')->toString();
+        $deptFilter = $request->string('dept_id')->toString();
+        $colName = $request->string('col_name')->toString();
+        $colSku = $request->string('col_sku')->toString();
+        $colJenis = $request->string('col_jenis')->toString();
+        $colKategori = $request->string('col_kategori')->toString();
         $sortable = ['canonical_sku', 'name', 'item_jenis_id', 'item_category_id', 'item_type', 'created_at'];
         $sort = in_array($request->string('sort')->toString(), $sortable, true)
             ? $request->string('sort')->toString()
@@ -53,10 +59,60 @@ class ItemController extends Controller
             );
         }
 
+        if ($outletFilter !== '') {
+            $query->whereHas('outlets', fn ($q) => $q->where('outlets.id', (int) $outletFilter));
+        }
+
+        if ($deptFilter !== '') {
+            $query->where('primary_department_id', (int) $deptFilter);
+        }
+
+        if ($colName !== '') {
+            $query->where('items.name', 'like', "%{$colName}%");
+        }
+
+        if ($colSku !== '') {
+            $query->where('items.canonical_sku', 'like', "%{$colSku}%");
+        }
+
+        if ($colJenis !== '') {
+            $query->where('items.item_jenis_id', (int) $colJenis);
+        }
+
+        if ($colKategori !== '') {
+            $query->where('items.item_category_id', (int) $colKategori);
+        }
+
         $items = $query
             ->orderBy($sort, $direction)
             ->paginate(25)
             ->withQueryString();
+
+        $outlets = Outlet::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'ACTIVE')
+            ->orderBy('name')
+            ->get();
+
+        $departments = Department::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'ACTIVE')
+            ->orderBy('name')
+            ->get();
+
+        $jenises = ItemJenis::query()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        $categories = ItemCategory::query()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
 
         return view('master-data.items.index', [
             'items' => $items,
@@ -65,8 +121,18 @@ class ItemController extends Controller
             'search' => $search,
             'typeFilter' => $typeFilter,
             'statusFilter' => $statusFilter,
+            'outletFilter' => $outletFilter,
+            'deptFilter' => $deptFilter,
+            'colName' => $colName,
+            'colSku' => $colSku,
+            'colJenis' => $colJenis,
+            'colKategori' => $colKategori,
             'sort' => $sort,
             'direction' => $direction,
+            'outlets' => $outlets,
+            'departments' => $departments,
+            'jenises' => $jenises,
+            'categories' => $categories,
         ]);
     }
 

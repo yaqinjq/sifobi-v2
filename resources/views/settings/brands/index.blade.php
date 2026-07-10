@@ -15,7 +15,7 @@
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-5xl mx-auto w-full space-y-4">
     <div class="lg:hidden space-y-3">
         @foreach($brands as $brand)
-            <a href="{{ route('settings.brands.edit', $brand) }}" class="block sf-card p-4">
+            <article class="sf-card p-4">
                 <div class="flex gap-3">
                     <div class="h-12 w-12 rounded-xl bg-gray-100 overflow-hidden flex items-center justify-center text-xs font-semibold text-gray-400">
                         @if($brand->logo_path)
@@ -29,11 +29,24 @@
                         <p class="text-sm text-gray-500">{{ $brand->code }} - {{ $brand->outlets_count }} outlet</p>
                     </div>
                     <span class="{{ $brand->status === 'ACTIVE' ? 'badge-active' : 'badge-inactive' }}">{{ $brand->status }}</span>
-                    <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600" title="Edit {{ $brand->name }}">
-                        <i class="ti ti-edit text-base" aria-hidden="true"></i>
-                    </span>
                 </div>
-            </a>
+                <div class="mt-3 flex items-center justify-end gap-2">
+                    <x-icon-btn
+                        icon="edit"
+                        label="Edit {{ $brand->name }}"
+                        color="blue"
+                        href="{{ route('settings.brands.edit', $brand) }}"
+                    />
+                    <x-icon-btn
+                        icon="delete"
+                        label="Hapus Brand"
+                        color="red"
+                        href="{{ route('settings.brands.destroy', $brand) }}"
+                        method="DELETE"
+                        confirm="Yakin hapus brand ini? Pastikan tidak ada outlet aktif."
+                    />
+                </div>
+            </article>
         @endforeach
     </div>
 
@@ -67,13 +80,24 @@
                             <td class="px-4 py-3 text-right text-gray-700">{{ $brand->outlets_count }}</td>
                             <td class="px-4 py-3"><span class="{{ $brand->status === 'ACTIVE' ? 'badge-active' : 'badge-inactive' }}">{{ $brand->status }}</span></td>
                             <td class="px-4 py-3 text-right">
-                                <x-icon-btn
-                                    icon="edit"
-                                    label="Edit {{ $brand->name }}"
-                                    color="blue"
-                                    size="sm"
-                                    href="{{ route('settings.brands.edit', $brand) }}"
-                                />
+                                <div class="flex items-center justify-end gap-2">
+                                    <x-icon-btn
+                                        icon="edit"
+                                        label="Edit {{ $brand->name }}"
+                                        color="blue"
+                                        size="sm"
+                                        href="{{ route('settings.brands.edit', $brand) }}"
+                                    />
+                                    <x-icon-btn
+                                        icon="delete"
+                                        label="Hapus Brand"
+                                        color="red"
+                                        size="sm"
+                                        href="{{ route('settings.brands.destroy', $brand) }}"
+                                        method="DELETE"
+                                        confirm="Yakin hapus brand ini? Pastikan tidak ada outlet aktif."
+                                    />
+                                </div>
                             </td>
                         </tr>
                     @endforeach

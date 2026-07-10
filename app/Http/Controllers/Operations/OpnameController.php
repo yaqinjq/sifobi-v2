@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Operations;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Outlet;
+use App\Modules\Inventory\Models\ItemCategory;
 use App\Modules\Operations\Models\OpnameItem;
 use App\Modules\Operations\Models\OpnameSession;
 use App\Services\OpnameService;
@@ -81,20 +82,101 @@ class OpnameController extends Controller
             ->with('success', 'Sesi opname berhasil dibuat.');
     }
 
-    public function show(OpnameSession $session): View
+    public function show(Request $request, OpnameSession $session): View
     {
         $session->load([
             'outlet',
             'createdBy',
             'submittedBy',
             'approvedBy',
-            'items.item.inventoryUnit',
-            'items.item.baseUnit',
-            'items.department',
         ]);
+
+        $search = $request->string('q')->toString();
+        $categoryId = $request->string('category_id')->toString();
+        $allowedPerPage = ['20', '50', '100', 'all'];
+        $perPage = in_array($request->string('per_page')->toString(), $allowedPerPage, true)
+            ? $request->string('per_page')->toString()
+            : '20';
+
+        $roleNames = $request->user()->getRoleNames();
+        $roleFilter = null;
+
+        if ($roleNames->contains('STAFF_BAR')) {
+            $roleFilter = 'BAR';
+        } elseif ($roleNames->contains('STAFF_KITCHEN')) {
+            $roleFilter = 'KITCHEN';
+        } elseif ($roleNames->contains('STAFF_GUDANG')) {
+            $roleFilter = 'GUDANG';
+        }
+
+        $query = OpnameItem::query()
+            ->where('opname_session_id', $session->id)
+            ->with([
+                'item.inventoryUnit',
+                'item.baseUnit',
+                'item.category',
+                'item.jenis',
+                'item.primaryDepartment',
+                'department',
+                'unit',
+            ]);
+
+        if ($roleFilter !== null) {
+            $query->where(function ($q) use ($roleFilter): void {
+                $q->whereHas('item.primaryDepartment', fn ($departmentQuery) => $departmentQuery->where('name', 'like', "%{$roleFilter}%"))
+                    ->orWhereHas('department', fn ($departmentQuery) => $departmentQuery->where('name', 'like', "%{$roleFilter}%"))
+                    ->orWhere(function ($fallbackQuery): void {
+                        $fallbackQuery
+                            ->whereNull('department_id')
+                            ->whereHas('item', fn ($itemQuery) => $itemQuery->whereNull('primary_department_id'));
+                    });
+            });
+        }
+
+        if ($search !== '') {
+            $query->whereHas('item', fn ($q) => $q
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('canonical_sku', 'like', "%{$search}%")
+            );
+        }
+
+        if ($categoryId !== '') {
+            $query->whereHas('item', fn ($q) => $q->where('item_category_id', (int) $categoryId));
+        }
+
+        if ($perPage === 'all') {
+            $items = $query->orderBy('id')->get();
+            $paginator = null;
+        } else {
+            $paginator = $query->orderBy('id')->paginate((int) $perPage)->withQueryString();
+            $items = $paginator->getCollection();
+        }
+
+        $total = OpnameItem::query()
+            ->where('opname_session_id', $session->id)
+            ->count();
+        $counted = OpnameItem::query()
+            ->where('opname_session_id', $session->id)
+            ->where('is_counted', true)
+            ->count();
+
+        $categories = ItemCategory::query()
+            ->where('tenant_id', $this->tenantId($request))
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         return view('operations.opname.show', [
             'session' => $session,
+            'items' => $items,
+            'paginator' => $paginator,
+            'search' => $search,
+            'categoryId' => $categoryId,
+            'perPage' => $perPage,
+            'categories' => $categories,
+            'roleFilter' => $roleFilter,
+            'counted' => $counted,
+            'total' => $total,
         ]);
     }
 

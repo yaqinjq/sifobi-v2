@@ -27,7 +27,7 @@
     x-init="init()"
     class="pb-32"
 >
-    <div class="px-4 pt-4 lg:px-6 max-w-5xl mx-auto space-y-4">
+    <div class="px-4 pt-4 lg:px-6 w-full space-y-4">
         <div class="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
             <p class="text-sm font-semibold text-blue-900">Stok Harian Outlet diposting ke stok harian outlet.</p>
             <p class="text-sm text-blue-800 mt-1">Gudang Utama diposting ke gudang outlet dengan satuan pembelian.</p>
@@ -63,32 +63,32 @@
         </x-sf.card>
 
         <x-sf.card title="Baris Item">
-            <div class="hidden lg:grid grid-cols-[1fr_1.7fr_1fr_1.1fr_1.5fr_auto] gap-3 px-1 pb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                <span>Departemen</span>
-                <span>Bahan Baku</span>
-                <span>Satuan</span>
-                <span>Target</span>
-                <span>Qty</span>
-                <span class="text-right">Aksi</span>
+            <div class="hidden md:grid grid-cols-12 gap-3 px-1 pb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <span class="col-span-2">Departemen</span>
+                <span class="col-span-3">Bahan Baku</span>
+                <span class="col-span-1">Satuan</span>
+                <span class="col-span-2">Target</span>
+                <span class="col-span-3">Qty</span>
+                <span class="col-span-1 text-center">Aksi</span>
             </div>
 
             <div class="space-y-3">
                 <template x-for="(row, index) in rows" :key="row.id">
                     <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
-                        <div class="flex items-start justify-between gap-2 lg:hidden">
+                        <div class="flex items-start justify-between gap-2 md:hidden">
                             <span class="text-xs font-bold text-gray-400" x-text="'Baris ' + (index + 1)"></span>
                             <button type="button"
                                     @click="removeRow(index)"
                                     class="sf-icon-action sf-icon-danger-soft"
                                     title="Hapus baris"
                                     aria-label="Hapus baris">
-                                x
+                                <i class="ti ti-x text-sm" aria-hidden="true"></i>
                             </button>
                         </div>
 
-                        <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.7fr_1fr_1.1fr_1.5fr_auto] gap-3 items-start">
-                            <div>
-                                <label class="lg:hidden sf-label">Departemen</label>
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                            <div class="md:col-span-2">
+                                <label class="md:hidden sf-label">Departemen</label>
                                 <select x-model="row.department_id" class="sf-input text-base">
                                     <option value="">Pilih departemen</option>
                                     @foreach($departments as $department)
@@ -97,8 +97,8 @@
                                 </select>
                             </div>
 
-                            <div class="relative">
-                                <label class="lg:hidden sf-label">Bahan Baku</label>
+                            <div class="relative md:col-span-3">
+                                <label class="md:hidden sf-label">Bahan Baku</label>
                                 <input type="text"
                                        x-model="row.searchQuery"
                                        @input.debounce.300ms="searchItems(index)"
@@ -129,14 +129,14 @@
                                 </div>
                             </div>
 
-                            <div class="rounded-xl border border-gray-100 bg-white px-3 py-2 min-h-11">
+                            <div class="md:col-span-1 rounded-xl border border-gray-100 bg-white px-3 py-2 min-h-11">
                                 <p class="text-xs text-gray-400">Inv: <span x-text="row.inventory_unit || '-'"></span></p>
                                 <p class="text-xs text-gray-400">Base: <span x-text="row.base_unit || '-'"></span></p>
                                 <p class="text-xs text-gray-400">PO: <span x-text="row.purchase_unit || '-'"></span></p>
                             </div>
 
-                            <div>
-                                <label class="lg:hidden sf-label">Target Stok</label>
+                            <div class="md:col-span-2">
+                                <label class="md:hidden sf-label">Target Stok</label>
                                 <div class="grid grid-cols-1 gap-2">
                                     <button type="button"
                                             class="min-h-11 rounded-xl border px-3 py-2 text-left transition-colors"
@@ -155,45 +155,54 @@
                                 </div>
                             </div>
 
-                            <div>
+                            <div class="md:col-span-3">
                                 <div x-show="hasTarget(row, dailyTarget)" class="rounded-xl border border-amber-100 bg-amber-50 p-3"
                                      x-cloak>
                                     <p class="text-xs font-semibold text-amber-800 uppercase mb-2">Stok Harian Outlet</p>
-                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                        <div class="flex items-center gap-2">
-                                            <input type="text" inputmode="decimal" x-model="row.qty_whole" class="sf-input text-base" placeholder="Utuh">
-                                            <span class="text-xs text-gray-500 w-12 truncate" x-text="row.inventory_unit || 'inv'"></span>
+                                    <div class="grid grid-cols-3 gap-2">
+                                        <div>
+                                            <label class="block mb-1 text-center text-xs text-amber-700">Utuh</label>
+                                            <input type="text" inputmode="decimal" x-model="row.qty_whole" class="sf-input text-center text-base" placeholder="0">
+                                            <span class="mt-0.5 block truncate text-center text-xs text-gray-500" x-text="row.inventory_unit || 'inv'"></span>
                                         </div>
-                                        <div class="flex items-center gap-2">
-                                            <input type="text" inputmode="decimal" x-model="row.qty_loose" class="sf-input text-base" placeholder="Ecer">
-                                            <span class="text-xs text-gray-500 w-12 truncate" x-text="row.base_unit || 'base'"></span>
+                                        <div>
+                                            <label class="block mb-1 text-center text-xs text-amber-700">Ecer</label>
+                                            <input type="text" inputmode="decimal" x-model="row.qty_loose" class="sf-input text-center text-base" placeholder="0">
+                                            <span class="mt-0.5 block truncate text-center text-xs text-gray-500" x-text="row.base_unit || 'base'"></span>
                                         </div>
-                                        <div class="rounded-xl bg-white border border-amber-100 px-3 py-3 text-sm text-gray-700" x-text="getDailyQtyInBase(row) + ' ' + (row.base_unit || 'base')"></div>
+                                        <div>
+                                            <label class="block mb-1 text-center text-xs text-amber-700">Total</label>
+                                            <div class="min-h-11 rounded-xl bg-white border border-amber-100 px-2 py-3 text-center text-sm text-gray-700" x-text="getDailyQtyInBase(row)"></div>
+                                            <span class="mt-0.5 block truncate text-center text-xs text-gray-500" x-text="row.base_unit || 'base'"></span>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div x-show="hasTarget(row, warehouseTarget)" x-cloak class="rounded-xl border border-blue-100 bg-blue-50 p-3"
-                                     :class="hasTarget(row, dailyTarget) ? 'mt-2' : ''">
+                                <div x-show="hasTarget(row, warehouseTarget)" x-cloak class="mt-2 rounded-xl border border-blue-100 bg-blue-50 p-3">
                                     <p class="text-xs font-semibold text-blue-800 uppercase mb-2">Gudang Utama</p>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
-                                        <div class="flex items-center gap-2">
-                                            <input type="text" inputmode="decimal" x-model="row.qty_purchase" class="sf-input text-base" placeholder="Qty pembelian">
-                                            <span class="text-xs text-gray-500 w-14 truncate" x-text="row.purchase_unit || 'unit'"></span>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="block mb-1 text-xs text-blue-700">Qty pembelian</label>
+                                            <input type="text" inputmode="decimal" x-model="row.qty_purchase" class="sf-input text-base" placeholder="0">
+                                            <span class="mt-0.5 block truncate text-xs text-gray-500" x-text="row.purchase_unit || 'unit'"></span>
                                         </div>
-                                        <div class="rounded-xl bg-white border border-blue-100 px-3 py-3 text-sm text-gray-700" x-text="getWarehouseQtyInBase(row) + ' ' + (row.base_unit || 'base')"></div>
+                                        <div>
+                                            <label class="block mb-1 text-xs text-blue-700">Total base</label>
+                                            <div class="min-h-11 rounded-xl bg-white border border-blue-100 px-3 py-3 text-sm text-gray-700" x-text="getWarehouseQtyInBase(row) + ' ' + (row.base_unit || 'base')"></div>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <input type="text" x-model="row.notes" class="sf-input text-base mt-2" placeholder="Catatan baris (opsional)">
                             </div>
 
-                            <div class="hidden lg:flex justify-end">
+                            <div class="hidden md:col-span-1 md:flex justify-center pt-1">
                                 <button type="button"
                                         @click="removeRow(index)"
                                         class="sf-icon-action sf-icon-danger-soft"
                                         title="Hapus baris"
                                         aria-label="Hapus baris">
-                                    x
+                                    <i class="ti ti-x text-sm" aria-hidden="true"></i>
                                 </button>
                             </div>
                         </div>
@@ -267,7 +276,7 @@
 
     <div class="fixed bottom-0 left-0 right-0 lg:left-64 z-40 bg-white/95 border-t border-gray-100 px-4 pt-3 backdrop-blur-sm"
          style="padding-bottom: calc(0.75rem + env(safe-area-inset-bottom))">
-        <div class="max-w-5xl mx-auto flex items-center gap-3">
+        <div class="w-full flex items-center gap-3">
             <a href="{{ route('operations.open-stocks.index') }}" class="sf-btn-secondary">Batal</a>
             <div class="flex-1 text-center text-sm text-gray-500">
                 <span x-text="validRows.length + ' baris valid'"></span>

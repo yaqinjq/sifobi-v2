@@ -3,11 +3,6 @@
 @section('title', 'Detail Opname')
 
 @section('content')
-@php
-    $counted = $session->items->where('is_counted', true)->count();
-    $total = $session->items->count();
-@endphp
-
 <x-sf.page-header title="Opname {{ optional($session->opname_date)->format('d M Y') }}" subtitle="{{ $session->outlet?->name ?? '-' }}" back="{{ route('operations.opname.index') }}" />
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-4xl mx-auto w-full space-y-4"
@@ -29,8 +24,48 @@
         </div>
     </x-sf.card>
 
+    <div class="sticky top-0 z-10 -mx-4 border-y border-gray-100 bg-white px-4 py-3 lg:mx-0 lg:rounded-2xl lg:border">
+        <div class="flex flex-wrap items-center gap-2">
+            <div class="relative flex-1 min-w-[180px]">
+                <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true"></i>
+                <input type="text"
+                       id="opname-search"
+                       value="{{ $search }}"
+                       placeholder="Cari bahan baku..."
+                       class="sf-input pl-9 w-full text-sm min-h-11">
+            </div>
+
+            <select id="opname-category" class="sf-input text-sm w-auto min-h-11">
+                <option value="">Semua Kategori</option>
+                @foreach($categories as $category)
+                    <option value="{{ $category->id }}" @selected((string) $categoryId === (string) $category->id)>
+                        {{ $category->name }}
+                    </option>
+                @endforeach
+            </select>
+
+            <select id="opname-perpage" class="sf-input text-sm w-auto min-h-11">
+                <option value="20" @selected($perPage === '20')>20 item</option>
+                <option value="50" @selected($perPage === '50')>50 item</option>
+                <option value="100" @selected($perPage === '100')>100 item</option>
+                <option value="all" @selected($perPage === 'all')>Tampil Semua</option>
+            </select>
+
+            @if($roleFilter)
+                <span class="inline-flex min-h-9 items-center gap-1 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
+                    <i class="ti ti-filter text-xs" aria-hidden="true"></i>
+                    Dept. {{ $roleFilter }}
+                </span>
+            @endif
+
+            <span class="ml-auto text-xs text-gray-400">
+                {{ $paginator ? $paginator->total() : $items->count() }} item
+            </span>
+        </div>
+    </div>
+
     <div class="space-y-3">
-        @foreach($session->items as $opnameItem)
+        @forelse($items as $opnameItem)
             @php
                 $item = $opnameItem->item;
                 $inventoryUnit = $item?->inventoryUnit?->abbreviation ?? $opnameItem->unit?->abbreviation ?? 'unit';
@@ -143,8 +178,20 @@
 
                 <p x-show="saved" x-transition class="mt-3 text-xs font-semibold text-primary-700">Tersimpan</p>
             </div>
-        @endforeach
+        @empty
+            <x-sf.empty-state
+                icon="OPN"
+                title="Item tidak ditemukan"
+                description="Coba ubah kata kunci, kategori, atau jumlah item yang ditampilkan."
+            />
+        @endforelse
     </div>
+
+    @if($paginator)
+        <div class="rounded-2xl border border-gray-100 bg-white p-4">
+            {{ $paginator->links() }}
+        </div>
+    @endif
 
     <div class="sticky bottom-0 z-30 -mx-4 px-4 py-3 bg-white border-t border-gray-100 lg:static lg:mx-0 lg:px-0 lg:border-0 lg:bg-transparent"
          style="padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));">
@@ -169,6 +216,52 @@
 
 @push('scripts')
 <script>
+(function () {
+    function debounce(fn, delay) {
+        let timer;
+        return function (...args) {
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+                fn(...args);
+            }, delay);
+        };
+    }
+
+    function buildUrl(params) {
+        const url = new URL(window.location.href);
+        Object.entries(params).forEach(function ([key, value]) {
+            if (value) {
+                url.searchParams.set(key, value);
+            } else {
+                url.searchParams.delete(key);
+            }
+        });
+        url.searchParams.delete('page');
+        return url.toString();
+    }
+
+    const search = document.getElementById('opname-search');
+    if (search) {
+        search.addEventListener('input', debounce(function (event) {
+            window.location = buildUrl({ q: event.target.value });
+        }, 350));
+    }
+
+    const category = document.getElementById('opname-category');
+    if (category) {
+        category.addEventListener('change', function (event) {
+            window.location = buildUrl({ category_id: event.target.value });
+        });
+    }
+
+    const perPage = document.getElementById('opname-perpage');
+    if (perPage) {
+        perPage.addEventListener('change', function (event) {
+            window.location = buildUrl({ per_page: event.target.value });
+        });
+    }
+})();
+
 function opnameItemCard(config) {
     return {
         url: config.url,

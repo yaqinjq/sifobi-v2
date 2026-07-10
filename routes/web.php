@@ -93,7 +93,7 @@ Route::middleware('auth')->group(function (): void {
 
             Route::middleware('permission:manage_brands_outlets')->group(function (): void {
                 Route::resource('brands', BrandController::class)
-                    ->except(['show', 'destroy'])
+                    ->except(['show'])
                     ->names('brands');
                 Route::resource('outlets', OutletController::class)
                     ->except(['show', 'destroy'])

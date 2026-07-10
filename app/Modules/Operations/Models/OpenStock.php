@@ -3,6 +3,7 @@
 namespace App\Modules\Operations\Models;
 
 use App\Models\User;
+use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\Unit;
@@ -39,6 +40,11 @@ class OpenStock extends Model
     public function outlet(): BelongsTo
     {
         return $this->belongsTo(Outlet::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function item(): BelongsTo

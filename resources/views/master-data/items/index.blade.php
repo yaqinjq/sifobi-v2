@@ -60,39 +60,59 @@
                 && (!term || text.toLowerCase().includes(term));
         }
      }">
-    <form method="GET"
-          action="{{ route('master-data.items.index') }}"
-          x-ref="filterForm"
-          class="sticky top-[65px] lg:top-0 z-20 bg-gray-50/95 backdrop-blur pb-3">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <select name="type" x-model="type" @change="$refs.filterForm.submit()" class="sf-input text-base">
+    <div class="sticky top-[65px] lg:top-0 z-20 bg-gray-50/95 backdrop-blur pb-3">
+        <div class="flex flex-wrap gap-3 items-center border-b border-gray-100 bg-white p-3 rounded-2xl">
+            <div class="relative flex-1 min-w-[200px]">
+                <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true"></i>
+                <input type="text"
+                       id="search-items"
+                       value="{{ $search }}"
+                       placeholder="Cari nama atau SKU..."
+                       class="sf-input pl-9 w-full text-base"
+                       autocomplete="off">
+            </div>
+
+            <select id="filter-type" class="sf-input w-auto text-base min-h-11">
                 <option value="">Semua Tipe</option>
                 @foreach($itemTypes as $value => $label)
-                    <option value="{{ $value }}">{{ $label }}</option>
+                    <option value="{{ $value }}" @selected($typeFilter === $value)>{{ $label }}</option>
                 @endforeach
             </select>
 
-            <select name="status" x-model="status" @change="$refs.filterForm.submit()" class="sf-input text-base">
+            <select id="filter-status" class="sf-input w-auto text-base min-h-11">
                 <option value="">Semua Status</option>
-                <option value="active">Aktif</option>
-                <option value="inactive">Non-Aktif</option>
+                <option value="active" @selected($statusFilter === 'active')>Aktif</option>
+                <option value="inactive" @selected($statusFilter === 'inactive')>Non-Aktif</option>
             </select>
 
-            <div class="relative">
-                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
-                </svg>
-                <input type="search"
-                       name="q"
-                       x-model="search"
-                       placeholder="Cari nama atau SKU..."
-                       class="sf-input pl-10 text-base">
-            </div>
-        </div>
-    </form>
+            <select id="filter-outlet" class="sf-input w-auto text-base min-h-11">
+                <option value="">Semua Outlet</option>
+                @foreach($outlets as $outlet)
+                    <option value="{{ $outlet->id }}" @selected((string) $outletFilter === (string) $outlet->id)>
+                        {{ $outlet->name }}
+                    </option>
+                @endforeach
+            </select>
 
-    @if(request()->hasAny(['type', 'status', 'q']))
+            <select id="filter-dept" class="sf-input w-auto text-base min-h-11">
+                <option value="">Semua Departemen</option>
+                @foreach($departments as $department)
+                    <option value="{{ $department->id }}" @selected((string) $deptFilter === (string) $department->id)>
+                        {{ $department->name }}
+                    </option>
+                @endforeach
+            </select>
+
+            @if(request()->hasAny(['type', 'status', 'q', 'outlet_id', 'dept_id', 'col_name', 'col_sku', 'col_jenis', 'col_kategori']))
+                <a href="{{ route('master-data.items.index') }}" class="sf-btn-secondary text-sm min-h-11">
+                    <i class="ti ti-x text-xs" aria-hidden="true"></i>
+                    Reset
+                </a>
+            @endif
+        </div>
+    </div>
+
+    @if(request()->hasAny(['type', 'status', 'q', 'outlet_id', 'dept_id', 'col_name', 'col_sku', 'col_jenis', 'col_kategori']))
         <div class="mb-3 flex items-center justify-between gap-3">
             <p class="text-sm text-gray-500">
                 Menampilkan {{ $items->count() }} dari {{ $items->total() }} item
@@ -284,6 +304,47 @@
                             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                             <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Aksi</th>
                         </tr>
+                        <tr class="bg-white border-b border-gray-100">
+                            <td class="px-2 py-2"></td>
+                            <td class="px-2 py-2"></td>
+                            <td class="px-2 py-2">
+                                <input type="text"
+                                       id="col-search-sku"
+                                       value="{{ $colSku }}"
+                                       placeholder="Cari SKU..."
+                                       class="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs focus:border-primary-400 focus:bg-white focus:outline-none">
+                            </td>
+                            <td class="px-2 py-2">
+                                <input type="text"
+                                       id="col-search-name"
+                                       value="{{ $colName }}"
+                                       placeholder="Cari nama..."
+                                       class="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs focus:border-primary-400 focus:bg-white focus:outline-none">
+                            </td>
+                            <td class="px-2 py-2">
+                                <select id="col-filter-jenis"
+                                        class="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs focus:border-primary-400 focus:outline-none">
+                                    <option value="">Semua</option>
+                                    @foreach($jenises as $jenis)
+                                        <option value="{{ $jenis->id }}" @selected((string) $colJenis === (string) $jenis->id)>
+                                            {{ $jenis->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </td>
+                            <td class="px-2 py-2">
+                                <select id="col-filter-kategori"
+                                        class="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs focus:border-primary-400 focus:outline-none">
+                                    <option value="">Semua</option>
+                                    @foreach($categories as $category)
+                                        <option value="{{ $category->id }}" @selected((string) $colKategori === (string) $category->id)>
+                                            {{ $category->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </td>
+                            <td colspan="6" class="px-2 py-2"></td>
+                        </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
                         @foreach($items as $index => $item)
@@ -355,14 +416,23 @@
                                                 size="sm"
                                                 href="{{ route('master-data.items.edit', $item) }}"
                                             />
-                                            <x-icon-btn
-                                                icon="toggle"
-                                                :label="($item->is_active ? 'Non-aktifkan ' : 'Aktifkan ').$item->name"
-                                                :color="$item->is_active ? 'red' : 'green'"
-                                                size="sm"
-                                                href="{{ route('master-data.items.toggle-active', $item) }}"
-                                                method="PATCH"
-                                            />
+                                            <form method="POST" action="{{ route('master-data.items.toggle-active', $item) }}" class="inline">
+                                                @csrf
+                                                @method('PATCH')
+                                                @if($item->is_active)
+                                                    <button type="submit"
+                                                            title="Non-Aktifkan {{ $item->name }}"
+                                                            class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-green-50 text-green-600 transition-colors hover:bg-red-50 hover:text-red-500">
+                                                        <i class="ti ti-circle-check text-sm" aria-hidden="true"></i>
+                                                    </button>
+                                                @else
+                                                    <button type="submit"
+                                                            title="Aktifkan {{ $item->name }}"
+                                                            class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-400 transition-colors hover:bg-green-50 hover:text-green-600">
+                                                        <i class="ti ti-ban text-sm" aria-hidden="true"></i>
+                                                    </button>
+                                                @endif
+                                            </form>
                                         @endcan
                                     </div>
                                 </td>
@@ -456,3 +526,71 @@
 </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    function debounce(fn, delay) {
+        let timer;
+        return function (...args) {
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+                fn(...args);
+            }, delay);
+        };
+    }
+
+    function buildUrl(params) {
+        const url = new URL(window.location.href);
+        Object.entries(params).forEach(function ([key, value]) {
+            if (value) {
+                url.searchParams.set(key, value);
+            } else {
+                url.searchParams.delete(key);
+            }
+        });
+        url.searchParams.delete('page');
+        return url.toString();
+    }
+
+    const searchInput = document.getElementById('search-items');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(function (event) {
+            window.location = buildUrl({ q: event.target.value });
+        }, 350));
+    }
+
+    const filterMap = {
+        'filter-type': 'type',
+        'filter-status': 'status',
+        'filter-outlet': 'outlet_id',
+        'filter-dept': 'dept_id',
+        'col-filter-jenis': 'col_jenis',
+        'col-filter-kategori': 'col_kategori',
+    };
+
+    Object.entries(filterMap).forEach(function ([id, param]) {
+        const element = document.getElementById(id);
+        if (!element) return;
+
+        element.addEventListener('change', function (event) {
+            window.location = buildUrl({ [param]: event.target.value });
+        });
+    });
+
+    const columnSearchMap = {
+        'col-search-name': 'col_name',
+        'col-search-sku': 'col_sku',
+    };
+
+    Object.entries(columnSearchMap).forEach(function ([id, param]) {
+        const element = document.getElementById(id);
+        if (!element) return;
+
+        element.addEventListener('input', debounce(function (event) {
+            window.location = buildUrl({ [param]: event.target.value });
+        }, 350));
+    });
+})();
+</script>
+@endpush
