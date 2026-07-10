@@ -6,9 +6,12 @@
 <x-sf.page-header title="Stok Gudang" subtitle="{{ $selectedOutlet?->name ?? 'Semua outlet' }}">
     <x-slot:actions>
         @can('view_reports')
-            <a href="{{ route('laporan.mutasi', request()->only(['outlet_id', 'stock_target'])) }}" class="sf-btn-secondary min-h-11 px-3 text-xs">
-                Riwayat
-            </a>
+            <x-icon-btn
+                icon="history"
+                label="Riwayat Mutasi"
+                color="gray"
+                href="{{ route('laporan.mutasi', request()->only(['outlet_id', 'stock_target'])) }}"
+            />
         @endcan
     </x-slot:actions>
 </x-sf.page-header>
@@ -58,6 +61,8 @@
                 $categoryClass = 'badge-draft';
                 $targetClass = $balance->stock_target === 'OUTLET_WAREHOUSE' ? 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-blue-100 text-blue-800' : 'badge-active';
                 $qtyClass = (float) $balance->qty_on_hand <= 0 ? 'text-red-600 bg-red-50' : 'text-gray-900 bg-gray-50';
+                $hasReorderConfig = $balance->reorder_point !== null;
+                $needsOrder = $hasReorderConfig && (float) $balance->qty_on_hand <= (float) $balance->reorder_point;
             @endphp
             <x-sf.card>
                 <div class="space-y-3">
@@ -89,9 +94,28 @@
                             <p class="font-semibold text-gray-900">Rp {{ number_format((float) $balance->total_value, 0, ',', '.') }}</p>
                         </div>
                     </div>
-                    <div class="flex items-center justify-between gap-3">
-                        <p class="text-xs text-gray-500">Update: {{ optional($balance->last_mutation_at ?? $balance->updated_at)->diffForHumans() ?? '-' }}</p>
-                        <a href="{{ route('stock.balance.show', ['item' => $item, 'outlet_id' => $balance->outlet_id, 'stock_target' => $balance->stock_target]) }}" class="sf-btn-secondary min-h-11 px-4">Riwayat</a>
+                    <div class="flex items-center justify-between gap-3 border-t border-gray-100 pt-2">
+                        <div class="space-y-1">
+                            @if($needsOrder)
+                                <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-600">
+                                    <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                    </svg>
+                                    Perlu Order
+                                </span>
+                            @elseif($hasReorderConfig)
+                                <span class="badge-active">Stok OK</span>
+                            @else
+                                <span class="badge-draft">Belum Config</span>
+                            @endif
+                            <p class="text-xs text-gray-500">Update: {{ optional($balance->last_mutation_at ?? $balance->updated_at)->diffForHumans() ?? '-' }}</p>
+                        </div>
+                        <x-icon-btn
+                            icon="history"
+                            label="Riwayat"
+                            color="gray"
+                            href="{{ route('stock.balance.show', ['item' => $item, 'outlet_id' => $balance->outlet_id, 'stock_target' => $balance->stock_target]) }}"
+                        />
                     </div>
                 </div>
             </x-sf.card>
@@ -117,6 +141,7 @@
                             <th class="px-4 py-3 text-right">HPP</th>
                             <th class="px-4 py-3 text-right">Nilai</th>
                             <th class="px-4 py-3">Update</th>
+                            <th class="px-4 py-3">Status Order</th>
                             <th class="px-4 py-3 text-right">Aksi</th>
                         </tr>
                     </thead>
@@ -125,6 +150,8 @@
                             @php
                                 $item = $balance->item;
                                 $targetClass = $balance->stock_target === 'OUTLET_WAREHOUSE' ? 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-blue-100 text-blue-800' : 'badge-active';
+                                $hasReorderConfig = $balance->reorder_point !== null;
+                                $needsOrder = $hasReorderConfig && (float) $balance->qty_on_hand <= (float) $balance->reorder_point;
                             @endphp
                             <tr class="{{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
                                 <td class="px-4 py-3 text-gray-500">{{ $balances->firstItem() + $loop->index }}</td>
@@ -138,13 +165,28 @@
                                 <td class="px-4 py-3 text-right">Rp {{ number_format((float) $balance->avg_cost, 2, ',', '.') }}</td>
                                 <td class="px-4 py-3 text-right">Rp {{ number_format((float) $balance->total_value, 0, ',', '.') }}</td>
                                 <td class="px-4 py-3 text-gray-500">{{ optional($balance->last_mutation_at ?? $balance->updated_at)->diffForHumans() ?? '-' }}</td>
+                                <td class="px-4 py-3">
+                                    @if($needsOrder)
+                                        <span class="badge-rejected">Reorder</span>
+                                    @elseif($hasReorderConfig)
+                                        <span class="badge-active">OK</span>
+                                    @else
+                                        <span class="badge-draft">Belum Config</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-right">
-                                    <a href="{{ route('stock.balance.show', ['item' => $item, 'outlet_id' => $balance->outlet_id, 'stock_target' => $balance->stock_target]) }}" class="sf-btn-secondary min-h-9 px-3">Riwayat</a>
+                                    <x-icon-btn
+                                        icon="history"
+                                        label="Riwayat"
+                                        color="gray"
+                                        size="sm"
+                                        href="{{ route('stock.balance.show', ['item' => $item, 'outlet_id' => $balance->outlet_id, 'stock_target' => $balance->stock_target]) }}"
+                                    />
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="12" class="px-4 py-10 text-center text-gray-500">Stok belum ada.</td>
+                                <td colspan="13" class="px-4 py-10 text-center text-gray-500">Stok belum ada.</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -61,7 +61,14 @@
                             @endif
                         </div>
                     </div>
-                    <a href="{{ route('operations.spoil-wastes.show', $spoil) }}" class="sf-btn-secondary min-h-11 w-full">Detail</a>
+                    <div class="flex justify-end">
+                        <x-icon-btn
+                            icon="view"
+                            label="Detail"
+                            color="gray"
+                            href="{{ route('operations.spoil-wastes.show', $spoil) }}"
+                        />
+                    </div>
                 </div>
             </x-sf.card>
         @empty
@@ -111,7 +118,13 @@
                                 </td>
                                 <td class="px-4 py-3"><span class="{{ $spoil->status_badge_class }}">{{ $spoil->status }}</span></td>
                                 <td class="px-4 py-3 text-right">
-                                    <a href="{{ route('operations.spoil-wastes.show', $spoil) }}" class="sf-btn-secondary min-h-9 px-3">Detail</a>
+                                    <x-icon-btn
+                                        icon="view"
+                                        label="Detail"
+                                        color="gray"
+                                        size="sm"
+                                        href="{{ route('operations.spoil-wastes.show', $spoil) }}"
+                                    />
                                 </td>
                             </tr>
                         @empty

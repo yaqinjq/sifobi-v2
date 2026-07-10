@@ -171,19 +171,33 @@
                         <td class="px-4 py-3"><span class="{{ $badgeClass }}">{{ $openStock->status }}</span></td>
                         <td class="px-4 py-3 text-right">
                             <div class="flex items-center justify-end gap-1.5">
-                                <a href="{{ route('operations.open-stocks.show', $openStock) }}"
-                                   class="sf-btn-secondary text-xs px-3 py-1.5 min-h-0">Detail</a>
+                                <x-icon-btn
+                                    icon="view"
+                                    label="Detail"
+                                    color="gray"
+                                    size="sm"
+                                    href="{{ route('operations.open-stocks.show', $openStock) }}"
+                                />
 
                                 @if($openStock->status === 'DRAFT')
                                     @can('input_open_stock')
-                                        <a href="{{ route('operations.open-stocks.edit', $openStock) }}"
-                                           class="sf-btn-secondary text-xs px-3 py-1.5 min-h-0">Edit</a>
+                                        <x-icon-btn
+                                            icon="edit"
+                                            label="Edit"
+                                            color="blue"
+                                            size="sm"
+                                            href="{{ route('operations.open-stocks.edit', $openStock) }}"
+                                        />
                                     @endcan
                                     @can('post_open_stock')
-                                        <form method="POST" action="{{ route('operations.open-stocks.post', $openStock) }}">
-                                            @csrf
-                                            <button type="submit" class="sf-btn-primary text-xs px-3 py-1.5 min-h-0">Post</button>
-                                        </form>
+                                        <x-icon-btn
+                                            icon="post"
+                                            label="Post"
+                                            color="green"
+                                            size="sm"
+                                            href="{{ route('operations.open-stocks.post', $openStock) }}"
+                                            method="POST"
+                                        />
                                     @endcan
                                 @endif
                             </div>

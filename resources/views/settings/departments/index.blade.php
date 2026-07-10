@@ -55,16 +55,22 @@
                         </div>
 
                         <div class="flex justify-end gap-2">
-                            <button type="button" x-show="!editing" class="sf-btn-secondary text-xs px-3 py-1.5 min-h-11" @click="editing = true">Edit</button>
-                            <button type="submit" x-show="editing" x-cloak class="sf-btn-primary text-xs px-3 py-1.5 min-h-11">Simpan</button>
-                            <button type="button" x-show="editing" x-cloak class="sf-btn-secondary text-xs px-3 py-1.5 min-h-11" @click="editing = false">Batal</button>
+                            <x-icon-btn icon="edit" label="Edit" color="blue" x-show="!editing" @click="editing = true" />
+                            <x-icon-btn icon="approve" label="Simpan" color="green" type="submit" x-show="editing" x-cloak />
+                            <x-icon-btn icon="reject" label="Batal" color="gray" x-show="editing" x-cloak @click="editing = false" />
                         </div>
                     </form>
 
                     <form method="POST" action="{{ route('settings.departments.destroy', $department) }}" class="mt-2 flex justify-end">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="sf-btn-danger text-xs px-3 py-1.5 min-h-11">Hapus</button>
+                        <x-icon-btn
+                            icon="delete"
+                            label="Hapus"
+                            color="red"
+                            type="submit"
+                            onclick="return confirm('Yakin hapus departemen ini?')"
+                        />
                     </form>
                 </div>
             @endforeach
@@ -80,7 +86,10 @@
             <x-sf.form-group label="Nama" for="name" :required="true">
                 <input id="name" name="name" value="{{ old('name') }}" class="sf-input text-base" maxlength="255" required>
             </x-sf.form-group>
-            <button type="submit" class="sf-btn-primary">Simpan</button>
+            <button type="submit" class="sf-btn-primary inline-flex min-h-11 items-center justify-center gap-2">
+                <i class="ti ti-device-floppy text-base" aria-hidden="true"></i>
+                <span>Simpan</span>
+            </button>
         </form>
     </x-sf.card>
 </div>

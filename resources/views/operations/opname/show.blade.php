@@ -37,15 +37,17 @@
                 $baseUnit = $item?->baseUnit?->abbreviation ?? 'base';
             @endphp
             <div class="sf-card p-4"
-                 x-data="opnameItemCard({
-                    url: @js(route('operations.opname.update-item', [$session, $opnameItem])),
-                    variance: @js((string) $opnameItem->variance),
+                  x-data="opnameItemCard({
+                     url: @js(route('operations.opname.update-item', [$session, $opnameItem])),
+                     suggestionUrl: @js(route('api.stock-suggestion', ['item_id' => $opnameItem->item_id, 'outlet_id' => $session->outlet_id])),
+                     variance: @js((string) $opnameItem->variance),
                     varianceValue: @js((string) $opnameItem->variance_value),
                     physicalBase: @js((string) $opnameItem->physical_qty_base),
                     qtyWhole: @js((string) $opnameItem->physical_qty_whole),
                     qtyLoose: @js((string) $opnameItem->physical_qty_loose),
-                    wasCounted: @js((bool) $opnameItem->is_counted)
-                 })">
+                     wasCounted: @js((bool) $opnameItem->is_counted)
+                  })"
+                  x-init="fetchSuggestion()">
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
                         <p class="font-semibold text-gray-900">{{ $item?->name ?? '-' }}</p>
@@ -96,6 +98,49 @@
                         </span>
                     </div>
                 </div>
+
+                <div x-show="suggestion" x-cloak class="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <div class="mb-2 flex items-center justify-between gap-3">
+                        <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-800">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.674M12 3a6 6 0 00-3.6 10.8c.75.56 1.263 1.315 1.263 2.2h4.674c0-.885.513-1.64 1.263-2.2A6 6 0 0012 3z"/>
+                            </svg>
+                            Saran Order
+                        </span>
+                        <span class="text-xs text-amber-600"
+                              x-text="suggestion && suggestion.days_remaining !== null ? suggestion.days_remaining.toFixed(1) + ' hari lagi habis' : 'Belum ada pola pemakaian'"></span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                            <span class="text-amber-600">Rata-rata/hari</span>
+                            <p class="font-semibold text-amber-900"
+                               x-text="suggestion ? formatQty(suggestion.avg_daily_usage) + ' ' + suggestion.unit_abbreviation : ''"></p>
+                        </div>
+                        <div>
+                            <span class="text-amber-600">Rekomendasi order</span>
+                            <p class="text-sm font-bold text-amber-900"
+                               x-text="suggestion ? formatQty(suggestion.recommended_order) + ' ' + suggestion.unit_abbreviation : ''"></p>
+                        </div>
+                    </div>
+
+                    <template x-if="suggestion && suggestion.upcoming_events && suggestion.upcoming_events.length > 0">
+                        <div class="mt-2 border-t border-amber-200 pt-2">
+                            <p class="flex items-center gap-1.5 text-xs text-amber-700">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 2v3m8-3v3M3 9h18M5 4h14a2 2 0 012 2v14H3V6a2 2 0 012-2z"/>
+                                </svg>
+                                <span x-text="suggestion.upcoming_events[0].name"></span>
+                                <span x-text="formatDemandChange(suggestion.upcoming_events[0].demand_change_pct)"></span>
+                            </p>
+                        </div>
+                    </template>
+
+                    <p x-show="suggestion && suggestion.is_critical" class="mt-2 text-xs font-bold text-red-600">
+                        KRITIS - stok di bawah minimum.
+                    </p>
+                </div>
+
                 <p x-show="saved" x-transition class="mt-3 text-xs font-semibold text-primary-700">Tersimpan</p>
             </div>
         @endforeach
@@ -127,6 +172,7 @@
 function opnameItemCard(config) {
     return {
         url: config.url,
+        suggestionUrl: config.suggestionUrl,
         variance: config.variance || '0.000000',
         varianceValue: config.varianceValue || '0.0000',
         physicalBase: config.physicalBase || '0.000000',
@@ -134,6 +180,34 @@ function opnameItemCard(config) {
         qtyWhole: config.qtyWhole || '',
         qtyLoose: config.qtyLoose || '',
         saved: false,
+        suggestion: null,
+        async fetchSuggestion() {
+            try {
+                const response = await fetch(this.suggestionUrl, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                if (!response.ok) return;
+
+                const data = await response.json();
+                this.suggestion = data.has_config ? data : null;
+            } catch (error) {
+                this.suggestion = null;
+            }
+        },
+        formatQty(value) {
+            return new Intl.NumberFormat('id-ID', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+            }).format(Number(value || 0));
+        },
+        formatDemandChange(value) {
+            const change = Number(value || 0);
+            if (change === 0) return '';
+            return change > 0 ? `+${change}%` : `${change}%`;
+        },
         async save() {
             const response = await fetch(this.url, {
                 method: 'PATCH',

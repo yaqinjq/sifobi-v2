@@ -17,14 +17,17 @@ use App\Http\Controllers\Receiving\GoodsReceiptController;
 use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Settings\AppSettingController;
 use App\Http\Controllers\Settings\BrandController;
+use App\Http\Controllers\Settings\CalendarEventController;
 use App\Http\Controllers\Settings\DepartmentController;
 use App\Http\Controllers\Settings\IntegrationController;
 use App\Http\Controllers\Settings\ItemCategoryController;
 use App\Http\Controllers\Settings\ItemJenisController;
 use App\Http\Controllers\Settings\OutletController;
 use App\Http\Controllers\Settings\SettingsController;
+use App\Http\Controllers\Settings\StockConfigController;
 use App\Http\Controllers\Settings\SupplierController;
 use App\Http\Controllers\Settings\UserController;
+use App\Http\Controllers\Stock\SmartOrderController;
 use App\Http\Controllers\Stock\StockBalanceController;
 use Illuminate\Support\Facades\Route;
 
@@ -107,6 +110,21 @@ Route::middleware('auth')->group(function (): void {
                     ->name('integrations.sync-outlets');
             });
         });
+
+    Route::prefix('settings')->name('settings.')->group(function (): void {
+        Route::resource('stock-configs', StockConfigController::class)
+            ->only(['index', 'store', 'update', 'destroy'])
+            ->middleware('permission:manage_stock_configs')
+            ->names('stock-configs');
+
+        Route::resource('calendar-events', CalendarEventController::class)
+            ->only(['index', 'store', 'update', 'destroy'])
+            ->middleware('permission:manage_calendar_events')
+            ->names('calendar-events');
+    });
+
+    Route::get('api/stock-suggestion', [SmartOrderController::class, 'suggest'])
+        ->name('api.stock-suggestion');
 
     Route::middleware('permission:manage_units')->group(function (): void {
         Route::resource('master-data/units', UnitController::class)

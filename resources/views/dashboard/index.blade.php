@@ -29,6 +29,25 @@
 </div>
 
 {{-- ══ KPI GRID ══ --}}
+@if($lowStockItems->isNotEmpty())
+<div class="px-4 mb-5 lg:px-6">
+    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <div class="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-800">
+            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.3 3.7L2.6 17a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 3.7a2 2 0 00-3.4 0z"/>
+            </svg>
+            {{ $lowStockItems->count() }} item mendekati batas reorder
+        </div>
+        @foreach($lowStockItems as $item)
+            <div class="flex min-h-11 items-center justify-between gap-3 border-t border-amber-100 py-2 text-sm text-amber-700 first:border-t-0">
+                <span class="font-medium">{{ $item->name }}</span>
+                <span class="shrink-0">Sisa: {{ number_format((float) $item->qty_on_hand, 1, ',', '.') }}</span>
+            </div>
+        @endforeach
+    </div>
+</div>
+@endif
+
 <div class="px-4 lg:px-6">
     <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Ringkasan Hari Ini</h2>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">

@@ -24,21 +24,29 @@ class ItemController extends Controller
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
+        $search = $request->string('q')->toString();
+        $typeFilter = $request->string('type')->toString();
+        $statusFilter = $request->string('status')->toString();
+        $sortable = ['canonical_sku', 'name', 'item_jenis_id', 'item_category_id', 'item_type', 'created_at'];
+        $sort = in_array($request->string('sort')->toString(), $sortable, true)
+            ? $request->string('sort')->toString()
+            : 'name';
+        $direction = $request->string('direction')->toString() === 'desc' ? 'desc' : 'asc';
+
         $query = Item::query()
             ->with(['baseUnit', 'inventoryUnit', 'purchaseUnit', 'category', 'primaryDepartment', 'departments', 'jenis'])
             ->withCount('outlets')
             ->where('tenant_id', $tenantId);
 
-        if ($request->filled('type')) {
-            $query->where('item_type', $request->string('type')->toString());
+        if ($typeFilter !== '') {
+            $query->where('item_type', $typeFilter);
         }
 
-        if ($request->filled('status')) {
-            $query->where('is_active', $request->string('status')->toString() === 'active');
+        if ($statusFilter !== '') {
+            $query->where('is_active', $statusFilter === 'active');
         }
 
-        if ($request->filled('q')) {
-            $search = $request->string('q')->toString();
+        if ($search !== '') {
             $query->where(fn ($q) => $q
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('canonical_sku', 'like', "%{$search}%")
@@ -46,7 +54,7 @@ class ItemController extends Controller
         }
 
         $items = $query
-            ->orderBy('name')
+            ->orderBy($sort, $direction)
             ->paginate(25)
             ->withQueryString();
 
@@ -54,6 +62,11 @@ class ItemController extends Controller
             'items' => $items,
             'itemTypes' => StoreItemRequest::ITEM_TYPE_OPTIONS,
             'totalItems' => Item::query()->where('tenant_id', $tenantId)->count(),
+            'search' => $search,
+            'typeFilter' => $typeFilter,
+            'statusFilter' => $statusFilter,
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 

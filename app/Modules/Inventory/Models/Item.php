@@ -104,6 +104,16 @@ class Item extends Model
         return $this->hasMany(ItemBrandAlias::class, 'item_id');
     }
 
+    public function stockConfigs(): HasMany
+    {
+        return $this->hasMany(ItemStockConfig::class, 'item_id');
+    }
+
+    public function stockConfigForOutlet(int $outletId): ?ItemStockConfig
+    {
+        return $this->stockConfigs->firstWhere('outlet_id', $outletId);
+    }
+
     public function aliasByBrand(int $brandId): ?ItemBrandAlias
     {
         return $this->brandAliases->firstWhere('brand_id', $brandId);

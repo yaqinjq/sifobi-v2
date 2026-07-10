@@ -63,6 +63,9 @@
 
     <div class="flex flex-col sm:flex-row sm:justify-end gap-3">
         <a href="{{ route('settings.brands.index') }}" class="sf-btn-secondary">Batal</a>
-        <button type="submit" class="sf-btn-primary">Simpan Brand</button>
+        <button type="submit" class="sf-btn-primary inline-flex min-h-11 items-center justify-center gap-2">
+            <i class="ti ti-device-floppy text-base" aria-hidden="true"></i>
+            <span>Simpan Brand</span>
+        </button>
     </div>
 </form>

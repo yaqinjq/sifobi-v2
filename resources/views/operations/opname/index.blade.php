@@ -35,7 +35,12 @@
                         <p class="text-sm text-gray-500">{{ optional($session->opname_date)->format('d M Y') }} | {{ $session->shift ?: '-' }}</p>
                         <p class="text-sm text-gray-500">{{ $session->items_count }} item</p>
                     </div>
-                    <a href="{{ route('operations.opname.show', $session) }}" class="sf-btn-secondary min-h-11 px-3">Detail</a>
+                    <x-icon-btn
+                        icon="view"
+                        label="Detail"
+                        color="gray"
+                        href="{{ route('operations.opname.show', $session) }}"
+                    />
                 </div>
             </x-sf.card>
         @empty
@@ -73,7 +78,13 @@
                                 <td class="px-4 py-3 text-right">{{ $session->items_count }}</td>
                                 <td class="px-4 py-3"><span class="{{ $session->status_badge_class }}">{{ $session->status }}</span></td>
                                 <td class="px-4 py-3 text-right">
-                                    <a href="{{ route('operations.opname.show', $session) }}" class="sf-btn-secondary min-h-9 px-3">Detail</a>
+                                    <x-icon-btn
+                                        icon="view"
+                                        label="Detail"
+                                        color="gray"
+                                        size="sm"
+                                        href="{{ route('operations.opname.show', $session) }}"
+                                    />
                                 </td>
                             </tr>
                         @empty

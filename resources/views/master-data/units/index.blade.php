@@ -44,10 +44,20 @@
                         <p class="text-sm text-gray-500">Singkatan: {{ $unit->abbreviation }}</p>
                     </div>
                     @can('manage_units')
-                        <a href="{{ route('master-data.units.edit', $unit) }}"
-                           class="sf-btn-secondary text-xs px-3 py-2 min-h-11 shrink-0">
-                            Edit
-                        </a>
+                        <div class="flex items-center gap-2">
+                            <x-icon-btn
+                                icon="edit"
+                                label="Edit"
+                                color="blue"
+                                href="{{ route('master-data.units.edit', $unit) }}"
+                            />
+                            <x-icon-btn
+                                icon="delete"
+                                label="Hapus"
+                                color="red"
+                                @click="deleteOpen = true; deleteUrl = @js(route('master-data.units.destroy', $unit)); deleteName = @js($unit->name)"
+                            />
+                        </div>
                     @endcan
                 </div>
             </div>
@@ -97,15 +107,20 @@
                                 <td class="px-4 py-3">
                                     <div class="flex items-center justify-end gap-2">
                                         @can('manage_units')
-                                            <a href="{{ route('master-data.units.edit', $unit) }}"
-                                               class="sf-btn-secondary text-xs px-3 py-1.5 min-h-11">
-                                                Edit
-                                            </a>
-                                            <button type="button"
-                                                    class="sf-btn-danger text-xs px-3 py-1.5 min-h-11"
-                                                    @click="deleteOpen = true; deleteUrl = @js(route('master-data.units.destroy', $unit)); deleteName = @js($unit->name)">
-                                                Hapus
-                                            </button>
+                                            <x-icon-btn
+                                                icon="edit"
+                                                label="Edit"
+                                                color="blue"
+                                                size="sm"
+                                                href="{{ route('master-data.units.edit', $unit) }}"
+                                            />
+                                            <x-icon-btn
+                                                icon="delete"
+                                                label="Hapus"
+                                                color="red"
+                                                size="sm"
+                                                @click="deleteOpen = true; deleteUrl = @js(route('master-data.units.destroy', $unit)); deleteName = @js($unit->name)"
+                                            />
                                         @endcan
                                     </div>
                                 </td>

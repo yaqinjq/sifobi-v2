@@ -16,6 +16,7 @@
     x-data="openStockBatch({
         storeUrl: @js(route('operations.open-stocks.store')),
         searchUrl: @js(route('operations.open-stocks.item-search')),
+        suggestionUrl: @js(route('api.stock-suggestion')),
         indexUrl: @js(route('operations.open-stocks.index')),
         selectedOutletId: @js((string) $selectedOutletId),
         today: @js(now()->toDateString()),
@@ -39,7 +40,7 @@
                 </x-sf.form-group>
 
                 <x-sf.form-group label="Outlet" for="outlet_id" :required="true">
-                    <select id="outlet_id" x-model="form.outlet_id" class="sf-input text-base" required>
+                    <select id="outlet_id" x-model="form.outlet_id" @change="refreshSuggestions()" class="sf-input text-base" required>
                         @foreach($outlets as $outlet)
                             <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
                         @endforeach
@@ -196,6 +197,60 @@
                                 </button>
                             </div>
                         </div>
+
+                        <div x-show="row.item_id" x-cloak class="flex justify-end">
+                            <button type="button"
+                                    @click="row.suggestionOpen = !row.suggestionOpen"
+                                    class="inline-flex min-h-11 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                                    :aria-expanded="row.suggestionOpen">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.674M12 3a6 6 0 00-3.6 10.8c.75.56 1.263 1.315 1.263 2.2h4.674c0-.885.513-1.64 1.263-2.2A6 6 0 0012 3z"/>
+                                </svg>
+                                <span x-text="row.suggestionOpen ? 'Sembunyikan Saran' : 'Lihat Saran Stok'"></span>
+                            </button>
+                        </div>
+
+                        <div x-show="row.suggestionOpen" x-cloak class="space-y-2">
+                            <div x-show="row.suggestionLoading" class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500">
+                                Menghitung saran stok...
+                            </div>
+
+                            <div x-show="row.suggestion && !row.suggestionLoading"
+                                 class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                <div class="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.674M12 3a6 6 0 00-3.6 10.8c.75.56 1.263 1.315 1.263 2.2h4.674c0-.885.513-1.64 1.263-2.2A6 6 0 0012 3z"/>
+                                    </svg>
+                                    Saran Stok
+                                </div>
+                                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-amber-800">
+                                    <p>Stok saat ini: <strong x-text="formatQty(row.suggestion.current_qty) + ' ' + row.suggestion.unit_abbreviation"></strong></p>
+                                    <template x-if="row.suggestion.has_config">
+                                        <p>Rata-rata/hari: <strong x-text="formatQty(row.suggestion.avg_daily_usage) + ' ' + row.suggestion.unit_abbreviation"></strong></p>
+                                    </template>
+                                    <template x-if="row.suggestion.has_config">
+                                        <p>Estimasi habis: <strong x-text="row.suggestion.days_remaining === null ? 'Belum ada pemakaian' : row.suggestion.days_remaining + ' hari'"></strong></p>
+                                    </template>
+                                    <template x-if="row.suggestion.has_config">
+                                        <p>Rekomendasi: <strong x-text="formatQty(row.suggestion.recommended_order) + ' ' + row.suggestion.unit_abbreviation"></strong></p>
+                                    </template>
+                                </div>
+                                <p x-show="row.suggestion.is_below_reorder" class="mt-2 text-sm font-bold text-red-700">
+                                    Di bawah reorder point.
+                                </p>
+                                <template x-if="row.suggestion.has_config && row.suggestion.upcoming_events && row.suggestion.upcoming_events.length > 0">
+                                    <div class="mt-2 space-y-1 border-t border-amber-200 pt-2">
+                                        <template x-for="event in row.suggestion.upcoming_events" :key="event.id">
+                                            <p class="text-xs text-amber-800">
+                                                Event: <strong x-text="event.name"></strong>
+                                                <span x-text="formatDemandChange(event.demand_change_pct)"></span>
+                                                <span x-text="'(dalam ' + event.days_until + ' hari)'"></span>
+                                            </p>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
                     </div>
                 </template>
             </div>
@@ -241,6 +296,7 @@ function openStockBatch(config) {
     return {
         storeUrl: config.storeUrl,
         searchUrl: config.searchUrl,
+        suggestionUrl: config.suggestionUrl,
         indexUrl: config.indexUrl,
         csrf: config.csrf,
         dailyTarget: config.dailyTarget,
@@ -286,6 +342,9 @@ function openStockBatch(config) {
                 qty_loose: '',
                 qty_purchase: '',
                 notes: '',
+                suggestion: null,
+                suggestionLoading: false,
+                suggestionOpen: false,
             };
         },
         removeRow(index) {
@@ -353,6 +412,8 @@ function openStockBatch(config) {
             row.purchase_ratio = Number.parseFloat(item.purchase_ratio || row.inventory_ratio || 1) || 1;
             row.searchResults = [];
             row.showSearch = false;
+            row.suggestionOpen = false;
+            this.fetchSuggestion(index);
         },
         clearItem(row) {
             row.item_id = '';
@@ -367,6 +428,49 @@ function openStockBatch(config) {
             row.purchase_unit_id = '';
             row.inventory_ratio = 1;
             row.purchase_ratio = 1;
+            row.suggestion = null;
+            row.suggestionLoading = false;
+            row.suggestionOpen = false;
+        },
+        async fetchSuggestion(index) {
+            const row = this.rows[index];
+            if (!row || !row.item_id || !this.form.outlet_id) return;
+
+            row.suggestionLoading = true;
+            try {
+                const params = new URLSearchParams({
+                    item_id: row.item_id,
+                    outlet_id: this.form.outlet_id,
+                });
+                const response = await fetch(`${this.suggestionUrl}?${params.toString()}`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                row.suggestion = response.ok ? await response.json() : null;
+            } catch (error) {
+                row.suggestion = null;
+            } finally {
+                row.suggestionLoading = false;
+            }
+        },
+        refreshSuggestions() {
+            this.rows.forEach((row, index) => {
+                if (row.item_id) this.fetchSuggestion(index);
+            });
+        },
+        formatQty(value) {
+            return new Intl.NumberFormat('id-ID', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+            }).format(Number(value || 0));
+        },
+        formatDemandChange(value) {
+            const change = Number(value || 0);
+            if (change === 0) return '';
+            return change > 0 ? `+${change}%` : `${change}%`;
         },
         parseQty(value) {
             const normalized = String(value || '0').replace(',', '.');

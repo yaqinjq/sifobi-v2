@@ -5,7 +5,10 @@
 @section('content')
 <x-sf.page-header title="Pengaturan Brand" subtitle="Kelola brand dalam tenant" back="{{ route('settings.index') }}">
     <x-slot:actions>
-        <a href="{{ route('settings.brands.create') }}" class="sf-btn-primary text-xs px-3 py-2 min-h-11">+ Brand</a>
+        <a href="{{ route('settings.brands.create') }}" class="sf-btn-primary inline-flex min-h-11 items-center justify-center gap-2 text-xs px-3 py-2">
+            <i class="ti ti-plus text-base" aria-hidden="true"></i>
+            <span>Brand</span>
+        </a>
     </x-slot:actions>
 </x-sf.page-header>
 
@@ -26,6 +29,9 @@
                         <p class="text-sm text-gray-500">{{ $brand->code }} - {{ $brand->outlets_count }} outlet</p>
                     </div>
                     <span class="{{ $brand->status === 'ACTIVE' ? 'badge-active' : 'badge-inactive' }}">{{ $brand->status }}</span>
+                    <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600" title="Edit {{ $brand->name }}">
+                        <i class="ti ti-edit text-base" aria-hidden="true"></i>
+                    </span>
                 </div>
             </a>
         @endforeach
@@ -61,7 +67,13 @@
                             <td class="px-4 py-3 text-right text-gray-700">{{ $brand->outlets_count }}</td>
                             <td class="px-4 py-3"><span class="{{ $brand->status === 'ACTIVE' ? 'badge-active' : 'badge-inactive' }}">{{ $brand->status }}</span></td>
                             <td class="px-4 py-3 text-right">
-                                <a href="{{ route('settings.brands.edit', $brand) }}" class="sf-icon-action sf-icon-edit" title="Edit {{ $brand->name }}" aria-label="Edit {{ $brand->name }}">E</a>
+                                <x-icon-btn
+                                    icon="edit"
+                                    label="Edit {{ $brand->name }}"
+                                    color="blue"
+                                    size="sm"
+                                    href="{{ route('settings.brands.edit', $brand) }}"
+                                />
                             </td>
                         </tr>
                     @endforeach

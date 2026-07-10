@@ -5,7 +5,10 @@
 @section('content')
 <x-sf.page-header title="Pengaturan Outlet" subtitle="Kelola outlet per brand" back="{{ route('settings.index') }}">
     <x-slot:actions>
-        <a href="{{ route('settings.outlets.create') }}" class="sf-btn-primary text-xs px-3 py-2 min-h-11">+ Outlet</a>
+        <a href="{{ route('settings.outlets.create') }}" class="sf-btn-primary inline-flex min-h-11 items-center justify-center gap-2 text-xs px-3 py-2">
+            <i class="ti ti-plus text-base" aria-hidden="true"></i>
+            <span>Outlet</span>
+        </a>
     </x-slot:actions>
 </x-sf.page-header>
 
@@ -30,7 +33,12 @@
                         <p class="text-sm text-gray-500">{{ $outlet->code }} - {{ $outlet->brand?->name }}</p>
                         <p class="text-xs text-gray-400 mt-1">{{ $outlet->address ?: 'Alamat belum diisi' }}</p>
                     </div>
-                    <span class="{{ $outlet->status === 'ACTIVE' ? 'badge-active' : 'badge-inactive' }}">{{ $outlet->status }}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="{{ $outlet->status === 'ACTIVE' ? 'badge-active' : 'badge-inactive' }}">{{ $outlet->status }}</span>
+                        <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600" title="Edit {{ $outlet->name }}">
+                            <i class="ti ti-edit text-base" aria-hidden="true"></i>
+                        </span>
+                    </div>
                 </div>
             </a>
         @endforeach
@@ -63,7 +71,13 @@
                             <td class="px-4 py-3 text-gray-700">{{ $outlet->contact_phone ?: '-' }}</td>
                             <td class="px-4 py-3"><span class="{{ $outlet->status === 'ACTIVE' ? 'badge-active' : 'badge-inactive' }}">{{ $outlet->status }}</span></td>
                             <td class="px-4 py-3 text-right">
-                                <a href="{{ route('settings.outlets.edit', $outlet) }}" class="sf-icon-action sf-icon-edit" title="Edit {{ $outlet->name }}" aria-label="Edit {{ $outlet->name }}">E</a>
+                                <x-icon-btn
+                                    icon="edit"
+                                    label="Edit {{ $outlet->name }}"
+                                    color="blue"
+                                    size="sm"
+                                    href="{{ route('settings.outlets.edit', $outlet) }}"
+                                />
                             </td>
                         </tr>
                     @endforeach

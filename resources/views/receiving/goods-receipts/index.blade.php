@@ -63,7 +63,12 @@
                             <p>{{ $receipt->items_count }} item | Rp {{ number_format((float) ($receipt->total_value_sum ?? 0), 0, ',', '.') }}</p>
                         </div>
                     </div>
-                    <a href="{{ route('receiving.goods-receipts.show', $receipt) }}" class="sf-btn-secondary min-h-11 px-3 shrink-0">Detail</a>
+                    <x-icon-btn
+                        icon="view"
+                        label="Detail"
+                        color="gray"
+                        href="{{ route('receiving.goods-receipts.show', $receipt) }}"
+                    />
                 </div>
             </x-sf.card>
         @empty
@@ -108,10 +113,22 @@
                             <td class="px-4 py-3"><span class="{{ $receipt->status_badge_class }}">{{ $receipt->status }}</span></td>
                             <td class="px-4 py-3">
                                 <div class="flex justify-end gap-2">
-                                    <a href="{{ route('receiving.goods-receipts.show', $receipt) }}" class="sf-btn-secondary min-h-9 px-3">Lihat</a>
+                                    <x-icon-btn
+                                        icon="view"
+                                        label="Detail"
+                                        color="gray"
+                                        size="sm"
+                                        href="{{ route('receiving.goods-receipts.show', $receipt) }}"
+                                    />
                                     @if($receipt->status === 'DRAFT')
                                         @can('create_goods_receipt')
-                                            <a href="{{ route('receiving.goods-receipts.edit', $receipt) }}" class="sf-btn-secondary min-h-9 px-3">Edit</a>
+                                            <x-icon-btn
+                                                icon="edit"
+                                                label="Edit"
+                                                color="blue"
+                                                size="sm"
+                                                href="{{ route('receiving.goods-receipts.edit', $receipt) }}"
+                                            />
                                         @endcan
                                     @endif
                                 </div>

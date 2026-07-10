@@ -8,10 +8,12 @@ use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\ItemCategory;
 use App\Modules\Stock\Models\StockBalance;
 use App\Modules\Stock\Models\StockMutation;
+use App\Services\SmartOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Throwable;
 
 class StockBalanceController extends Controller
 {
@@ -59,6 +61,39 @@ class StockBalanceController extends Controller
             ->paginate(30)
             ->withQueryString();
 
+        $itemIds = $balances->getCollection()->pluck('item_id')->unique()->values();
+        $outletIds = $balances->getCollection()->pluck('outlet_id')->unique()->values();
+        $unitFactorSql = 'CASE
+            WHEN isc.unit_id IS NULL OR isc.unit_id = i.base_unit_id THEN 1
+            WHEN isc.unit_id = i.inventory_unit_id THEN COALESCE(i.inventory_ratio, 1)
+            WHEN isc.unit_id = i.purchase_unit_id THEN COALESCE(i.purchase_ratio, 1)
+            ELSE COALESCE(uc.factor, uc.multiply_rate, 1)
+        END';
+
+        $reorderPoints = DB::table('item_stock_configs as isc')
+            ->join('items as i', function ($join): void {
+                $join->on('i.id', '=', 'isc.item_id')
+                    ->on('i.tenant_id', '=', 'isc.tenant_id');
+            })
+            ->leftJoin('unit_conversions as uc', function ($join): void {
+                $join->on('uc.tenant_id', '=', 'isc.tenant_id')
+                    ->on('uc.item_id', '=', 'isc.item_id')
+                    ->on('uc.from_unit_id', '=', 'isc.unit_id')
+                    ->on('uc.to_unit_id', '=', 'i.base_unit_id');
+            })
+            ->where('isc.tenant_id', $tenantId)
+            ->whereIn('isc.item_id', $itemIds)
+            ->whereIn('isc.outlet_id', $outletIds)
+            ->select(['isc.item_id', 'isc.outlet_id'])
+            ->selectRaw("isc.reorder_point * {$unitFactorSql} as reorder_point_base")
+            ->get()
+            ->keyBy(fn (object $config): string => "{$config->item_id}:{$config->outlet_id}");
+
+        $balances->getCollection()->each(function (StockBalance $balance) use ($reorderPoints): void {
+            $config = $reorderPoints->get("{$balance->item_id}:{$balance->outlet_id}");
+            $balance->setAttribute('reorder_point', $config ? (float) $config->reorder_point_base : null);
+        });
+
         $summary = DB::table('stock_balances')
             ->where('tenant_id', $tenantId)
             ->when($outletId, fn ($builder) => $builder->where('outlet_id', $outletId))
@@ -91,8 +126,11 @@ class StockBalanceController extends Controller
         ]);
     }
 
-    public function show(Request $request, Item $item): View
-    {
+    public function show(
+        Request $request,
+        Item $item,
+        SmartOrderService $smartOrderService
+    ): View {
         $tenantId = (int) $request->user()->tenant_id;
         abort_unless($tenantId && (int) $item->tenant_id === $tenantId, 403);
 
@@ -133,10 +171,21 @@ class StockBalanceController extends Controller
             ->limit(100)
             ->get();
 
+        $suggestion = null;
+        if ($outletId) {
+            try {
+                $candidate = $smartOrderService->getSuggestion($item->id, $outletId, $tenantId);
+                $suggestion = $candidate['has_config'] ? $candidate : null;
+            } catch (Throwable) {
+                $suggestion = null;
+            }
+        }
+
         return view('stock.balance.show', [
             'item' => $item->load(['category', 'inventoryUnit', 'baseUnit']),
             'balances' => $balances,
             'mutations' => $mutations,
+            'suggestion' => $suggestion,
             'stockTargets' => $this->stockTargets(),
         ]);
     }

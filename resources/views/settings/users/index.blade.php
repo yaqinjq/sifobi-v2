@@ -68,30 +68,34 @@
                 @endif
             </div>
 
-            <div class="mt-3 grid grid-cols-2 gap-2">
-                <a href="{{ route('settings.users.edit', $user) }}" class="sf-btn-secondary text-sm text-center min-h-11">
-                    Edit
-                </a>
+            <div class="mt-3 flex items-start justify-end gap-2">
+                <x-icon-btn
+                    icon="edit"
+                    label="Edit"
+                    color="blue"
+                    href="{{ route('settings.users.edit', $user) }}"
+                />
 
                 @if($user->id !== auth()->id())
-                    <form method="POST" action="{{ route('settings.users.toggle-status', $user) }}">
-                        @csrf
-                        @method('PATCH')
-                        @if($isActive)
-                            <button type="submit" class="w-full min-h-11 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
-                                Non-Aktifkan
-                            </button>
-                        @else
-                            <button type="submit" class="w-full min-h-11 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm font-semibold text-green-700">
-                                Aktifkan
-                            </button>
-                        @endif
-                    </form>
+                    <x-icon-btn
+                        icon="toggle"
+                        :label="$isActive ? 'Non-Aktifkan' : 'Aktifkan'"
+                        :color="$isActive ? 'red' : 'green'"
+                        href="{{ route('settings.users.toggle-status', $user) }}"
+                        method="PATCH"
+                    />
                 @else
-                    <button type="button" class="sf-btn-secondary text-sm min-h-11" disabled>
-                        Akun Anda
-                    </button>
+                    <x-icon-btn icon="toggle" label="Akun Anda" color="gray" disabled />
                 @endif
+
+                <x-icon-btn
+                    icon="config"
+                    label="Reset Password"
+                    color="amber"
+                    href="{{ route('settings.users.reset-password', $user) }}"
+                    method="POST"
+                    confirm="Reset password {{ $user->name }}?"
+                />
             </div>
         </article>
     @empty
@@ -145,44 +149,34 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-end gap-2">
-                                    <a href="{{ route('settings.users.edit', $user) }}"
-                                       class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100"
-                                       title="Edit"
-                                       aria-label="Edit {{ $user->name }}">
-                                        <span class="text-sm font-bold">E</span>
-                                    </a>
+                                    <x-icon-btn
+                                        icon="edit"
+                                        label="Edit {{ $user->name }}"
+                                        color="blue"
+                                        size="sm"
+                                        href="{{ route('settings.users.edit', $user) }}"
+                                    />
 
                                     @if($user->id !== auth()->id())
-                                        <form method="POST" action="{{ route('settings.users.toggle-status', $user) }}">
-                                            @csrf
-                                            @method('PATCH')
-                                            @if($isActive)
-                                                <button type="submit"
-                                                        class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-100"
-                                                        title="Non-Aktifkan"
-                                                        aria-label="Non-Aktifkan {{ $user->name }}">
-                                                    <span class="text-sm font-bold">-</span>
-                                                </button>
-                                            @else
-                                                <button type="submit"
-                                                        class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-green-50 text-green-700 hover:bg-green-100"
-                                                        title="Aktifkan"
-                                                        aria-label="Aktifkan {{ $user->name }}">
-                                                    <span class="text-sm font-bold">+</span>
-                                                </button>
-                                            @endif
-                                        </form>
+                                        <x-icon-btn
+                                            icon="toggle"
+                                            :label="($isActive ? 'Non-Aktifkan ' : 'Aktifkan ').$user->name"
+                                            :color="$isActive ? 'red' : 'green'"
+                                            size="sm"
+                                            href="{{ route('settings.users.toggle-status', $user) }}"
+                                            method="PATCH"
+                                        />
                                     @endif
 
-                                    <form method="POST" action="{{ route('settings.users.reset-password', $user) }}">
-                                        @csrf
-                                        <button type="submit"
-                                                class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100"
-                                                title="Reset Password"
-                                                aria-label="Reset password {{ $user->name }}">
-                                            <span class="text-sm font-bold">R</span>
-                                        </button>
-                                    </form>
+                                    <x-icon-btn
+                                        icon="config"
+                                        label="Reset Password {{ $user->name }}"
+                                        color="amber"
+                                        size="sm"
+                                        href="{{ route('settings.users.reset-password', $user) }}"
+                                        method="POST"
+                                        confirm="Reset password {{ $user->name }}?"
+                                    />
                                 </div>
                             </td>
                         </tr>
