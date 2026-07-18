@@ -92,15 +92,24 @@
 
                 {{-- Password --}}
                 <x-sf.form-group label="Password" for="password" :required="true">
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        autocomplete="current-password"
-                        required
-                        placeholder="••••••••"
-                        class="sf-input"
-                    >
+                    <div class="relative" x-data="{ show: false }">
+                        <input
+                            :type="show ? 'text' : 'password'"
+                            id="password"
+                            name="password"
+                            autocomplete="current-password"
+                            required
+                            placeholder="••••••••"
+                            class="sf-input pr-11"
+                        >
+                        <button type="button"
+                                @click="show = !show"
+                                :title="show ? 'Sembunyikan password' : 'Tampilkan password'"
+                                aria-label="Toggle password visibility"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                            <i :class="show ? 'ti ti-eye-off' : 'ti ti-eye'" class="text-base" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </x-sf.form-group>
 
                 {{-- Remember --}}

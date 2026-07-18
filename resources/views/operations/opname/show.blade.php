@@ -70,6 +70,8 @@
                 $item = $opnameItem->item;
                 $inventoryUnit = $item?->inventoryUnit?->abbreviation ?? $opnameItem->unit?->abbreviation ?? 'unit';
                 $baseUnit = $item?->baseUnit?->abbreviation ?? 'base';
+                $invRatio = (float) ($item?->inventory_ratio ?? 1);
+                $sysQty   = (float) ($opnameItem->stok_sistem ?? 0);
             @endphp
             <div class="sf-card p-4"
                   x-data="opnameItemCard({
@@ -77,9 +79,10 @@
                      suggestionUrl: @js(route('api.stock-suggestion', ['item_id' => $opnameItem->item_id, 'outlet_id' => $session->outlet_id])),
                      variance: @js((string) $opnameItem->variance),
                     varianceValue: @js((string) $opnameItem->variance_value),
-                    physicalBase: @js((string) $opnameItem->physical_qty_base),
                     qtyWhole: @js((string) $opnameItem->physical_qty_whole),
                     qtyLoose: @js((string) $opnameItem->physical_qty_loose),
+                    invRatio: @js($invRatio),
+                    sysQty: @js($sysQty),
                      wasCounted: @js((bool) $opnameItem->is_counted)
                   })"
                   x-init="fetchSuggestion()">
@@ -91,9 +94,22 @@
                     <span class="badge-draft">{{ $opnameItem->department?->name ?? $item?->primaryDepartment?->name ?? '-' }}</span>
                 </div>
 
-                <div class="mt-4 rounded-xl bg-gray-50 px-3 py-2 text-sm flex justify-between gap-3">
-                    <span class="text-gray-500">Sistem</span>
-                    <span class="font-semibold text-gray-900">{{ $opnameItem->system_qty_base }} {{ $baseUnit }}</span>
+                <div class="mt-4 space-y-1.5">
+                    <div class="rounded-xl bg-gray-50 px-3 py-2 text-sm flex justify-between gap-3">
+                        <span class="text-gray-500">Sistem (snapshot)</span>
+                        <span class="font-semibold text-gray-900">{{ number_format((float) $opnameItem->system_qty_base, 2) }} {{ $baseUnit }}</span>
+                    </div>
+                    <div class="rounded-xl px-3 py-2 text-sm flex justify-between gap-3 {{ $sysQty > 0 ? 'bg-blue-50' : 'bg-gray-50' }}">
+                        <span class="{{ $sysQty > 0 ? 'text-blue-600' : 'text-gray-500' }}">Stok Saat Ini</span>
+                        <span class="font-semibold {{ $sysQty > 0 ? 'text-blue-700' : 'text-gray-400' }}">
+                            {{ number_format($sysQty, 2) }} {{ $baseUnit }}
+                        </span>
+                    </div>
+                    @if($sysQty == 0)
+                        <p class="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1">
+                            ⚠️ Stok sistem = 0. Jika ada stok fisik, input jumlah yang sebenarnya.
+                        </p>
+                    @endif
                 </div>
 
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -122,7 +138,7 @@
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                     <div class="rounded-xl bg-gray-50 px-3 py-2 flex justify-between gap-3">
                         <span class="text-gray-500">Fisik base</span>
-                        <span class="font-semibold text-gray-900"><span x-text="physicalBase"></span> {{ $baseUnit }}</span>
+                        <span class="font-semibold text-gray-900"><span x-text="physicalBase.toFixed(2)"></span> {{ $baseUnit }}</span>
                     </div>
                     <div class="rounded-xl bg-gray-50 px-3 py-2 flex justify-between gap-3">
                         <span class="text-gray-500">Selisih</span>
@@ -132,6 +148,15 @@
                             <span x-show="Number(variance) === 0" class="font-semibold text-gray-600" x-text="`0.000000 {{ $baseUnit }}`"></span>
                         </span>
                     </div>
+                </div>
+
+                <div x-show="isOverStock" x-cloak class="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
+                    <p class="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"/>
+                        </svg>
+                        Fisik melebihi stok sistem — pastikan input sudah benar.
+                    </p>
                 </div>
 
                 <div x-show="suggestion" x-cloak class="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -268,12 +293,19 @@ function opnameItemCard(config) {
         suggestionUrl: config.suggestionUrl,
         variance: config.variance || '0.000000',
         varianceValue: config.varianceValue || '0.0000',
-        physicalBase: config.physicalBase || '0.000000',
         wasCounted: config.wasCounted === true,
         qtyWhole: config.qtyWhole || '',
         qtyLoose: config.qtyLoose || '',
+        invRatio: parseFloat(config.invRatio) || 1,
+        sysQty: parseFloat(config.sysQty) || 0,
         saved: false,
         suggestion: null,
+        get physicalBase() {
+            return (parseFloat(this.qtyWhole) || 0) * this.invRatio + (parseFloat(this.qtyLoose) || 0);
+        },
+        get isOverStock() {
+            return this.sysQty > 0 && this.physicalBase > this.sysQty;
+        },
         async fetchSuggestion() {
             try {
                 const response = await fetch(this.suggestionUrl, {
@@ -320,7 +352,6 @@ function opnameItemCard(config) {
             const data = await response.json();
             this.variance = data.variance;
             this.varianceValue = data.variance_value;
-            this.physicalBase = data.physical_qty_base;
             this.saved = true;
 
             if (!this.wasCounted) {

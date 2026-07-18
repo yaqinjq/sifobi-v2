@@ -71,23 +71,41 @@
             <div></div>
 
             <x-sf.form-group :label="$isEdit ? 'Password Baru' : 'Password'" for="password" :required="! $isEdit" :hint="$isEdit ? 'Kosongkan jika tidak ingin mengubah password.' : 'Minimal 8 karakter.'">
-                <input type="password"
-                       name="password"
-                       id="password"
-                       class="sf-input text-base"
-                       @if(! $isEdit) required @endif
-                       minlength="8"
-                       autocomplete="new-password">
+                <div class="relative" x-data="{ showPwd: false }">
+                    <input :type="showPwd ? 'text' : 'password'"
+                           name="password"
+                           id="password"
+                           class="sf-input text-base pr-11"
+                           @if(! $isEdit) required @endif
+                           minlength="8"
+                           autocomplete="new-password">
+                    <button type="button"
+                            @click="showPwd = !showPwd"
+                            :title="showPwd ? 'Sembunyikan' : 'Tampilkan'"
+                            aria-label="Toggle password visibility"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                        <i :class="showPwd ? 'ti ti-eye-off' : 'ti ti-eye'" class="text-base" aria-hidden="true"></i>
+                    </button>
+                </div>
             </x-sf.form-group>
 
             <x-sf.form-group label="Konfirmasi Password" for="password_confirmation" :required="! $isEdit">
-                <input type="password"
-                       name="password_confirmation"
-                       id="password_confirmation"
-                       class="sf-input text-base"
-                       @if(! $isEdit) required @endif
-                       minlength="8"
-                       autocomplete="new-password">
+                <div class="relative" x-data="{ showPwdC: false }">
+                    <input :type="showPwdC ? 'text' : 'password'"
+                           name="password_confirmation"
+                           id="password_confirmation"
+                           class="sf-input text-base pr-11"
+                           @if(! $isEdit) required @endif
+                           minlength="8"
+                           autocomplete="new-password">
+                    <button type="button"
+                            @click="showPwdC = !showPwdC"
+                            :title="showPwdC ? 'Sembunyikan' : 'Tampilkan'"
+                            aria-label="Toggle password visibility"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                        <i :class="showPwdC ? 'ti ti-eye-off' : 'ti ti-eye'" class="text-base" aria-hidden="true"></i>
+                    </button>
+                </div>
             </x-sf.form-group>
         </div>
     </x-sf.card>

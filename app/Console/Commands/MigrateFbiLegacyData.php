@@ -13,7 +13,7 @@ class MigrateFbiLegacyData extends Command
 {
     protected $signature = 'migrate:fbi-legacy
         {--dry-run : Preview tanpa eksekusi ke DB}
-        {--only= : Jalankan hanya 1 tahap: units|brands|outlets|departments|jenises|categories|items|item-outlets|open-stocks}
+        {--only= : Jalankan hanya 1 tahap: units|brands|outlets|departments|jenises|categories|items|item-outlets|open-stocks|users}
         {--fresh-items : Hapus items dummy sebelum import (HATI-HATI!)}';
 
     protected $description = 'Migrasi data dari database FBI lama ke SIFOBI v2';
@@ -63,6 +63,7 @@ class MigrateFbiLegacyData extends Command
             'items' => 'migrateItems',
             'item-outlets' => 'migrateItemOutlets',
             'open-stocks' => 'migrateOpenStocks',
+            'users' => 'migrateUsers',
         ];
 
         if ($only && ! array_key_exists($only, $steps)) {
@@ -683,6 +684,161 @@ class MigrateFbiLegacyData extends Command
         $this->summary('Open Stocks', $stats);
     }
 
+    private function migrateUsers(): void
+    {
+        if (! $this->legacyTableExists('tbl_pengguna')) {
+            $this->warn('Tabel legacy tbl_pengguna tidak ditemukan.');
+
+            return;
+        }
+
+        $this->reloadAllMaps();
+
+        $fbiUsers = $this->legacy()
+            ->table('tbl_pengguna')
+            ->where('status_pengguna', 'AKTIF')
+            ->get();
+
+        $roleMap = [
+            'ADMINISTRATOR'      => 'SUPER_ADMIN',
+            'FINANCE ACCOUNTING' => 'GENERAL_FINANCE',
+            'MANAGER AREA'       => 'MANAGER_AREA',
+            'PIC OUTLET'         => 'PIC_OUTLET',
+            'STAFF DEPARTEMEN'   => 'STAFF_BAR',
+            'USER'               => 'STAFF_BAR',
+        ];
+
+        $defaultPassword = 'Sifobi@2026!';
+        $inserted = 0;
+        $skipped = 0;
+        $errors = 0;
+        $usersWithTempPassword = [];
+
+        foreach ($fbiUsers as $fbi) {
+            if (strtoupper($fbi->username) === 'ADMIN') {
+                $skipped++;
+                if ($this->isDryRun) {
+                    $this->line("  [SKIP] {$fbi->username} — akun admin sudah ada");
+                }
+                continue;
+            }
+
+            $email = $fbi->email;
+            $isDummyEmail = (
+                str_ends_with(strtolower((string) $email), '@example.com') ||
+                str_ends_with(strtolower((string) $email), '@gmail.com') ||
+                empty($email)
+            );
+            if ($isDummyEmail) {
+                $cleanUsername = strtolower(str_replace([' ', '.'], '-', (string) $fbi->username));
+                $email = $cleanUsername.'@mykopiogroup.com';
+            }
+
+            $emailFinal = $email;
+            $suffix = 2;
+            while (DB::table('users')->where('email', $emailFinal)->exists()) {
+                $emailFinal = str_replace('@', $suffix.'@', $email);
+                $suffix++;
+            }
+
+            $existingByName = DB::table('users')
+                ->where('tenant_id', $this->tenantId)
+                ->where('name', ucwords(strtolower((string) $fbi->nama_lengkap)))
+                ->first();
+
+            if ($existingByName) {
+                $skipped++;
+                if ($this->isDryRun) {
+                    $this->line("  [SKIP] {$fbi->username} sudah ada");
+                }
+                continue;
+            }
+
+            $outletId = null;
+            if (! empty($fbi->id_outlet) && (int) $fbi->id_outlet > 0) {
+                $outletId = $this->outletMap[(int) $fbi->id_outlet] ?? null;
+            }
+
+            $roleName = $roleMap[$fbi->id_hak_akses] ?? 'STAFF_BAR';
+
+            $hasBcrypt = ! empty($fbi->password) && str_starts_with((string) $fbi->password, '$2y$');
+            $password = $hasBcrypt ? $fbi->password : bcrypt($defaultPassword);
+            $needsReset = ! $hasBcrypt;
+
+            if ($this->isDryRun) {
+                $this->line(sprintf(
+                    '  [INSERT] %s → %s | role: %s | outlet: %s | pass: %s',
+                    $fbi->username,
+                    $emailFinal,
+                    $roleName,
+                    $outletId ? "id={$outletId}" : 'none',
+                    $hasBcrypt ? 'bcrypt lama (langsung login)' : 'sementara: '.$defaultPassword
+                ));
+                $inserted++;
+                continue;
+            }
+
+            try {
+                DB::transaction(function () use (
+                    $fbi, $emailFinal, $password, $outletId, $roleName, $needsReset, &$usersWithTempPassword
+                ): void {
+                    $userId = DB::table('users')->insertGetId([
+                        'tenant_id'  => $this->tenantId,
+                        'outlet_id'  => $outletId,
+                        'name'       => ucwords(strtolower((string) $fbi->nama_lengkap)),
+                        'email'      => $emailFinal,
+                        'password'   => $password,
+                        'phone'      => null,
+                        'status'     => 'active',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                    $user = \App\Models\User::find($userId);
+                    if ($user) {
+                        $user->assignRole($roleName);
+                    }
+
+                    if ($needsReset) {
+                        $usersWithTempPassword[] = [
+                            'username' => $fbi->username,
+                            'email'    => $emailFinal,
+                            'role'     => $roleName,
+                        ];
+                    }
+                });
+                $inserted++;
+            } catch (Throwable $e) {
+                $this->warn("  [ERROR] {$fbi->username}: ".$e->getMessage());
+                Log::warning("MigrateFBI User {$fbi->username}: ".$e->getMessage());
+                $errors++;
+            }
+        }
+
+        $this->info("  ✅ Users: {$inserted} ditambah, {$skipped} skip, {$errors} error");
+
+        if (! $this->isDryRun && count($usersWithTempPassword) > 0) {
+            $this->newLine();
+            $this->warn('  ⚠️  '.count($usersWithTempPassword)." user mendapat password sementara: {$defaultPassword}");
+            $this->warn('  Sampaikan ke user untuk segera ganti password setelah login pertama.');
+            $this->newLine();
+            $this->table(
+                ['Username FBI', 'Email SIFOBI', 'Role'],
+                array_map(fn ($u) => [$u['username'], $u['email'], $u['role']], $usersWithTempPassword)
+            );
+
+            $logPath = storage_path('logs/migrated-users-'.date('Y-m-d-His').'.txt');
+            $lines = ['USER MIGRASI FBI → SIFOBI — '.now()."\n"];
+            $lines[] = "PASSWORD SEMENTARA: {$defaultPassword}\n";
+            $lines[] = "Minta user ganti password setelah login pertama.\n\n";
+            foreach ($usersWithTempPassword as $u) {
+                $lines[] = "{$u['username']} | {$u['email']} | {$u['role']}\n";
+            }
+            file_put_contents($logPath, implode('', $lines));
+            $this->info("  📄 Log tersimpan di: {$logPath}");
+        }
+    }
+
     private function withTargetTransaction(callable $callback): void
     {
         if ($this->isDryRun) {
@@ -1231,6 +1387,7 @@ class MigrateFbiLegacyData extends Command
             'items',
             'item_outlets',
             'open_stocks',
+            'users',
         ];
 
         foreach ($tables as $table) {

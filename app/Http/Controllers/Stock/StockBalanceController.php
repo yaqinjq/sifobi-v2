@@ -31,7 +31,7 @@ class StockBalanceController extends Controller
         $outletId = (int) ($request->integer('outlet_id') ?: ($request->user()->outlet_id ?: $outlets->first()?->id));
         $categoryId = $request->integer('category_id') ?: null;
         $search = trim((string) $request->get('q', ''));
-        $showEmpty = $request->boolean('show_empty', false);
+        $showEmpty = $request->boolean('show_empty', true);
         $stockTarget = $request->get('stock_target');
 
         $query = StockBalance::query()

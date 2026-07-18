@@ -7,11 +7,13 @@ use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\ItemCategory;
 use App\Modules\Operations\Models\OpnameItem;
 use App\Modules\Operations\Models\OpnameSession;
+use App\Modules\Stock\Models\StockMutation;
 use App\Services\OpnameService;
 use App\Support\Decimal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -159,6 +161,17 @@ class OpnameController extends Controller
             ->where('opname_session_id', $session->id)
             ->where('is_counted', true)
             ->count();
+
+        // Batch-load current stock balances untuk semua item di halaman ini
+        $balanceMap = DB::table('stock_balances')
+            ->where('outlet_id', $session->outlet_id)
+            ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
+            ->whereIn('item_id', $items->pluck('item_id')->unique()->values())
+            ->pluck('qty_on_hand', 'item_id');
+
+        $items->each(function (OpnameItem $opnameItem) use ($balanceMap): void {
+            $opnameItem->stok_sistem = (float) ($balanceMap->get($opnameItem->item_id) ?? 0);
+        });
 
         $categories = ItemCategory::query()
             ->where('tenant_id', $this->tenantId($request))

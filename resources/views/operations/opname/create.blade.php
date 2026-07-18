@@ -29,6 +29,10 @@
                 <div>
                     <label class="sf-label">Tanggal *</label>
                     <input type="date" name="opname_date" value="{{ old('opname_date', now()->toDateString()) }}" class="sf-input text-base min-h-11" required>
+                    <p class="mt-1 text-xs text-gray-400 flex items-center gap-1">
+                        <i class="ti ti-clock" aria-hidden="true"></i>
+                        Sekarang: {{ now()->format('H:i') }} WIB
+                    </p>
                 </div>
                 <div>
                     <label class="sf-label">Shift</label>

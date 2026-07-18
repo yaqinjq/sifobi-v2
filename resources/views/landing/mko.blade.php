@@ -226,7 +226,14 @@ footer{background:var(--gray-900);padding:36px 5%;color:rgba(255,255,255,0.5)}
         </div>
         <div class="form-group">
           <label class="form-label">Password</label>
-          <input type="password" name="password" class="form-input" placeholder="••••••••" autocomplete="current-password" required>
+          <div style="position:relative;">
+            <input type="password" id="mko-pwd" name="password" class="form-input" placeholder="••••••••" autocomplete="current-password" required style="padding-right:2.75rem;">
+            <button type="button"
+                    onclick="var i=document.getElementById('mko-pwd');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈';"
+                    style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;line-height:1;"
+                    title="Tampilkan/sembunyikan password"
+                    aria-label="Toggle password visibility">👁</button>
+          </div>
         </div>
         <button type="submit" class="btn-submit">Masuk ke Sistem</button>
       </form>
