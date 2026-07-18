@@ -761,6 +761,24 @@ class MigrateFbiLegacyData extends Command
 
             $roleName = $roleMap[$fbi->id_hak_akses] ?? 'STAFF_BAR';
 
+            // Override STAFF DEPARTEMEN berdasarkan pola username
+            // karena FBI tidak memisahkan role per departemen
+            if ($fbi->id_hak_akses === 'STAFF DEPARTEMEN') {
+                $username = strtolower((string) $fbi->username);
+
+                if (str_contains($username, '.kitchen') || str_ends_with($username, 'kitchen')) {
+                    $roleName = 'STAFF_KITCHEN';
+                } elseif (str_contains($username, '.bar') || str_ends_with($username, 'bar')) {
+                    $roleName = 'STAFF_BAR';
+                } elseif (str_contains($username, '.service') || str_ends_with($username, 'service')) {
+                    $roleName = 'STAFF_BAR';
+                } elseif (str_contains($username, '.pastry') || str_ends_with($username, 'pastry')) {
+                    $roleName = 'STAFF_BAR';
+                } else {
+                    $roleName = 'STAFF_BAR';
+                }
+            }
+
             $hasBcrypt = ! empty($fbi->password) && str_starts_with((string) $fbi->password, '$2y$');
             $password = $hasBcrypt ? $fbi->password : bcrypt($defaultPassword);
             $needsReset = ! $hasBcrypt;
