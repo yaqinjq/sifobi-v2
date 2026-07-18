@@ -25,12 +25,19 @@
 
     <x-sf.card>
         <form method="GET" action="{{ route('stock.balance.index') }}" class="grid grid-cols-1 md:grid-cols-5 gap-3">
-            <select name="outlet_id" class="sf-input text-base min-h-11">
-                <option value="">Semua outlet</option>
-                @foreach($outlets as $outlet)
-                    <option value="{{ $outlet->id }}" @selected((int) $outletId === (int) $outlet->id)>{{ $outlet->name }}</option>
-                @endforeach
-            </select>
+            @if($canChangeOutlet)
+                <select name="outlet_id" class="sf-input text-base min-h-11">
+                    <option value="">Semua outlet</option>
+                    @foreach($outlets as $outlet)
+                        <option value="{{ $outlet->id }}" @selected((int) $outletId === (int) $outlet->id)>{{ $outlet->name }}</option>
+                    @endforeach
+                </select>
+            @else
+                <div class="flex items-center min-h-11 px-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold text-gray-700">
+                    <i class="ti ti-building-store mr-2 text-gray-400" aria-hidden="true"></i>
+                    {{ $selectedOutlet?->name ?? auth()->user()->outlet?->name ?? 'Outlet Anda' }}
+                </div>
+            @endif
             <select name="stock_target" class="sf-input text-base min-h-11">
                 <option value="">Semua target</option>
                 @foreach($stockTargets as $value => $label)
@@ -186,7 +193,17 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="13" class="px-4 py-10 text-center text-gray-500">Stok belum ada.</td>
+                                <td colspan="13" class="px-4 py-12 text-center">
+                                    <i class="ti ti-database-off text-4xl text-gray-300 mb-3 block" aria-hidden="true"></i>
+                                    <p class="font-medium text-gray-600">Belum ada data stok</p>
+                                    <p class="text-sm text-gray-400 mt-1">
+                                        @if($outletId)
+                                            Outlet ini belum memiliki stok. Lakukan Open Stock terlebih dahulu.
+                                        @else
+                                            Belum ada stok di sistem. Lakukan Open Stock terlebih dahulu.
+                                        @endif
+                                    </p>
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>

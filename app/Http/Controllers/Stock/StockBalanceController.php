@@ -28,7 +28,30 @@ class StockBalanceController extends Controller
             ->orderBy('name')
             ->get();
 
-        $outletId = (int) ($request->integer('outlet_id') ?: ($request->user()->outlet_id ?: $outlets->first()?->id));
+        $user      = $request->user();
+        $userRoles = $user->getRoleNames();
+
+        $restrictedRoles = ['STAFF_BAR', 'STAFF_KITCHEN', 'STAFF_GUDANG'];
+        $picRoles        = ['PIC_OUTLET'];
+        $isRestricted    = $userRoles->intersect($restrictedRoles)->isNotEmpty();
+        $isPic           = $userRoles->intersect($picRoles)->isNotEmpty();
+
+        if ($isRestricted) {
+            $outletId        = (int) $user->outlet_id ?: null;
+            $canChangeOutlet = false;
+        } elseif ($isPic) {
+            $canChangeOutlet = true;
+            $outletId        = $request->has('outlet_id')
+                ? ($request->integer('outlet_id') ?: null)
+                : ((int) $user->outlet_id ?: null);
+        } else {
+            // SUPER_ADMIN, ADMIN, MANAGER_AREA, dll: default semua outlet
+            $canChangeOutlet = true;
+            $outletId        = $request->has('outlet_id')
+                ? ($request->integer('outlet_id') ?: null)
+                : null;
+        }
+
         $categoryId = $request->integer('category_id') ?: null;
         $search = trim((string) $request->get('q', ''));
         $showEmpty = $request->boolean('show_empty', true);
@@ -116,13 +139,14 @@ class StockBalanceController extends Controller
             'summary' => $summary,
             'outlets' => $outlets,
             'categories' => $categories,
-            'selectedOutlet' => $outlets->firstWhere('id', $outletId),
+            'selectedOutlet' => $outletId ? $outlets->firstWhere('id', $outletId) : null,
             'outletId' => $outletId,
             'categoryId' => $categoryId,
             'search' => $search,
             'showEmpty' => $showEmpty,
             'stockTarget' => $stockTarget,
             'stockTargets' => $this->stockTargets(),
+            'canChangeOutlet' => $canChangeOutlet,
         ]);
     }
 
