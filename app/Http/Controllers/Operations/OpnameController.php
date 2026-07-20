@@ -162,11 +162,12 @@ class OpnameController extends Controller
             ->where('is_counted', true)
             ->count();
 
-        // Batch-load current stock balances untuk semua item di halaman ini
+        // Batch-load current stock balances — sum semua target (DAILY + WAREHOUSE)
         $balanceMap = DB::table('stock_balances')
             ->where('outlet_id', $session->outlet_id)
-            ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
             ->whereIn('item_id', $items->pluck('item_id')->unique()->values())
+            ->groupBy('item_id')
+            ->selectRaw('item_id, SUM(qty_on_hand) as qty_on_hand')
             ->pluck('qty_on_hand', 'item_id');
 
         $items->each(function (OpnameItem $opnameItem) use ($balanceMap): void {

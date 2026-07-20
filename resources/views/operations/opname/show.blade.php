@@ -102,7 +102,10 @@
                     <div class="rounded-xl px-3 py-2 text-sm flex justify-between gap-3 {{ $sysQty > 0 ? 'bg-blue-50' : 'bg-gray-50' }}">
                         <span class="{{ $sysQty > 0 ? 'text-blue-600' : 'text-gray-500' }}">Stok Saat Ini</span>
                         <span class="font-semibold {{ $sysQty > 0 ? 'text-blue-700' : 'text-gray-400' }}">
-                            {{ number_format($sysQty, 2) }} {{ $baseUnit }}
+                            {{ number_format($sysQty / ($invRatio ?: 1), 2) }} {{ $inventoryUnit }}
+                            @if($sysQty > 0)
+                                <span class="text-xs font-normal text-gray-400">({{ number_format($sysQty, 0) }} {{ $baseUnit }})</span>
+                            @endif
                         </span>
                     </div>
                     @if($sysQty == 0)
@@ -119,7 +122,7 @@
                                inputmode="decimal"
                                x-model="qtyWhole"
                                @input.debounce.500ms="save()"
-                               value="{{ $opnameItem->physical_qty_whole }}"
+                               placeholder="0"
                                class="sf-input text-base min-h-11"
                                @disabled($session->status !== 'DRAFT')>
                     </div>
@@ -129,7 +132,7 @@
                                inputmode="decimal"
                                x-model="qtyLoose"
                                @input.debounce.500ms="save()"
-                               value="{{ $opnameItem->physical_qty_loose }}"
+                               placeholder="0"
                                class="sf-input text-base min-h-11"
                                @disabled($session->status !== 'DRAFT')>
                     </div>
@@ -138,14 +141,14 @@
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                     <div class="rounded-xl bg-gray-50 px-3 py-2 flex justify-between gap-3">
                         <span class="text-gray-500">Fisik base</span>
-                        <span class="font-semibold text-gray-900"><span x-text="physicalBase.toFixed(2)"></span> {{ $baseUnit }}</span>
+                        <span class="font-semibold text-gray-900"><span x-text="physicalBaseDisplay"></span> {{ $inventoryUnit }}</span>
                     </div>
                     <div class="rounded-xl bg-gray-50 px-3 py-2 flex justify-between gap-3">
                         <span class="text-gray-500">Selisih</span>
                         <span>
-                            <span x-show="Number(variance) < 0" class="font-semibold text-red-600" x-text="`${variance} {{ $baseUnit }}`"></span>
-                            <span x-show="Number(variance) > 0" class="font-semibold text-green-600" x-text="`${variance} {{ $baseUnit }}`"></span>
-                            <span x-show="Number(variance) === 0" class="font-semibold text-gray-600" x-text="`0.000000 {{ $baseUnit }}`"></span>
+                            <span x-show="Number(variance) < 0" class="font-semibold text-red-600" x-text="`${varianceDisplay} {{ $inventoryUnit }}`"></span>
+                            <span x-show="Number(variance) > 0" class="font-semibold text-green-600" x-text="`${varianceDisplay} {{ $inventoryUnit }}`"></span>
+                            <span x-show="Number(variance) === 0" class="font-semibold text-gray-600">0.00 {{ $inventoryUnit }}</span>
                         </span>
                     </div>
                 </div>
@@ -294,14 +297,20 @@ function opnameItemCard(config) {
         variance: config.variance || '0.000000',
         varianceValue: config.varianceValue || '0.0000',
         wasCounted: config.wasCounted === true,
-        qtyWhole: config.qtyWhole || '',
-        qtyLoose: config.qtyLoose || '',
+        qtyWhole: parseFloat(config.qtyWhole) > 0 ? String(parseFloat(config.qtyWhole)) : '',
+        qtyLoose: parseFloat(config.qtyLoose) > 0 ? String(parseFloat(config.qtyLoose)) : '',
         invRatio: parseFloat(config.invRatio) || 1,
         sysQty: parseFloat(config.sysQty) || 0,
         saved: false,
         suggestion: null,
         get physicalBase() {
             return (parseFloat(this.qtyWhole) || 0) * this.invRatio + (parseFloat(this.qtyLoose) || 0);
+        },
+        get physicalBaseDisplay() {
+            return (this.physicalBase / (this.invRatio || 1)).toFixed(2);
+        },
+        get varianceDisplay() {
+            return (parseFloat(this.variance) / (this.invRatio || 1)).toFixed(2);
         },
         get isOverStock() {
             return this.sysQty > 0 && this.physicalBase > this.sysQty;
