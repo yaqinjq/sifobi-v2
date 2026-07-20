@@ -74,6 +74,8 @@
                 $sysQty   = (float) ($opnameItem->stok_sistem ?? 0);
             @endphp
             <div class="sf-card p-4"
+                  data-opname-item="1"
+                  data-item-name="{{ $item?->name ?? '' }}"
                   x-data="opnameItemCard({
                      url: @js(route('operations.opname.update-item', [$session, $opnameItem])),
                      suggestionUrl: @js(route('api.stock-suggestion', ['item_id' => $opnameItem->item_id, 'outlet_id' => $session->outlet_id])),
@@ -85,7 +87,8 @@
                     sysQty: @js($sysQty),
                      wasCounted: @js((bool) $opnameItem->is_counted)
                   })"
-                  x-init="fetchSuggestion()">
+                  x-init="fetchSuggestion()"
+                  x-effect="$el.dataset.overSystem = isOverSystemStock; $el.dataset.suspicious = isSuspiciousWhenZero; $el.dataset.physicalDisplay = physicalBaseDisplay">
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
                         <p class="font-semibold text-gray-900">{{ $item?->name ?? '-' }}</p>
@@ -153,13 +156,28 @@
                     </div>
                 </div>
 
-                <div x-show="isOverStock" x-cloak class="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
-                    <p class="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
-                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"/>
-                        </svg>
-                        Fisik melebihi stok sistem — pastikan input sudah benar.
-                    </p>
+                {{-- Notifikasi: fisik > stok sistem --}}
+                <div x-show="isOverSystemStock" x-cloak
+                     class="mt-2 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                    <div class="flex items-start gap-2">
+                        <i class="ti ti-info-circle text-blue-500 flex-shrink-0 mt-0.5 text-sm" aria-hidden="true"></i>
+                        <div>
+                            <p class="text-xs font-semibold text-blue-800">Stok fisik melebihi stok sistem</p>
+                            <p class="text-xs text-blue-600 mt-0.5">Kemungkinan ada penerimaan barang yang belum dicatat. Silakan cek menu Penerimaan Barang.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Notifikasi: stok 0 tapi ada fisik --}}
+                <div x-show="isSuspiciousWhenZero" x-cloak
+                     class="mt-2 bg-orange-50 border border-orange-200 rounded-xl p-3">
+                    <div class="flex items-start gap-2">
+                        <i class="ti ti-alert-triangle text-orange-500 flex-shrink-0 mt-0.5 text-sm" aria-hidden="true"></i>
+                        <div>
+                            <p class="text-xs font-semibold text-orange-800">Ada stok fisik padahal stok sistem = 0</p>
+                            <p class="text-xs text-orange-600 mt-0.5">Pastikan ada penerimaan barang yang sudah dicatat, atau ini memang stok awal yang belum diinput.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div x-show="suggestion" x-cloak class="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -226,9 +244,11 @@
         <div class="flex flex-col sm:flex-row gap-2 sm:justify-end">
             <a href="{{ route('operations.opname.index') }}" class="sf-btn-secondary min-h-11 px-4 text-center">Simpan & Keluar</a>
             @if($session->status === 'DRAFT')
-                <form method="POST" action="{{ route('operations.opname.submit', $session) }}">
+                <form id="opname-submit-form" method="POST" action="{{ route('operations.opname.submit', $session) }}">
                     @csrf
-                    <button type="submit" class="sf-btn-primary min-h-11 w-full sm:w-auto px-4">Submit Approval</button>
+                    <button type="button"
+                            onclick="checkBeforeSubmit(event)"
+                            class="sf-btn-primary min-h-11 w-full sm:w-auto px-4">Submit Approval</button>
                 </form>
             @elseif($session->status === 'SUBMITTED')
                 @can('approve_opname')
@@ -238,6 +258,37 @@
                     </form>
                 @endcan
             @endif
+        </div>
+    </div>
+</div>
+
+{{-- Modal konfirmasi submit opname --}}
+<div id="opname-confirm-modal"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+     role="dialog" aria-modal="true">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <i class="ti ti-alert-triangle text-amber-600 text-lg" aria-hidden="true"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-900 text-base">Konfirmasi Submit Opname</h3>
+                <p class="text-xs text-gray-500">Ditemukan anomali yang perlu diperhatikan</p>
+            </div>
+        </div>
+        <div id="anomali-list" class="mb-5 space-y-2 max-h-48 overflow-y-auto"></div>
+        <p class="text-sm text-gray-700 mb-5 font-medium">Apakah Anda yakin data opname sudah benar dan ingin menyimpan?</p>
+        <div class="flex gap-3">
+            <button type="button"
+                    onclick="closeOpnameModal()"
+                    class="flex-1 py-2.5 px-4 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+                Periksa Ulang
+            </button>
+            <button type="button"
+                    onclick="confirmOpnameSubmit()"
+                    class="flex-1 py-2.5 px-4 bg-green-700 rounded-xl text-sm font-semibold text-white hover:bg-green-600 transition-colors">
+                Ya, Simpan Opname
+            </button>
         </div>
     </div>
 </div>
@@ -312,8 +363,11 @@ function opnameItemCard(config) {
         get varianceDisplay() {
             return (parseFloat(this.variance) / (this.invRatio || 1)).toFixed(2);
         },
-        get isOverStock() {
+        get isOverSystemStock() {
             return this.sysQty > 0 && this.physicalBase > this.sysQty;
+        },
+        get isSuspiciousWhenZero() {
+            return this.sysQty === 0 && this.physicalBase > 0;
         },
         async fetchSuggestion() {
             try {
@@ -372,6 +426,65 @@ function opnameItemCard(config) {
         },
     };
 }
+
+function checkBeforeSubmit(event) {
+    event.preventDefault();
+    var anomalies = [];
+    document.querySelectorAll('[data-opname-item]').forEach(function (el) {
+        var itemName = el.dataset.itemName || 'Item';
+        var physDisplay = el.dataset.physicalDisplay || '-';
+        if (el.dataset.overSystem === 'true') {
+            anomalies.push({
+                icon: 'ti-info-circle',
+                color: 'text-blue-600',
+                bg: 'bg-blue-50 border-blue-200',
+                message: '<strong>' + itemName + '</strong>: Fisik (' + physDisplay + ') lebih dari stok sistem',
+            });
+        }
+        if (el.dataset.suspicious === 'true') {
+            anomalies.push({
+                icon: 'ti-alert-triangle',
+                color: 'text-orange-600',
+                bg: 'bg-orange-50 border-orange-200',
+                message: '<strong>' + itemName + '</strong>: Ada stok fisik (' + physDisplay + ') padahal stok sistem = 0',
+            });
+        }
+    });
+    if (anomalies.length === 0) {
+        document.getElementById('opname-submit-form').submit();
+        return;
+    }
+    var list = document.getElementById('anomali-list');
+    list.innerHTML = anomalies.map(function (a) {
+        return '<div class="flex items-start gap-2 p-2.5 rounded-xl border ' + a.bg + '">' +
+            '<i class="ti ' + a.icon + ' ' + a.color + ' flex-shrink-0 mt-0.5 text-sm" aria-hidden="true"></i>' +
+            '<p class="text-xs text-gray-700">' + a.message + '</p>' +
+            '</div>';
+    }).join('');
+    var modal = document.getElementById('opname-confirm-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeOpnameModal() {
+    var modal = document.getElementById('opname-confirm-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function confirmOpnameSubmit() {
+    closeOpnameModal();
+    document.getElementById('opname-submit-form').submit();
+}
+
+(function () {
+    var modal = document.getElementById('opname-confirm-modal');
+    if (modal) {
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) { closeOpnameModal(); }
+        });
+    }
+})();
 </script>
 @endpush
 @endsection
