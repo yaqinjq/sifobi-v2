@@ -170,6 +170,12 @@ class OpnameController extends Controller
             ->selectRaw('item_id, SUM(qty_on_hand) as qty_on_hand')
             ->pluck('qty_on_hand', 'item_id');
 
+        // Rasio default berdasarkan pasangan unit (dipakai jika inventory_ratio null dan unit_conversions kosong)
+        $knownRatios = [
+            'kg-gr' => 1000, 'kg-mg' => 1_000_000,
+            'l-ml'  => 1000, 'l-cl'  => 100, 'l-dl' => 10, 'ltr-ml' => 1000,
+        ];
+
         // Batch-load unit conversion fallback for items whose inventory_ratio is null/0
         $nullRatioItems = $items->filter(fn ($i) => ! ((float) ($i->item?->inventory_ratio)));
         $conversionRatioMap = collect();
@@ -183,7 +189,7 @@ class OpnameController extends Controller
                 ->whereIn('to_unit_id', $baseUnitIds)
                 ->get(['item_id', 'from_unit_id', 'to_unit_id', 'multiply_rate']);
             foreach ($nullRatioItems as $opItem) {
-                $itm      = $opItem->item;
+                $itm = $opItem->item;
                 if (! $itm) {
                     continue;
                 }
@@ -194,7 +200,15 @@ class OpnameController extends Controller
                     && $c->from_unit_id == $itm->inventory_unit_id
                     && $c->to_unit_id == $itm->base_unit_id);
                 $conv     = $specific ?? $global;
-                $conversionRatioMap[(int) $opItem->item_id] = $conv ? (float) $conv->multiply_rate : 1.0;
+                if ($conv) {
+                    $fallback = (float) $conv->multiply_rate;
+                } else {
+                    $invAbbr  = strtolower((string) ($itm->inventoryUnit?->abbreviation ?? ''));
+                    $basAbbr  = strtolower((string) ($itm->baseUnit?->abbreviation ?? ''));
+                    $pairKey  = $invAbbr === $basAbbr ? 'same' : "{$invAbbr}-{$basAbbr}";
+                    $fallback = $pairKey === 'same' ? 1.0 : (float) ($knownRatios[$pairKey] ?? 1.0);
+                }
+                $conversionRatioMap[(int) $opItem->item_id] = $fallback;
             }
         }
 

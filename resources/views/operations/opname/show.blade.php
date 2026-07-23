@@ -99,10 +99,6 @@
                 </div>
 
                 <div class="mt-4 space-y-1.5">
-                    <div class="rounded-xl bg-gray-50 px-3 py-2 text-sm flex justify-between gap-3">
-                        <span class="text-gray-500">Sistem (snapshot)</span>
-                        <span class="font-semibold text-gray-900">{{ number_format((float) $opnameItem->system_qty_base, 2) }} {{ $baseUnit }}</span>
-                    </div>
                     <div class="rounded-xl px-3 py-2 text-sm flex justify-between gap-3 {{ $sysQty > 0 ? 'bg-blue-50' : 'bg-gray-50' }}">
                         <span class="{{ $sysQty > 0 ? 'text-blue-600' : 'text-gray-500' }}">Stok Saat Ini</span>
                         <span class="font-semibold {{ $sysQty > 0 ? 'text-blue-700' : 'text-gray-400' }}">
