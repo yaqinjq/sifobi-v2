@@ -170,8 +170,38 @@ class OpnameController extends Controller
             ->selectRaw('item_id, SUM(qty_on_hand) as qty_on_hand')
             ->pluck('qty_on_hand', 'item_id');
 
-        $items->each(function (OpnameItem $opnameItem) use ($balanceMap): void {
+        // Batch-load unit conversion fallback for items whose inventory_ratio is null/0
+        $nullRatioItems = $items->filter(fn ($i) => ! ((float) ($i->item?->inventory_ratio)));
+        $conversionRatioMap = collect();
+        if ($nullRatioItems->isNotEmpty()) {
+            $invUnitIds  = $nullRatioItems->map(fn ($i) => $i->item?->inventory_unit_id)->filter()->unique()->values();
+            $baseUnitIds = $nullRatioItems->map(fn ($i) => $i->item?->base_unit_id)->filter()->unique()->values();
+            $itemIds     = $nullRatioItems->pluck('item_id')->values();
+            $convRows    = DB::table('unit_conversions')
+                ->where(fn ($q) => $q->whereIn('item_id', $itemIds)->orWhereNull('item_id'))
+                ->whereIn('from_unit_id', $invUnitIds)
+                ->whereIn('to_unit_id', $baseUnitIds)
+                ->get(['item_id', 'from_unit_id', 'to_unit_id', 'multiply_rate']);
+            foreach ($nullRatioItems as $opItem) {
+                $itm      = $opItem->item;
+                if (! $itm) {
+                    continue;
+                }
+                $specific = $convRows->first(fn ($c) => $c->item_id == $itm->id
+                    && $c->from_unit_id == $itm->inventory_unit_id
+                    && $c->to_unit_id == $itm->base_unit_id);
+                $global   = $convRows->first(fn ($c) => is_null($c->item_id)
+                    && $c->from_unit_id == $itm->inventory_unit_id
+                    && $c->to_unit_id == $itm->base_unit_id);
+                $conv     = $specific ?? $global;
+                $conversionRatioMap[(int) $opItem->item_id] = $conv ? (float) $conv->multiply_rate : 1.0;
+            }
+        }
+
+        $items->each(function (OpnameItem $opnameItem) use ($balanceMap, $conversionRatioMap): void {
             $opnameItem->stok_sistem = (float) ($balanceMap->get($opnameItem->item_id) ?? 0);
+            $ratio                   = (float) ($opnameItem->item?->inventory_ratio ?: 0);
+            $opnameItem->inv_ratio   = $ratio > 0 ? $ratio : (float) ($conversionRatioMap->get((int) $opnameItem->item_id) ?? 1.0);
         });
 
         $categories = ItemCategory::query()

@@ -70,10 +70,11 @@
                 $item = $opnameItem->item;
                 $inventoryUnit = $item?->inventoryUnit?->abbreviation ?? $opnameItem->unit?->abbreviation ?? 'unit';
                 $baseUnit = $item?->baseUnit?->abbreviation ?? 'base';
-                $invRatio = (float) ($item?->inventory_ratio ?? 1);
+                $invRatio = (float) ($opnameItem->inv_ratio ?? $item?->inventory_ratio ?? 1);
                 $sysQty   = (float) ($opnameItem->stok_sistem ?? 0);
             @endphp
-            <div class="sf-card p-4"
+            <div id="opname-item-{{ $opnameItem->id }}"
+                  class="sf-card p-4"
                   data-opname-item="1"
                   data-item-name="{{ $item?->name ?? '' }}"
                   x-data="opnameItemCard({
@@ -431,10 +432,12 @@ function checkBeforeSubmit(event) {
     event.preventDefault();
     var anomalies = [];
     document.querySelectorAll('[data-opname-item]').forEach(function (el) {
-        var itemName = el.dataset.itemName || 'Item';
+        var itemName    = el.dataset.itemName || 'Item';
         var physDisplay = el.dataset.physicalDisplay || '-';
+        var itemId      = el.id.replace('opname-item-', '');
         if (el.dataset.overSystem === 'true') {
             anomalies.push({
+                itemId: itemId,
                 icon: 'ti-info-circle',
                 color: 'text-blue-600',
                 bg: 'bg-blue-50 border-blue-200',
@@ -443,6 +446,7 @@ function checkBeforeSubmit(event) {
         }
         if (el.dataset.suspicious === 'true') {
             anomalies.push({
+                itemId: itemId,
                 icon: 'ti-alert-triangle',
                 color: 'text-orange-600',
                 bg: 'bg-orange-50 border-orange-200',
@@ -456,9 +460,14 @@ function checkBeforeSubmit(event) {
     }
     var list = document.getElementById('anomali-list');
     list.innerHTML = anomalies.map(function (a) {
-        return '<div class="flex items-start gap-2 p-2.5 rounded-xl border ' + a.bg + '">' +
+        return '<div class="flex items-start gap-2 p-2.5 rounded-xl border ' + a.bg +
+            ' cursor-pointer hover:opacity-80 transition-opacity"' +
+            ' onclick="scrollToOpnameItem(\'' + a.itemId + '\')" title="Klik untuk ke item ini">' +
             '<i class="ti ' + a.icon + ' ' + a.color + ' flex-shrink-0 mt-0.5 text-sm" aria-hidden="true"></i>' +
+            '<div class="flex-1">' +
             '<p class="text-xs text-gray-700">' + a.message + '</p>' +
+            '<p class="text-xs text-gray-400 mt-0.5">Klik untuk ke item ini →</p>' +
+            '</div>' +
             '</div>';
     }).join('');
     var modal = document.getElementById('opname-confirm-modal');
@@ -475,6 +484,19 @@ function closeOpnameModal() {
 function confirmOpnameSubmit() {
     closeOpnameModal();
     document.getElementById('opname-submit-form').submit();
+}
+
+function scrollToOpnameItem(itemId) {
+    closeOpnameModal();
+    var el = document.getElementById('opname-item-' + itemId);
+    if (!el) { return; }
+    var offset = 120;
+    var top = el.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ top: top, behavior: 'smooth' });
+    el.classList.add('ring-2', 'ring-amber-400', 'ring-offset-2', 'transition-all');
+    setTimeout(function () {
+        el.classList.remove('ring-2', 'ring-amber-400', 'ring-offset-2', 'transition-all');
+    }, 2000);
 }
 
 (function () {
