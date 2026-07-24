@@ -14,6 +14,8 @@ class StockMutation extends Model
     public const TYPE_DAILY_OPNAME_ADJ = 'DAILY_OPNAME_ADJ';
     public const TYPE_MONTHLY_OPNAME_ADJ = 'MONTHLY_OPNAME_ADJ';
     public const TYPE_VOID_REVERSAL = 'VOID_REVERSAL';
+    public const TYPE_TRANSFER_OUT = 'TRANSFER_OUT';
+    public const TYPE_TRANSFER_IN = 'TRANSFER_IN';
 
     public const TARGET_OUTLET_DAILY = 'OUTLET_DAILY';
     public const TARGET_OUTLET_WAREHOUSE = 'OUTLET_WAREHOUSE';

@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Admin\CoreHealthController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Debug\DatabaseDebugController;
 use App\Http\Controllers\MasterData\ImportExportController;
@@ -29,6 +31,7 @@ use App\Http\Controllers\Settings\SupplierController;
 use App\Http\Controllers\Settings\UserController;
 use App\Http\Controllers\Stock\SmartOrderController;
 use App\Http\Controllers\Stock\StockBalanceController;
+use App\Http\Controllers\Stock\StockTransferController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -50,7 +53,10 @@ Route::middleware('guest')->group(function (): void {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->name('login.store');
     Route::redirect('/register', '/login')->name('register');
-    Route::redirect('/forgot-password', '/login')->name('password.request');
+    Route::get('/forgot-password', [ForgotPasswordController::class, 'create'])->name('password.request');
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'store'])->name('password.email');
+    Route::get('/reset-password/{token}', [ResetPasswordController::class, 'create'])->name('password.reset');
+    Route::post('/reset-password', [ResetPasswordController::class, 'store'])->name('password.update');
 });
 
 Route::middleware('auth')->group(function (): void {
@@ -66,6 +72,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/', [SettingsController::class, 'index'])->name('index');
             Route::get('app', [AppSettingController::class, 'edit'])->name('app');
             Route::post('app', [AppSettingController::class, 'update'])->name('app.update');
+            Route::post('app/test-smtp', [AppSettingController::class, 'testSmtp'])->name('app.test-smtp');
             Route::resource('item-jenises', ItemJenisController::class)
                 ->only(['index', 'store', 'update', 'destroy'])
                 ->parameters(['item-jenises' => 'itemJenis'])
@@ -227,6 +234,26 @@ Route::middleware('auth')->group(function (): void {
                 ->name('balance.index');
             Route::get('balance/{item}', [StockBalanceController::class, 'show'])
                 ->name('balance.show');
+        });
+
+    Route::prefix('stock/transfers')
+        ->name('stock.transfers.')
+        ->middleware('permission:create_stock_transfers')
+        ->group(function (): void {
+            Route::get('/', [StockTransferController::class, 'index'])->name('index');
+            Route::get('/create', [StockTransferController::class, 'create'])->name('create');
+            Route::post('/', [StockTransferController::class, 'store'])->name('store');
+            Route::get('/{transfer}', [StockTransferController::class, 'show'])->name('show');
+            Route::post('/{transfer}/submit', [StockTransferController::class, 'submit'])->name('submit');
+            Route::post('/{transfer}/approve', [StockTransferController::class, 'approve'])
+                ->middleware('permission:approve_stock_transfers')
+                ->name('approve');
+            Route::post('/{transfer}/reject', [StockTransferController::class, 'reject'])
+                ->middleware('permission:approve_stock_transfers')
+                ->name('reject');
+            Route::post('/{transfer}/void', [StockTransferController::class, 'void'])
+                ->middleware('permission:approve_stock_transfers')
+                ->name('void');
         });
 
     Route::prefix('laporan')

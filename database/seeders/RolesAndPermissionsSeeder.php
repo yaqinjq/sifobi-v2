@@ -51,6 +51,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_stock_balance',
             'export_master_data',
             'import_master_data',
+            'create_stock_transfers',
+            'approve_stock_transfers',
         ];
 
         foreach ($permissions as $permission) {
@@ -62,7 +64,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $rolePermissions = [
             'SUPER_ADMIN' => $permissions,
-            'ADMIN' => $permissions,
+            'ADMIN'       => $permissions,
             'GENERAL_FINANCE' => [
                 'view_dashboard',
                 'manage_settings',
@@ -80,6 +82,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view_stock_balance',
                 'export_master_data',
                 'import_master_data',
+                'approve_stock_transfers',
             ],
             'FINANCE_STAFF' => [
                 'view_dashboard',
@@ -118,6 +121,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view_all_reports',
                 'view_stock_balance',
                 'export_master_data',
+                'approve_stock_transfers',
             ],
             'PIC_OUTLET' => [
                 'view_dashboard',
@@ -141,6 +145,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view_reports',
                 'view_stock_balance',
                 'export_master_data',
+                'create_stock_transfers',
+                'approve_stock_transfers',
             ],
             'STAFF_BAR' => [
                 'view_dashboard',
@@ -195,6 +201,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'input_spoil_waste',
                 'create_po',
                 'export_master_data',
+                'create_stock_transfers',
             ],
         ];
 

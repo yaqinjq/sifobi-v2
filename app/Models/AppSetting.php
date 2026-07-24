@@ -16,6 +16,13 @@ class AppSetting extends Model
         'primary_color',
         'contact_email',
         'contact_phone',
+        'smtp_host',
+        'smtp_port',
+        'smtp_username',
+        'smtp_password',
+        'smtp_encryption',
+        'smtp_from_address',
+        'smtp_from_name',
     ];
 
     protected static function booted(): void
