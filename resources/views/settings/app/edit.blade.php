@@ -197,19 +197,26 @@
                 </div>
 
                 {{-- Tombol tes SMTP --}}
-                <div x-data="smtpTester()" class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <button type="button"
-                            @click="test()"
-                            :disabled="loading"
-                            class="sf-btn-secondary min-h-10 text-sm flex items-center gap-2">
-                        <svg x-show="!loading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                        </svg>
-                        <svg x-show="loading" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                        <span x-text="loading ? 'Mengirim...' : 'Tes Koneksi SMTP'"></span>
-                    </button>
+                <div x-data="smtpTester()" class="space-y-2">
+                    <p class="text-xs text-gray-500">Simpan settings dulu sebelum tes. Email tes akan dikirim ke alamat di bawah.</p>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input type="email"
+                               x-model="testEmail"
+                               placeholder="Kirim tes ke email..."
+                               class="sf-input text-sm flex-1 min-h-10">
+                        <button type="button"
+                                @click="test()"
+                                :disabled="loading || !testEmail"
+                                class="sf-btn-secondary min-h-10 text-sm flex items-center gap-2 shrink-0">
+                            <svg x-show="!loading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
+                            <svg x-show="loading" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            <span x-text="loading ? 'Mengirim...' : 'Tes Koneksi SMTP'"></span>
+                        </button>
+                    </div>
                     <p x-show="message"
                        :class="success ? 'text-green-700' : 'text-red-700'"
                        class="text-sm font-medium"
@@ -233,19 +240,14 @@ function smtpTester() {
         loading: false,
         success: false,
         message: '',
+        testEmail: '',
         async test() {
             this.loading = true;
             this.message = '';
             try {
                 const data = new FormData();
                 data.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-                data.append('smtp_host', document.getElementById('smtp_host').value);
-                data.append('smtp_port', document.getElementById('smtp_port').value);
-                data.append('smtp_username', document.getElementById('smtp_username').value);
-                const pwd = document.getElementById('smtp_password').value;
-                if (pwd && pwd !== '••••••••') data.append('smtp_password', pwd);
-                data.append('smtp_encryption', document.getElementById('smtp_encryption').value);
-                data.append('smtp_from_address', document.getElementById('smtp_from_address').value);
+                data.append('test_email', this.testEmail);
                 const res = await fetch('{{ route('settings.app.test-smtp') }}', { method: 'POST', body: data });
                 const json = await res.json();
                 this.success = json.success;

@@ -77,36 +77,53 @@ class AppSettingController extends Controller
 
     public function testSmtp(Request $request): JsonResponse
     {
-        $request->validate([
-            'smtp_host'        => ['required', 'string'],
-            'smtp_port'        => ['required', 'integer'],
-            'smtp_username'    => ['nullable', 'string'],
-            'smtp_password'    => ['nullable', 'string'],
-            'smtp_encryption'  => ['nullable', 'string'],
-            'smtp_from_address'=> ['nullable', 'email'],
-        ]);
-
-        config([
-            'mail.default'                 => 'smtp',
-            'mail.mailers.smtp.host'       => $request->input('smtp_host'),
-            'mail.mailers.smtp.port'       => (int) $request->input('smtp_port', 587),
-            'mail.mailers.smtp.username'   => $request->input('smtp_username'),
-            'mail.mailers.smtp.password'   => $request->input('smtp_password'),
-            'mail.mailers.smtp.encryption' => $request->input('smtp_encryption', 'tls'),
-            'mail.from.address'            => $request->input('smtp_from_address') ?: $request->user()->email,
-            'mail.from.name'               => config('app.name'),
-        ]);
-
-        $toEmail = $request->user()->email;
+        $request->validate(['test_email' => ['required', 'email']]);
 
         try {
-            Mail::raw('Ini adalah email tes dari SIFOBI. Konfigurasi SMTP berhasil!', function ($message) use ($toEmail): void {
-                $message->to($toEmail)->subject('Tes SMTP SIFOBI');
-            });
+            $settings = AppSetting::query()
+                ->where('tenant_id', (int) $request->user()->tenant_id)
+                ->first();
 
-            return response()->json(['success' => true, 'message' => "Email tes berhasil dikirim ke {$toEmail}"]);
+            if (! $settings || ! $settings->smtp_host) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'SMTP belum dikonfigurasi. Isi dan simpan settings dulu.',
+                ], 422);
+            }
+
+            config([
+                'mail.default'                 => 'smtp',
+                'mail.mailers.smtp.transport'  => 'smtp',
+                'mail.mailers.smtp.host'       => $settings->smtp_host,
+                'mail.mailers.smtp.port'       => (int) ($settings->smtp_port ?? 587),
+                'mail.mailers.smtp.username'   => $settings->smtp_username,
+                'mail.mailers.smtp.password'   => $settings->smtp_password,
+                'mail.mailers.smtp.encryption' => $settings->smtp_encryption,
+                'mail.from.address'            => $settings->smtp_from_address ?: $settings->smtp_username,
+                'mail.from.name'               => $settings->smtp_from_name ?: config('app.name'),
+            ]);
+
+            // Flush cached mailer instance agar config baru dipakai
+            app('mail.manager')->purge('smtp');
+
+            $toEmail = $request->input('test_email');
+
+            Mail::mailer('smtp')->raw(
+                'Test email dari SIFOBI — konfigurasi SMTP berhasil! Dikirim pada: '
+                . now()->setTimezone('Asia/Jakarta')->format('d M Y H:i:s') . ' WIB',
+                fn ($m) => $m->to($toEmail)->subject('✅ Test SMTP SIFOBI — Berhasil!')
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => "Email berhasil dikirim ke {$toEmail}. Cek inbox Anda.",
+            ]);
+
         } catch (\Throwable $e) {
-            return response()->json(['success' => false, 'message' => 'Gagal: ' . $e->getMessage()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         }
     }
 }
