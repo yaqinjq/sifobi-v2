@@ -33,7 +33,7 @@ class StockTransferController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('stock.transfers.index', compact('transfers'));
+        return view('operations.stock-transfers.index', compact('transfers'));
     }
 
     public function create(Request $request): View
@@ -46,7 +46,7 @@ class StockTransferController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('stock.transfers.create', compact('outlets'));
+        return view('operations.stock-transfers.create', compact('outlets'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -93,7 +93,7 @@ class StockTransferController extends Controller
     {
         $transfer->load(['fromOutlet', 'toOutlet', 'createdBy', 'submittedBy', 'approvedBy', 'rejectedBy', 'voidedBy', 'items.item.inventoryUnit', 'items.item.baseUnit', 'items.unit']);
 
-        return view('stock.transfers.show', compact('transfer'));
+        return view('operations.stock-transfers.show', compact('transfer'));
     }
 
     public function submit(Request $request, StockTransfer $transfer): RedirectResponse

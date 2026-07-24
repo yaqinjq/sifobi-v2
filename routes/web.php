@@ -236,26 +236,6 @@ Route::middleware('auth')->group(function (): void {
                 ->name('balance.show');
         });
 
-    Route::prefix('stock/transfers')
-        ->name('stock.transfers.')
-        ->middleware('permission:create_stock_transfers')
-        ->group(function (): void {
-            Route::get('/', [StockTransferController::class, 'index'])->name('index');
-            Route::get('/create', [StockTransferController::class, 'create'])->name('create');
-            Route::post('/', [StockTransferController::class, 'store'])->name('store');
-            Route::get('/{transfer}', [StockTransferController::class, 'show'])->name('show');
-            Route::post('/{transfer}/submit', [StockTransferController::class, 'submit'])->name('submit');
-            Route::post('/{transfer}/approve', [StockTransferController::class, 'approve'])
-                ->middleware('permission:approve_stock_transfers')
-                ->name('approve');
-            Route::post('/{transfer}/reject', [StockTransferController::class, 'reject'])
-                ->middleware('permission:approve_stock_transfers')
-                ->name('reject');
-            Route::post('/{transfer}/void', [StockTransferController::class, 'void'])
-                ->middleware('permission:approve_stock_transfers')
-                ->name('void');
-        });
-
     Route::prefix('laporan')
         ->name('laporan.')
         ->middleware('permission:view_reports')
@@ -317,6 +297,35 @@ Route::middleware('auth')->group(function (): void {
                 ->middleware('permission:approve_opname')
                 ->name('approve');
         });
+
+        Route::prefix('stock-transfers')
+            ->name('stock-transfers.')
+            ->group(function (): void {
+                Route::get('/', [StockTransferController::class, 'index'])
+                    ->middleware('permission:create_stock_transfers')
+                    ->name('index');
+                Route::get('/create', [StockTransferController::class, 'create'])
+                    ->middleware('permission:create_stock_transfers')
+                    ->name('create');
+                Route::post('/', [StockTransferController::class, 'store'])
+                    ->middleware('permission:create_stock_transfers')
+                    ->name('store');
+                Route::get('/{transfer}', [StockTransferController::class, 'show'])
+                    ->middleware('permission:create_stock_transfers')
+                    ->name('show');
+                Route::post('/{transfer}/submit', [StockTransferController::class, 'submit'])
+                    ->middleware('permission:create_stock_transfers')
+                    ->name('submit');
+                Route::post('/{transfer}/approve', [StockTransferController::class, 'approve'])
+                    ->middleware('permission:approve_stock_transfers')
+                    ->name('approve');
+                Route::post('/{transfer}/reject', [StockTransferController::class, 'reject'])
+                    ->middleware('permission:approve_stock_transfers')
+                    ->name('reject');
+                Route::post('/{transfer}/void', [StockTransferController::class, 'void'])
+                    ->middleware('permission:approve_stock_transfers')
+                    ->name('void');
+            });
 
         // Item search API; static segment must come before {openStock} parameter.
         Route::get('/open-stocks/item-search', [OpenStockController::class, 'itemSearch'])
