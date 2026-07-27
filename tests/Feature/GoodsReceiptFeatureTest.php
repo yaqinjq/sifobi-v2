@@ -84,12 +84,12 @@ test('guest cannot access goods receipt index', function (): void {
         ->assertRedirect('/login');
 });
 
-test('staff bar cannot access goods receipt module', function (): void {
+test('staff bar can view goods receipt index', function (): void {
     $user = goodsReceiptUser('STAFF_BAR');
 
     $this->actingAs($user)
         ->get(route('receiving.goods-receipts.index'))
-        ->assertForbidden();
+        ->assertOk();
 });
 
 test('create page shows four receiving sources', function (): void {
