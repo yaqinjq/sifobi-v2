@@ -27,7 +27,11 @@
     <div class="sticky top-0 z-10 -mx-4 border-y border-gray-100 bg-white px-4 py-3 lg:mx-0 lg:rounded-2xl lg:border">
         <div class="flex flex-wrap items-center gap-2">
             <div class="relative flex-1 min-w-[180px]">
-                <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true"></i>
+                <button type="button" id="opname-search-btn"
+                        class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-700 transition-colors text-sm"
+                        aria-label="Cari">
+                    <i class="ti ti-search" aria-hidden="true"></i>
+                </button>
                 <input type="text"
                        id="opname-search"
                        value="{{ $search }}"
@@ -296,16 +300,6 @@
 @push('scripts')
 <script>
 (function () {
-    function debounce(fn, delay) {
-        let timer;
-        return function (...args) {
-            clearTimeout(timer);
-            timer = setTimeout(function () {
-                fn(...args);
-            }, delay);
-        };
-    }
-
     function buildUrl(params) {
         const url = new URL(window.location.href);
         Object.entries(params).forEach(function ([key, value]) {
@@ -320,10 +314,23 @@
     }
 
     const search = document.getElementById('opname-search');
+    const searchBtn = document.getElementById('opname-search-btn');
+
+    function doSearch() {
+        window.location = buildUrl({ q: search ? search.value : '' });
+    }
+
     if (search) {
-        search.addEventListener('input', debounce(function (event) {
-            window.location = buildUrl({ q: event.target.value });
-        }, 350));
+        search.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                doSearch();
+            }
+        });
+    }
+
+    if (searchBtn) {
+        searchBtn.addEventListener('click', doSearch);
     }
 
     const category = document.getElementById('opname-category');
