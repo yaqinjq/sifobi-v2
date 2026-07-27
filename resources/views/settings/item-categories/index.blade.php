@@ -17,18 +17,19 @@
     @endif
 
     <x-sf.card title="Daftar Kategori Bahan">
-        <div class="hidden lg:grid grid-cols-[1fr_1.4fr_2fr_1fr_auto] gap-3 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-100">
+        <div class="hidden lg:grid grid-cols-[0.8fr_1.2fr_1.8fr_0.6fr_0.7fr_auto] gap-3 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-100">
             <span>Kode</span>
             <span>Nama</span>
             <span>Deskripsi</span>
-            <span>Urutan</span>
+            <span class="text-right">Urutan</span>
+            <span class="text-right">Item</span>
             <span class="text-right">Aksi</span>
         </div>
 
         <div class="divide-y divide-gray-50">
             @foreach($categories as $category)
                 <div class="py-3" x-data="{ editing: false }">
-                    <form method="POST" action="{{ route('settings.item-categories.update', $category) }}" class="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr_2fr_1fr_auto] gap-3 items-center">
+                    <form method="POST" action="{{ route('settings.item-categories.update', $category) }}" class="grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr_1.8fr_0.6fr_0.7fr_auto] gap-3 items-center">
                         @csrf
                         @method('PUT')
 
@@ -56,6 +57,15 @@
                             <input x-show="editing" x-cloak name="sort_order" type="number" min="0" value="{{ $category->sort_order }}" class="sf-input text-base">
                         </div>
 
+                        <div class="lg:text-right">
+                            <span class="lg:hidden sf-label">Jumlah Item</span>
+                            @if($category->items_count > 0)
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">{{ $category->items_count }}</span>
+                            @else
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">0</span>
+                            @endif
+                        </div>
+
                         <div class="flex justify-end gap-2">
                             <x-icon-btn icon="edit" label="Edit" color="blue" x-show="!editing" @click="editing = true" />
                             <x-icon-btn icon="approve" label="Simpan" color="green" type="submit" x-show="editing" x-cloak />
@@ -80,7 +90,7 @@
     </x-sf.card>
 
     <x-sf.card title="+ Tambah Kategori Bahan">
-        <form method="POST" action="{{ route('settings.item-categories.store') }}" class="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr_2fr_1fr_auto] gap-3 items-end">
+        <form method="POST" action="{{ route('settings.item-categories.store') }}" class="grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr_1.8fr_0.6fr_auto] gap-3 items-end">
             @csrf
             <x-sf.form-group label="Kode" for="code" :required="true">
                 <input id="code" name="code" value="{{ old('code') }}" class="sf-input text-base uppercase" maxlength="50" required>

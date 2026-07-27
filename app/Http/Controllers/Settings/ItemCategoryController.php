@@ -20,6 +20,7 @@ class ItemCategoryController extends Controller
             'categories' => ItemCategory::query()
                 ->where('tenant_id', $tenantId)
                 ->where('is_active', true)
+                ->withCount('items')
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get(),
