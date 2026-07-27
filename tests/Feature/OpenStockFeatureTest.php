@@ -101,7 +101,7 @@ test('user without permission cannot create open stock', function (): void {
 // ─── Draft CRUD ───────────────────────────────────────────────────────────────
 
 test('user with input_open_stock can create draft via bulk form', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
 
     $this->actingAs($user)
         ->post('/operations/open-stocks', openStockPayload(['qty_whole' => '1,5', 'qty_loose' => '0']))
@@ -118,7 +118,7 @@ test('user with input_open_stock can create draft via bulk form', function (): v
 });
 
 test('bulk store creates multiple drafts in one transaction', function (): void {
-    $user   = openStockUser('STAFF_BAR');
+    $user   = openStockUser('PIC_OUTLET');
     $item2  = Item::query()->where('canonical_sku', 'MKO-GULA-PASIR')->firstOrFail();
     $department = Department::query()->where('code', 'BAR')->firstOrFail();
 
@@ -140,7 +140,7 @@ test('bulk store creates multiple drafts in one transaction', function (): void 
 });
 
 test('bulk store rejects duplicate item_ids in one batch', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
     $department = Department::query()->where('code', 'BAR')->firstOrFail();
 
     $payload = [
@@ -162,7 +162,7 @@ test('bulk store rejects duplicate item_ids in one batch', function (): void {
 });
 
 test('create page shows batch row controls', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
 
     $this->actingAs($user)
         ->get(route('operations.open-stocks.create'))
@@ -173,7 +173,7 @@ test('create page shows batch row controls', function (): void {
 });
 
 test('item search returns unit ids and purchase ratio for batch form', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
 
     $this->actingAs($user)
         ->getJson(route('operations.open-stocks.item-search', ['q' => 'aji']))
@@ -197,7 +197,7 @@ test('item search returns unit ids and purchase ratio for batch form', function 
 });
 
 test('json batch store creates drafts and returns redirect payload', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
     $item2 = Item::query()->where('canonical_sku', 'MKO-GULA-PASIR')->firstOrFail();
     $department = Department::query()->where('code', 'BAR')->firstOrFail();
 
@@ -220,7 +220,7 @@ test('json batch store creates drafts and returns redirect payload', function ()
 });
 
 test('batch row can create daily and warehouse drafts for the same item', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
     $department = Department::query()->where('code', 'BAR')->firstOrFail();
 
     $this->actingAs($user)
@@ -265,7 +265,7 @@ test('batch row can create daily and warehouse drafts for the same item', functi
 });
 
 test('batch row can create warehouse only draft for an item', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
     $department = Department::query()->where('code', 'BAR')->firstOrFail();
 
     $this->actingAs($user)
@@ -294,7 +294,7 @@ test('batch row can create warehouse only draft for an item', function (): void 
 });
 
 test('desktop open stock index shows create and import actions', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
     $this->actingAs($user)->post('/operations/open-stocks', openStockPayload());
 
     $this->actingAs($user)
@@ -305,7 +305,7 @@ test('desktop open stock index shows create and import actions', function (): vo
 });
 
 test('open stock import template can be downloaded', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
 
     $this->actingAs($user)
         ->get(route('operations.open-stocks.import.template'))
@@ -314,7 +314,7 @@ test('open stock import template can be downloaded', function (): void {
 });
 
 test('open stock import creates draft rows from excel', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
     $path = storage_path('framework/testing/open-stock-import.xlsx');
     File::ensureDirectoryExists(dirname($path));
 
@@ -356,7 +356,7 @@ test('open stock import creates draft rows from excel', function (): void {
 });
 
 test('draft can be edited', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
     $this->actingAs($user)->post('/operations/open-stocks', openStockPayload());
     $openStock = OpenStock::query()->firstOrFail();
 
@@ -379,7 +379,7 @@ test('draft can be edited', function (): void {
 });
 
 test('draft can be deleted', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
     $this->actingAs($user)->post('/operations/open-stocks', openStockPayload());
     $openStock = OpenStock::query()->firstOrFail();
 
@@ -579,7 +579,7 @@ test('VOID_REVERSAL mutation cannot itself be voided', function (): void {
 // ─── Decimal formatting ───────────────────────────────────────────────────────
 
 test('decimal comma is accepted', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
 
     $this->actingAs($user)
         ->post('/operations/open-stocks', openStockPayload(['qty_whole' => '1,5', 'qty_loose' => '0,25']))
@@ -592,7 +592,7 @@ test('decimal comma is accepted', function (): void {
 });
 
 test('decimal dot is accepted', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
 
     $this->actingAs($user)
         ->post('/operations/open-stocks', openStockPayload(['qty_whole' => '1.5', 'qty_loose' => '0.25']))
@@ -605,7 +605,7 @@ test('decimal dot is accepted', function (): void {
 });
 
 test('ambiguous decimal with dot then comma is rejected', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
 
     $this->actingAs($user)
         ->from('/operations/open-stocks/create')
@@ -614,7 +614,7 @@ test('ambiguous decimal with dot then comma is rejected', function (): void {
 });
 
 test('ambiguous decimal with comma then dot is rejected', function (): void {
-    $user = openStockUser('STAFF_BAR');
+    $user = openStockUser('PIC_OUTLET');
 
     $this->actingAs($user)
         ->from('/operations/open-stocks/create')

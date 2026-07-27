@@ -31,7 +31,7 @@ class StockBalanceController extends Controller
         $user      = $request->user();
         $userRoles = $user->getRoleNames();
 
-        $restrictedRoles = ['STAFF_BAR', 'STAFF_KITCHEN', 'STAFF_GUDANG'];
+        $restrictedRoles = ['STAFF_BAR', 'STAFF_KITCHEN', 'STAFF_GUDANG', 'STAFF_SERVICE'];
         $picRoles        = ['PIC_OUTLET'];
         $isRestricted    = $userRoles->intersect($restrictedRoles)->isNotEmpty();
         $isPic           = $userRoles->intersect($picRoles)->isNotEmpty();
@@ -54,7 +54,7 @@ class StockBalanceController extends Controller
 
         $categoryId = $request->integer('category_id') ?: null;
         $search = trim((string) $request->get('q', ''));
-        $showEmpty = $request->boolean('show_empty', true);
+        $showEmpty = $request->boolean('show_empty', false);
         $stockTarget = $request->get('stock_target');
 
         $query = StockBalance::query()

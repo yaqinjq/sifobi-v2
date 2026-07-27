@@ -137,7 +137,7 @@ test('manager area can access calendar events without broad settings permission'
 });
 
 test('open stock suggestion is available but collapsed by default', function (): void {
-    $user = smartOrderUser('STAFF_BAR', $this->tenant->id, $this->outlet->id);
+    $user = smartOrderUser('PIC_OUTLET', $this->tenant->id, $this->outlet->id);
 
     $this->actingAs($user)
         ->get(route('operations.open-stocks.create'))
@@ -147,7 +147,7 @@ test('open stock suggestion is available but collapsed by default', function ():
 });
 
 test('opname item cards render prominent smart order suggestion container', function (): void {
-    $user = smartOrderUser('STAFF_BAR', $this->tenant->id, $this->outlet->id);
+    $user = smartOrderUser('PIC_OUTLET', $this->tenant->id, $this->outlet->id);
 
     $session = app(OpnameService::class)->startSession([
         'tenant_id' => $this->tenant->id,

@@ -91,32 +91,7 @@
                         </p>
                         <p class="text-xs text-gray-500 mt-1">Base: {{ number_format((float) $balance->qty_on_hand, 4, ',', '.') }}</p>
                     </div>
-                    <div class="grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                            <p class="text-xs text-gray-500">HPP/unit</p>
-                            <p class="font-semibold text-gray-900">Rp {{ number_format((float) $balance->avg_cost, 2, ',', '.') }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-500">Nilai</p>
-                            <p class="font-semibold text-gray-900">Rp {{ number_format((float) $balance->total_value, 0, ',', '.') }}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center justify-between gap-3 border-t border-gray-100 pt-2">
-                        <div class="space-y-1">
-                            @if($needsOrder)
-                                <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-600">
-                                    <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                    </svg>
-                                    Perlu Order
-                                </span>
-                            @elseif($hasReorderConfig)
-                                <span class="badge-active">Stok OK</span>
-                            @else
-                                <span class="badge-draft">Belum Config</span>
-                            @endif
-                            <p class="text-xs text-gray-500">Update: {{ optional($balance->last_mutation_at ?? $balance->updated_at)->diffForHumans() ?? '-' }}</p>
-                        </div>
+                    <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-2">
                         <x-icon-btn
                             icon="history"
                             label="Riwayat"
@@ -145,10 +120,7 @@
                             <th class="px-4 py-3 text-right">Stok Utuh</th>
                             <th class="px-4 py-3 text-right">Stok Ecer</th>
                             <th class="px-4 py-3">Satuan</th>
-                            <th class="px-4 py-3 text-right">HPP</th>
-                            <th class="px-4 py-3 text-right">Nilai</th>
-                            <th class="px-4 py-3">Update</th>
-                            <th class="px-4 py-3">Status Order</th>
+                            <th class="px-4 py-3 text-right">Total (base)</th>
                             <th class="px-4 py-3 text-right">Aksi</th>
                         </tr>
                     </thead>
@@ -169,18 +141,7 @@
                                 <td class="px-4 py-3 text-right">{{ number_format($balance->qty_whole, 0, ',', '.') }}</td>
                                 <td class="px-4 py-3 text-right">{{ number_format($balance->qty_loose, 4, ',', '.') }}</td>
                                 <td class="px-4 py-3">{{ $item?->inventoryUnit?->abbreviation ?? $item?->baseUnit?->abbreviation ?? '-' }}</td>
-                                <td class="px-4 py-3 text-right">Rp {{ number_format((float) $balance->avg_cost, 2, ',', '.') }}</td>
-                                <td class="px-4 py-3 text-right">Rp {{ number_format((float) $balance->total_value, 0, ',', '.') }}</td>
-                                <td class="px-4 py-3 text-gray-500">{{ optional($balance->last_mutation_at ?? $balance->updated_at)->diffForHumans() ?? '-' }}</td>
-                                <td class="px-4 py-3">
-                                    @if($needsOrder)
-                                        <span class="badge-rejected">Reorder</span>
-                                    @elseif($hasReorderConfig)
-                                        <span class="badge-active">OK</span>
-                                    @else
-                                        <span class="badge-draft">Belum Config</span>
-                                    @endif
-                                </td>
+                                <td class="px-4 py-3 text-right text-gray-600">{{ number_format((float) $balance->qty_on_hand, 2, ',', '.') }}</td>
                                 <td class="px-4 py-3 text-right">
                                     <x-icon-btn
                                         icon="history"
@@ -193,7 +154,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="13" class="px-4 py-12 text-center">
+                                <td colspan="9" class="px-4 py-12 text-center">
                                     <i class="ti ti-database-off text-4xl text-gray-300 mb-3 block" aria-hidden="true"></i>
                                     <p class="font-medium text-gray-600">Belum ada data stok</p>
                                     <p class="text-sm text-gray-400 mt-1">
