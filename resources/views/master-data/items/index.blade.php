@@ -61,31 +61,42 @@
         }
      }">
     <div class="sticky top-[65px] lg:top-0 z-20 bg-gray-50/95 backdrop-blur pb-3">
-        <div class="flex flex-wrap gap-3 items-center border-b border-gray-100 bg-white p-3 rounded-2xl">
+        <form method="GET" action="{{ route('master-data.items.index') }}" class="flex flex-wrap gap-3 items-center border-b border-gray-100 bg-white p-3 rounded-2xl">
+            {{-- Pertahankan column filter saat main filter disubmit --}}
+            @if($colName ?? '')<input type="hidden" name="col_name" value="{{ $colName }}">@endif
+            @if($colSku ?? '')<input type="hidden" name="col_sku" value="{{ $colSku }}">@endif
+            @if($colJenis ?? '')<input type="hidden" name="col_jenis" value="{{ $colJenis }}">@endif
+            @if($colKategori ?? '')<input type="hidden" name="col_kategori" value="{{ $colKategori }}">@endif
+
             <div class="relative flex-1 min-w-[200px]">
-                <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true"></i>
-                <input type="text"
+                <button type="submit"
+                        class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-700 transition-colors text-sm"
+                        aria-label="Cari">
+                    <i class="ti ti-search" aria-hidden="true"></i>
+                </button>
+                <input type="search"
                        id="search-items"
+                       name="q"
                        value="{{ $search }}"
                        placeholder="Cari nama atau SKU..."
                        class="sf-input pl-9 w-full text-base"
                        autocomplete="off">
             </div>
 
-            <select id="filter-type" class="sf-input w-auto text-base min-h-11">
+            <select id="filter-type" name="type" class="sf-input w-auto text-base min-h-11" onchange="this.form.submit()">
                 <option value="">Semua Tipe</option>
                 @foreach($itemTypes as $value => $label)
                     <option value="{{ $value }}" @selected($typeFilter === $value)>{{ $label }}</option>
                 @endforeach
             </select>
 
-            <select id="filter-status" class="sf-input w-auto text-base min-h-11">
+            <select id="filter-status" name="status" class="sf-input w-auto text-base min-h-11" onchange="this.form.submit()">
                 <option value="">Semua Status</option>
                 <option value="active" @selected($statusFilter === 'active')>Aktif</option>
                 <option value="inactive" @selected($statusFilter === 'inactive')>Non-Aktif</option>
             </select>
 
-            <select id="filter-outlet" class="sf-input w-auto text-base min-h-11">
+            <select id="filter-outlet" name="outlet_id" class="sf-input w-auto text-base min-h-11" onchange="this.form.submit()">
                 <option value="">Semua Outlet</option>
                 @foreach($outlets as $outlet)
                     <option value="{{ $outlet->id }}" @selected((string) $outletFilter === (string) $outlet->id)>
@@ -94,7 +105,7 @@
                 @endforeach
             </select>
 
-            <select id="filter-dept" class="sf-input w-auto text-base min-h-11">
+            <select id="filter-dept" name="dept_id" class="sf-input w-auto text-base min-h-11" onchange="this.form.submit()">
                 <option value="">Semua Departemen</option>
                 @foreach($departments as $department)
                     <option value="{{ $department->id }}" @selected((string) $deptFilter === (string) $department->id)>
@@ -109,7 +120,7 @@
                     Reset
                 </a>
             @endif
-        </div>
+        </form>
     </div>
 
     @if(request()->hasAny(['type', 'status', 'q', 'outlet_id', 'dept_id', 'col_name', 'col_sku', 'col_jenis', 'col_kategori']))
@@ -530,16 +541,6 @@
 @push('scripts')
 <script>
 (function () {
-    function debounce(fn, delay) {
-        let timer;
-        return function (...args) {
-            clearTimeout(timer);
-            timer = setTimeout(function () {
-                fn(...args);
-            }, delay);
-        };
-    }
-
     function buildUrl(params) {
         const url = new URL(window.location.href);
         Object.entries(params).forEach(function ([key, value]) {
@@ -553,31 +554,21 @@
         return url.toString();
     }
 
-    const searchInput = document.getElementById('search-items');
-    if (searchInput) {
-        searchInput.addEventListener('input', debounce(function (event) {
-            window.location = buildUrl({ q: event.target.value });
-        }, 350));
-    }
-
-    const filterMap = {
-        'filter-type': 'type',
-        'filter-status': 'status',
-        'filter-outlet': 'outlet_id',
-        'filter-dept': 'dept_id',
+    // Column filter dropdowns (desktop) — langsung navigate saat ganti pilihan
+    const dropdownMap = {
         'col-filter-jenis': 'col_jenis',
         'col-filter-kategori': 'col_kategori',
     };
 
-    Object.entries(filterMap).forEach(function ([id, param]) {
+    Object.entries(dropdownMap).forEach(function ([id, param]) {
         const element = document.getElementById(id);
         if (!element) return;
-
         element.addEventListener('change', function (event) {
             window.location = buildUrl({ [param]: event.target.value });
         });
     });
 
+    // Column search inputs (desktop) — hanya navigate saat tekan Enter
     const columnSearchMap = {
         'col-search-name': 'col_name',
         'col-search-sku': 'col_sku',
@@ -586,10 +577,12 @@
     Object.entries(columnSearchMap).forEach(function ([id, param]) {
         const element = document.getElementById(id);
         if (!element) return;
-
-        element.addEventListener('input', debounce(function (event) {
-            window.location = buildUrl({ [param]: event.target.value });
-        }, 350));
+        element.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                window.location = buildUrl({ [param]: element.value });
+            }
+        });
     });
 })();
 </script>
