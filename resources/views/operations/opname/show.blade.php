@@ -25,21 +25,22 @@
     </x-sf.card>
 
     <div class="sticky top-0 z-10 -mx-4 border-y border-gray-100 bg-white px-4 py-3 lg:mx-0 lg:rounded-2xl lg:border">
-        <div class="flex flex-wrap items-center gap-2">
+        <form method="GET" action="{{ route('operations.opname.show', $session) }}" class="flex flex-wrap items-center gap-2" id="opname-filter-form">
             <div class="relative flex-1 min-w-[180px]">
-                <button type="button" id="opname-search-btn"
+                <button type="submit"
                         class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-700 transition-colors text-sm"
                         aria-label="Cari">
                     <i class="ti ti-search" aria-hidden="true"></i>
                 </button>
-                <input type="text"
+                <input type="search"
+                       name="q"
                        id="opname-search"
                        value="{{ $search }}"
                        placeholder="Cari bahan baku..."
                        class="sf-input pl-9 w-full text-sm min-h-11">
             </div>
 
-            <select id="opname-category" class="sf-input text-sm w-auto min-h-11">
+            <select name="category_id" id="opname-category" class="sf-input text-sm w-auto min-h-11" onchange="this.form.submit()">
                 <option value="">Semua Kategori</option>
                 @foreach($categories as $category)
                     <option value="{{ $category->id }}" @selected((string) $categoryId === (string) $category->id)>
@@ -48,7 +49,7 @@
                 @endforeach
             </select>
 
-            <select id="opname-perpage" class="sf-input text-sm w-auto min-h-11">
+            <select name="per_page" id="opname-perpage" class="sf-input text-sm w-auto min-h-11" onchange="this.form.submit()">
                 <option value="20" @selected($perPage === '20')>20 item</option>
                 <option value="50" @selected($perPage === '50')>50 item</option>
                 <option value="100" @selected($perPage === '100')>100 item</option>
@@ -65,7 +66,7 @@
             <span class="ml-auto text-xs text-gray-400">
                 {{ $paginator ? $paginator->total() : $items->count() }} item
             </span>
-        </div>
+        </form>
     </div>
 
     <div class="space-y-3">
@@ -299,55 +300,6 @@
 
 @push('scripts')
 <script>
-(function () {
-    function buildUrl(params) {
-        const url = new URL(window.location.href);
-        Object.entries(params).forEach(function ([key, value]) {
-            if (value) {
-                url.searchParams.set(key, value);
-            } else {
-                url.searchParams.delete(key);
-            }
-        });
-        url.searchParams.delete('page');
-        return url.toString();
-    }
-
-    const search = document.getElementById('opname-search');
-    const searchBtn = document.getElementById('opname-search-btn');
-
-    function doSearch() {
-        window.location = buildUrl({ q: search ? search.value : '' });
-    }
-
-    if (search) {
-        search.addEventListener('keydown', function (event) {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                doSearch();
-            }
-        });
-    }
-
-    if (searchBtn) {
-        searchBtn.addEventListener('click', doSearch);
-    }
-
-    const category = document.getElementById('opname-category');
-    if (category) {
-        category.addEventListener('change', function (event) {
-            window.location = buildUrl({ category_id: event.target.value });
-        });
-    }
-
-    const perPage = document.getElementById('opname-perpage');
-    if (perPage) {
-        perPage.addEventListener('change', function (event) {
-            window.location = buildUrl({ per_page: event.target.value });
-        });
-    }
-})();
-
 function opnameItemCard(config) {
     return {
         url: config.url,
