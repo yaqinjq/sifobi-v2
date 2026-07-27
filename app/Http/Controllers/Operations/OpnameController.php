@@ -124,14 +124,16 @@ class OpnameController extends Controller
                 'item.category',
                 'item.jenis',
                 'item.primaryDepartment',
+                'item.departments',
                 'department',
                 'unit',
             ]);
 
         if ($roleFilter !== null) {
             $query->where(function ($q) use ($roleFilter): void {
-                $q->whereHas('item.primaryDepartment', fn ($departmentQuery) => $departmentQuery->where('name', 'like', "%{$roleFilter}%"))
-                    ->orWhereHas('department', fn ($departmentQuery) => $departmentQuery->where('name', 'like', "%{$roleFilter}%"))
+                $q->whereHas('item.primaryDepartment', fn ($dq) => $dq->where('name', 'like', "%{$roleFilter}%"))
+                    ->orWhereHas('item.departments', fn ($dq) => $dq->where('name', 'like', "%{$roleFilter}%"))
+                    ->orWhereHas('department', fn ($dq) => $dq->where('name', 'like', "%{$roleFilter}%"))
                     ->orWhere(function ($fallbackQuery): void {
                         $fallbackQuery
                             ->whereNull('department_id')
