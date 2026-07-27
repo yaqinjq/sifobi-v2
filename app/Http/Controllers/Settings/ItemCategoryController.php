@@ -97,7 +97,14 @@ class ItemCategoryController extends Controller
                     ->where('tenant_id', $tenantId)
                     ->ignore($ignoreId),
             ],
-            'name' => ['required', 'string', 'max:150'],
+            'name' => [
+                'required',
+                'string',
+                'max:150',
+                Rule::unique('item_categories', 'name')
+                    ->where('tenant_id', $tenantId)
+                    ->ignore($ignoreId),
+            ],
             'description' => ['nullable', 'string', 'max:2000'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
