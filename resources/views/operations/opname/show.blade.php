@@ -63,9 +63,18 @@
                 </span>
             @endif
 
-            <span class="ml-auto text-xs text-gray-400">
+            <span class="text-xs text-gray-400">
                 {{ $paginator ? $paginator->total() : $items->count() }} item
             </span>
+
+            @if($search !== '' || $categoryId !== '')
+                <a href="{{ route('operations.opname.show', $session) }}"
+                   class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                   title="Reset filter">
+                    <i class="ti ti-x text-xs" aria-hidden="true"></i>
+                    <span>Reset</span>
+                </a>
+            @endif
         </form>
     </div>
 
