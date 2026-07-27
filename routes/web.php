@@ -34,6 +34,37 @@ use App\Http\Controllers\Stock\StockBalanceController;
 use App\Http\Controllers\Stock\StockTransferController;
 use Illuminate\Support\Facades\Route;
 
+// PWA — tidak butuh auth
+Route::get('/manifest.json', function () {
+    $setting = \App\Models\AppSetting::current();
+    $name    = $setting?->app_name ?? config('app.name', 'SIFOBI');
+
+    return response()->json([
+        'name'             => $name,
+        'short_name'       => $name,
+        'description'      => $setting?->app_tagline ?? 'Food & Beverage Inventory System',
+        'start_url'        => '/dashboard',
+        'scope'            => '/',
+        'display'          => 'standalone',
+        'orientation'      => 'portrait-primary',
+        'background_color' => '#1B4332',
+        'theme_color'      => '#1B4332',
+        'lang'             => 'id',
+        'categories'       => ['productivity', 'business'],
+        'icons'            => [
+            ['src' => '/icons/icon-192.png',         'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
+            ['src' => '/icons/icon-512.png',         'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
+            ['src' => '/icons/icon-maskable-512.png','sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
+        ],
+        'screenshots'      => [],
+    ])->header('Content-Type', 'application/manifest+json')
+      ->header('Cache-Control', 'public, max-age=3600');
+})->name('pwa.manifest');
+
+Route::get('/offline', function () {
+    return view('pwa.offline');
+})->name('pwa.offline');
+
 Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('dashboard');
