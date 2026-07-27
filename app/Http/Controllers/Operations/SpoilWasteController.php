@@ -32,6 +32,7 @@ class SpoilWasteController extends Controller
         $query = SpoilWaste::query()
             ->with(['outlet', 'department', 'item', 'unit', 'createdBy'])
             ->where('tenant_id', $tenantId)
+            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')->upper()->toString()))
             ->when($request->input('range') === '7', fn ($q) => $q->whereDate('recorded_date', '>=', now()->subDays(7)->toDateString()))
             ->when($request->input('range') === '30', fn ($q) => $q->whereDate('recorded_date', '>=', now()->subDays(30)->toDateString()))
@@ -95,6 +96,9 @@ class SpoilWasteController extends Controller
             'duplicateReference.createdBy',
             'mutation',
         ]);
+
+        $userOutletId = auth()->user()->outlet_id;
+        abort_if($userOutletId && (int) $spoil->outlet_id !== (int) $userOutletId, 403);
 
         return view('operations.spoil-wastes.show', [
             'spoil' => $spoil,
@@ -186,6 +190,7 @@ class SpoilWasteController extends Controller
             'outlets' => Outlet::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')
+                ->when($request->user()->outlet_id, fn ($q) => $q->where('id', $request->user()->outlet_id))
                 ->orderBy('name')
                 ->get(),
             'departments' => Department::query()

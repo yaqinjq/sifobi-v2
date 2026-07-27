@@ -30,6 +30,7 @@ class OpnameController extends Controller
 
         $sessions = OpnameSession::query()
             ->where('tenant_id', $tenantId)
+            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
             ->with(['outlet', 'createdBy', 'approvedBy'])
             ->withCount('items')
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->upper()->toString()))
@@ -53,6 +54,7 @@ class OpnameController extends Controller
             'outlets' => Outlet::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')
+                ->when($request->user()->outlet_id, fn ($q) => $q->where('id', $request->user()->outlet_id))
                 ->orderBy('name')
                 ->get(),
             'defaultOutletId' => $outletId,
@@ -92,6 +94,9 @@ class OpnameController extends Controller
             'submittedBy',
             'approvedBy',
         ]);
+
+        $userOutletId = $request->user()->outlet_id;
+        abort_if($userOutletId && (int) $session->outlet_id !== (int) $userOutletId, 403);
 
         $search = $request->string('q')->toString();
         $categoryId = $request->string('category_id')->toString();

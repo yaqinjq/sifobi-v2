@@ -25,6 +25,10 @@ class StockTransferController extends Controller
 
         $transfers = StockTransfer::query()
             ->where('tenant_id', $tenantId)
+            ->when($request->user()->outlet_id, fn ($q) => $q->where(
+                fn ($inner) => $inner->where('from_outlet_id', $request->user()->outlet_id)
+                                     ->orWhere('to_outlet_id', $request->user()->outlet_id)
+            ))
             ->with(['fromOutlet', 'toOutlet', 'createdBy'])
             ->withCount('items')
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')->upper()->toString()))
@@ -43,6 +47,7 @@ class StockTransferController extends Controller
         $outlets = Outlet::query()
             ->where('tenant_id', $tenantId)
             ->where('status', 'ACTIVE')
+            ->when($request->user()->outlet_id, fn ($q) => $q->where('id', $request->user()->outlet_id))
             ->orderBy('name')
             ->get();
 
@@ -89,9 +94,12 @@ class StockTransferController extends Controller
             ->with('success', 'Transfer stok berhasil dibuat.');
     }
 
-    public function show(StockTransfer $transfer): View
+    public function show(Request $request, StockTransfer $transfer): View
     {
         $transfer->load(['fromOutlet', 'toOutlet', 'createdBy', 'submittedBy', 'approvedBy', 'rejectedBy', 'voidedBy', 'items.item.inventoryUnit', 'items.item.baseUnit', 'items.unit']);
+
+        $userOutletId = $request->user()->outlet_id;
+        abort_if($userOutletId && (int) $transfer->from_outlet_id !== (int) $userOutletId && (int) $transfer->to_outlet_id !== (int) $userOutletId, 403);
 
         return view('operations.stock-transfers.show', compact('transfer'));
     }

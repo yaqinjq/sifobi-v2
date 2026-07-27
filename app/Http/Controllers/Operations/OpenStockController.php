@@ -45,7 +45,8 @@ class OpenStockController extends Controller
 
         $query = OpenStock::query()
             ->with(['outlet', 'department', 'item.baseUnit', 'item.inventoryUnit', 'item.purchaseUnit', 'unit', 'postedBy', 'createdBy'])
-            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId));
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id));
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status')->upper()->toString());
@@ -117,9 +118,12 @@ class OpenStockController extends Controller
             ->with('success', "Berhasil menyimpan {$count} item Open Stock sebagai Draft.");
     }
 
-    public function show(OpenStock $openStock): View
+    public function show(Request $request, OpenStock $openStock): View
     {
         $openStock->load(['outlet', 'item.inventoryUnit', 'item.baseUnit', 'unit', 'createdBy', 'postedBy', 'voidedBy']);
+
+        $userOutletId = $request->user()->outlet_id;
+        abort_if($userOutletId && (int) $openStock->outlet_id !== (int) $userOutletId, 403);
 
         return view('operations.open-stocks.show', [
             'openStock' => $openStock,
@@ -219,6 +223,7 @@ class OpenStockController extends Controller
             'outlets' => Outlet::query()
                 ->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId))
                 ->where('status', 'ACTIVE')
+                ->when($user->outlet_id, fn ($q) => $q->where('id', $user->outlet_id))
                 ->orderBy('name')
                 ->get(),
             'items' => Item::query()

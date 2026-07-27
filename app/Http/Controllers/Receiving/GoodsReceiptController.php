@@ -29,6 +29,7 @@ class GoodsReceiptController extends Controller
             ->with(['outlet', 'supplier'])
             ->withCount('items')
             ->withSum('items as total_value_sum', 'total_value')
+            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
             ->when($request->filled('source'), fn ($query) => $query->where('source', $request->string('source')))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('date_from'), fn ($query) => $query->whereDate('receipt_date', '>=', $request->date('date_from')))
@@ -111,6 +112,9 @@ class GoodsReceiptController extends Controller
             'items.unit',
             'items.mutation',
         ]);
+
+        $userOutletId = auth()->user()->outlet_id;
+        abort_if($userOutletId && (int) $receipt->outlet_id !== (int) $userOutletId, 403);
 
         return view('receiving.goods-receipts.show', [
             'receipt' => $receipt,
@@ -255,6 +259,7 @@ class GoodsReceiptController extends Controller
             'outlets' => Outlet::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')
+                ->when($request->user()->outlet_id, fn ($q) => $q->where('id', $request->user()->outlet_id))
                 ->orderBy('name')
                 ->get(),
             'suppliers' => Supplier::query()

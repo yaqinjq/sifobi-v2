@@ -72,6 +72,8 @@
                 $baseUnit = $item?->baseUnit?->abbreviation ?? 'base';
                 $invRatio = (float) ($opnameItem->inv_ratio ?? $item?->inventory_ratio ?? 1);
                 $sysQty   = (float) ($opnameItem->stok_sistem ?? 0);
+                $isDecimalUnit = in_array(strtolower($inventoryUnit), ['gr', 'g', 'kg', 'mg', 'ml', 'l', 'ltr', 'cc', 'dl', 'cl']);
+                $decimals = $isDecimalUnit ? 4 : 0;
             @endphp
             <div id="opname-item-{{ $opnameItem->id }}"
                   class="sf-card p-4"
@@ -86,6 +88,7 @@
                     qtyLoose: @js((string) $opnameItem->physical_qty_loose),
                     invRatio: @js($invRatio),
                     sysQty: @js($sysQty),
+                    decimals: @js($decimals),
                      wasCounted: @js((bool) $opnameItem->is_counted)
                   })"
                   x-init="fetchSuggestion()"
@@ -102,7 +105,7 @@
                     <div class="rounded-xl px-3 py-2 text-sm flex justify-between gap-3 {{ $sysQty > 0 ? 'bg-blue-50' : 'bg-gray-50' }}">
                         <span class="{{ $sysQty > 0 ? 'text-blue-600' : 'text-gray-500' }}">Stok Saat Ini</span>
                         <span class="font-semibold {{ $sysQty > 0 ? 'text-blue-700' : 'text-gray-400' }}">
-                            {{ number_format($sysQty / ($invRatio ?: 1), 2) }} {{ $inventoryUnit }}
+                            {{ number_format($sysQty / ($invRatio ?: 1), $decimals) }} {{ $inventoryUnit }}
                             @if($sysQty > 0)
                                 <span class="text-xs font-normal text-gray-400">({{ number_format($sysQty, 0) }} {{ $baseUnit }})</span>
                             @endif
@@ -146,9 +149,9 @@
                     <div class="rounded-xl bg-gray-50 px-3 py-2 flex justify-between gap-3">
                         <span class="text-gray-500">Selisih</span>
                         <span>
-                            <span x-show="Number(variance) < 0" class="font-semibold text-red-600" x-text="`${varianceDisplay} {{ $inventoryUnit }}`"></span>
-                            <span x-show="Number(variance) > 0" class="font-semibold text-green-600" x-text="`${varianceDisplay} {{ $inventoryUnit }}`"></span>
-                            <span x-show="Number(variance) === 0" class="font-semibold text-gray-600">0.00 {{ $inventoryUnit }}</span>
+                            <span x-show="wasCounted && Number(variance) > 0" class="font-semibold text-red-600" x-text="`${varianceDisplay} {{ $inventoryUnit }}`"></span>
+                            <span x-show="wasCounted && Number(variance) < 0" class="font-semibold text-green-600" x-text="`${varianceDisplay} {{ $inventoryUnit }}`"></span>
+                            <span x-show="!wasCounted || Number(variance) === 0" class="font-semibold text-gray-600">0.00 {{ $inventoryUnit }}</span>
                         </span>
                     </div>
                 </div>
@@ -349,16 +352,17 @@ function opnameItemCard(config) {
         qtyLoose: parseFloat(config.qtyLoose) > 0 ? String(parseFloat(config.qtyLoose)) : '',
         invRatio: parseFloat(config.invRatio) || 1,
         sysQty: parseFloat(config.sysQty) || 0,
+        decimals: config.decimals ?? 2,
         saved: false,
         suggestion: null,
         get physicalBase() {
             return (parseFloat(this.qtyWhole) || 0) * this.invRatio + (parseFloat(this.qtyLoose) || 0);
         },
         get physicalBaseDisplay() {
-            return (this.physicalBase / (this.invRatio || 1)).toFixed(2);
+            return (this.physicalBase / (this.invRatio || 1)).toFixed(this.decimals);
         },
         get varianceDisplay() {
-            return (parseFloat(this.variance) / (this.invRatio || 1)).toFixed(2);
+            return (parseFloat(this.variance) / (this.invRatio || 1)).toFixed(this.decimals);
         },
         get isOverSystemStock() {
             return this.sysQty > 0 && this.physicalBase > this.sysQty;

@@ -76,8 +76,8 @@ class OpnameService
                     'physical_qty_whole' => '0.000000',
                     'physical_qty_loose' => '0.000000',
                     'physical_qty_base' => '0.000000',
-                    'variance_qty' => bcmul($systemQty, '-1', 6),
-                    'variance' => bcmul($systemQty, '-1', 6),
+                    'variance_qty' => $systemQty,
+                    'variance' => $systemQty,
                     'variance_value' => '0.0000',
                     'is_counted' => false,
                 ]);
@@ -104,7 +104,7 @@ class OpnameService
             $whole = Decimal::toFixed($wholeQty ?? 0, 6);
             $loose = Decimal::toFixed($looseQty ?? 0, 6);
             $physicalBase = $this->physicalBaseQty($opnameItem->item, $whole, $loose);
-            $variance = bcsub($physicalBase, (string) $opnameItem->system_qty_base, 6);
+            $variance = bcsub((string) $opnameItem->system_qty_base, $physicalBase, 6);
             $cost = Decimal::toFixed($opnameItem->item?->standard_cost ?: $opnameItem->item?->last_purchase_price ?: 0, 4);
             $varianceValue = bcmul(ltrim($variance, '-'), $cost, 4);
 
@@ -185,7 +185,7 @@ class OpnameService
                     'unit_id' => $opnameItem->item?->base_unit_id ?: $opnameItem->unit_id,
                     'stock_target' => StockMutation::TARGET_OUTLET_DAILY,
                     'opname_type' => $session->type,
-                    'qty_change' => (string) $opnameItem->variance,
+                    'qty_change' => bcmul('-1', (string) $opnameItem->variance, 6),
                     'reference_type' => OpnameItem::class,
                     'reference_id' => $opnameItem->id,
                     'performed_by' => $userId,
