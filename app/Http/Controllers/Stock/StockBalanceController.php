@@ -63,8 +63,8 @@ class StockBalanceController extends Controller
             ->when($outletId, fn ($builder) => $builder->where('outlet_id', $outletId))
             ->when($stockTarget, fn ($builder) => $builder->where('stock_target', $stockTarget));
 
-        if (! $showEmpty) {
-            $query->where('qty_on_hand', '>', 0);
+        if ($showEmpty) {
+            $query->where('qty_on_hand', '<=', 0);
         }
 
         if ($categoryId) {
