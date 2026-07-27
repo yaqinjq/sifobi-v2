@@ -108,11 +108,19 @@
                   x-init="fetchSuggestion()"
                   x-effect="$el.dataset.overSystem = isOverSystemStock; $el.dataset.suspicious = isSuspiciousWhenZero; $el.dataset.physicalDisplay = physicalBaseDisplay">
                 <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
+                    <div class="min-w-0 flex-1">
                         <p class="font-semibold text-gray-900">{{ $item?->name ?? '-' }}</p>
                         <p class="text-xs text-gray-500">{{ $item?->canonical_sku ?? '-' }}</p>
                     </div>
-                    <span class="badge-draft">{{ $opnameItem->department?->name ?? $item?->primaryDepartment?->name ?? '-' }}</span>
+                    <div class="flex flex-col items-end gap-1 shrink-0">
+                        <span class="badge-draft">{{ $opnameItem->department?->name ?? $item?->primaryDepartment?->name ?? '-' }}</span>
+                        @if(array_key_exists($opnameItem->item_id, $sharedItemIds))
+                            <span class="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-700">
+                                <i class="ti ti-share text-xs" aria-hidden="true"></i>
+                                Item Bersama
+                            </span>
+                        @endif
+                    </div>
                 </div>
 
                 <div class="mt-4 space-y-1.5">

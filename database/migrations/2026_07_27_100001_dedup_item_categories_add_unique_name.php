@@ -67,8 +67,7 @@ return new class extends Migration
 
     private function uniqueExists(string $table, string $indexName): bool
     {
-        $indexes = DB::select("SHOW INDEX FROM `{$table}` WHERE Key_name = ?", [$indexName]);
-
-        return count($indexes) > 0;
+        return collect(Schema::getIndexes($table))
+            ->contains(fn (array $index): bool => $index['name'] === $indexName);
     }
 };

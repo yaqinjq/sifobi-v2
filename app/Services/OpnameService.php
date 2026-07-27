@@ -64,23 +64,47 @@ class OpnameService
 
             foreach ($this->itemsForOpname($tenantId, $outletId, $type) as $item) {
                 $systemQty = $this->systemQty($tenantId, $outletId, (int) $item->id);
+                $departments = $item->relationLoaded('departments') ? $item->departments : collect();
 
-                $session->items()->create([
-                    'tenant_id' => $tenantId,
-                    'item_id' => $item->id,
-                    'unit_id' => $item->inventory_unit_id ?: $item->base_unit_id,
-                    'department_id' => $item->primary_department_id,
-                    'system_qty' => $systemQty,
-                    'system_qty_base' => $systemQty,
-                    'counted_qty' => '0.000000',
-                    'physical_qty_whole' => '0.000000',
-                    'physical_qty_loose' => '0.000000',
-                    'physical_qty_base' => '0.000000',
-                    'variance_qty' => $systemQty,
-                    'variance' => $systemQty,
-                    'variance_value' => '0.0000',
-                    'is_counted' => false,
-                ]);
+                // Item dipakai lebih dari satu departemen — buat baris per departemen
+                if ($departments->count() > 1) {
+                    foreach ($departments as $dept) {
+                        $session->items()->create([
+                            'tenant_id'          => $tenantId,
+                            'item_id'            => $item->id,
+                            'unit_id'            => $item->inventory_unit_id ?: $item->base_unit_id,
+                            'department_id'      => $dept->id,
+                            'system_qty'         => $systemQty,
+                            'system_qty_base'    => $systemQty,
+                            'counted_qty'        => '0.000000',
+                            'physical_qty_whole' => '0.000000',
+                            'physical_qty_loose' => '0.000000',
+                            'physical_qty_base'  => '0.000000',
+                            'variance_qty'       => $systemQty,
+                            'variance'           => $systemQty,
+                            'variance_value'     => '0.0000',
+                            'is_counted'         => false,
+                        ]);
+                    }
+                } else {
+                    // Item satu atau tanpa departemen — satu baris seperti sebelumnya
+                    $session->items()->create([
+                        'tenant_id'          => $tenantId,
+                        'item_id'            => $item->id,
+                        'unit_id'            => $item->inventory_unit_id ?: $item->base_unit_id,
+                        'department_id'      => $item->primary_department_id,
+                        'system_qty'         => $systemQty,
+                        'system_qty_base'    => $systemQty,
+                        'counted_qty'        => '0.000000',
+                        'physical_qty_whole' => '0.000000',
+                        'physical_qty_loose' => '0.000000',
+                        'physical_qty_base'  => '0.000000',
+                        'variance_qty'       => $systemQty,
+                        'variance'           => $systemQty,
+                        'variance_value'     => '0.0000',
+                        'is_counted'         => false,
+                    ]);
+                }
             }
 
             return $session->load(['outlet', 'items.item.inventoryUnit', 'items.item.baseUnit']);
@@ -173,31 +197,54 @@ class OpnameService
                 ]);
             }
 
-            foreach ($session->items as $opnameItem) {
-                if (bccomp((string) $opnameItem->variance, '0.000000', 6) === 0 || $opnameItem->mutation_id) {
+            // Agregasi per item_id agar item shared (multi-dept) hanya menghasilkan satu mutasi
+            $itemGroups = $session->items->groupBy('item_id');
+
+            foreach ($itemGroups as $itemId => $rows) {
+                // Skip jika sudah ada mutasi di salah satu baris (idempoten)
+                if ($rows->contains(fn (OpnameItem $r): bool => $r->mutation_id !== null)) {
                     continue;
                 }
 
+                // Total fisik dari semua departemen untuk item ini
+                $totalPhysicalBase = $rows->reduce(
+                    fn (string $carry, OpnameItem $r): string => bcadd($carry, (string) $r->physical_qty_base, 6),
+                    '0.000000'
+                );
+
+                // system_qty_base sama di semua baris untuk item yang sama
+                $systemQtyBase = (string) $rows->first()->system_qty_base;
+
+                // Variance agregat: sistem - total fisik semua departemen
+                $aggregateVariance = bcsub($systemQtyBase, $totalPhysicalBase, 6);
+
+                if (bccomp($aggregateVariance, '0.000000', 6) === 0) {
+                    continue;
+                }
+
+                $firstRow = $rows->first();
+
                 $mutation = $this->stockLedgerService->opnameAdjustment([
-                    'tenant_id' => $session->tenant_id,
-                    'outlet_id' => $session->outlet_id,
-                    'item_id' => $opnameItem->item_id,
-                    'unit_id' => $opnameItem->item?->base_unit_id ?: $opnameItem->unit_id,
-                    'stock_target' => StockMutation::TARGET_OUTLET_DAILY,
-                    'opname_type' => $session->type,
-                    'qty_change' => bcmul('-1', (string) $opnameItem->variance, 6),
+                    'tenant_id'      => $session->tenant_id,
+                    'outlet_id'      => $session->outlet_id,
+                    'item_id'        => $firstRow->item_id,
+                    'unit_id'        => $firstRow->item?->base_unit_id ?: $firstRow->unit_id,
+                    'stock_target'   => StockMutation::TARGET_OUTLET_DAILY,
+                    'opname_type'    => $session->type,
+                    'qty_change'     => bcmul('-1', $aggregateVariance, 6),
                     'reference_type' => OpnameItem::class,
-                    'reference_id' => $opnameItem->id,
-                    'performed_by' => $userId,
-                    'performed_at' => now(),
-                    'notes' => "Opname {$session->type} {$session->opname_date?->format('Y-m-d')}",
-                    'metadata' => [
-                        'opname_session_id' => $session->id,
-                        'opname_item_id' => $opnameItem->id,
+                    'reference_id'   => $firstRow->id,
+                    'performed_by'   => $userId,
+                    'performed_at'   => now(),
+                    'notes'          => "Opname {$session->type} {$session->opname_date?->format('Y-m-d')}",
+                    'metadata'       => [
+                        'opname_session_id'  => $session->id,
+                        'opname_item_ids'    => $rows->pluck('id')->all(),
                     ],
                 ]);
 
-                $opnameItem->update(['mutation_id' => $mutation->id]);
+                // Tautkan mutasi ke SEMUA baris departemen untuk item ini
+                $rows->each(fn (OpnameItem $r): bool => (bool) $r->update(['mutation_id' => $mutation->id]));
             }
 
             $session->update([
@@ -253,7 +300,7 @@ class OpnameService
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->where('track_stock', true)
-            ->with(['baseUnit', 'inventoryUnit', 'primaryDepartment'])
+            ->with(['baseUnit', 'inventoryUnit', 'primaryDepartment', 'departments'])
             ->orderBy('name');
 
         if ($itemIds->isNotEmpty()) {

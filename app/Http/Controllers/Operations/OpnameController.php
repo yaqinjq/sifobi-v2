@@ -7,7 +7,6 @@ use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\ItemCategory;
 use App\Modules\Operations\Models\OpnameItem;
 use App\Modules\Operations\Models\OpnameSession;
-use App\Modules\Stock\Models\StockMutation;
 use App\Services\OpnameService;
 use App\Support\Decimal;
 use Illuminate\Http\JsonResponse;
@@ -225,6 +224,16 @@ class OpnameController extends Controller
             $opnameItem->inv_ratio   = $ratio > 0 ? $ratio : (float) ($conversionRatioMap->get((int) $opnameItem->item_id) ?? 1.0);
         });
 
+        // Item yang muncul lebih dari satu baris dalam sesi ini (shared antar departemen)
+        $sharedItemIds = OpnameItem::query()
+            ->where('opname_session_id', $session->id)
+            ->selectRaw('item_id, COUNT(*) as row_count')
+            ->groupBy('item_id')
+            ->having('row_count', '>', 1)
+            ->pluck('item_id')
+            ->flip()
+            ->all();
+
         $categories = ItemCategory::query()
             ->where('tenant_id', $this->tenantId($request))
             ->where('is_active', true)
@@ -242,6 +251,7 @@ class OpnameController extends Controller
             'roleFilter' => $roleFilter,
             'counted' => $counted,
             'total' => $total,
+            'sharedItemIds' => $sharedItemIds,
         ]);
     }
 
