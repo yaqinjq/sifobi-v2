@@ -174,9 +174,9 @@
                     <div class="rounded-xl bg-gray-50 px-3 py-2 flex justify-between gap-3">
                         <span class="text-gray-500">Selisih</span>
                         <span>
-                            <span x-show="hasInput && liveVariance > 0" class="font-semibold text-red-600" x-text="`${liveVarianceDisplay} {{ $inventoryUnit }}`"></span>
-                            <span x-show="hasInput && liveVariance < 0" class="font-semibold text-green-600" x-text="`${liveVarianceDisplay} {{ $inventoryUnit }}`"></span>
-                            <span x-show="!hasInput || liveVariance === 0" class="font-semibold text-gray-600">0.00 {{ $inventoryUnit }}</span>
+                            <span x-show="(wasCounted || hasInput) && liveVariance > 0" class="font-semibold text-red-600" x-text="`${liveVarianceDisplay} {{ $inventoryUnit }}`"></span>
+                            <span x-show="(wasCounted || hasInput) && liveVariance < 0" class="font-semibold text-green-600" x-text="`${liveVarianceDisplay} {{ $inventoryUnit }}`"></span>
+                            <span x-show="!(wasCounted || hasInput) || liveVariance === 0" class="font-semibold text-gray-600">0.00 {{ $inventoryUnit }}</span>
                         </span>
                     </div>
                 </div>
