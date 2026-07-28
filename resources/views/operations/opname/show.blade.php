@@ -85,7 +85,9 @@
                 $inventoryUnit = $item?->inventoryUnit?->abbreviation ?? $opnameItem->unit?->abbreviation ?? 'unit';
                 $baseUnit = $item?->baseUnit?->abbreviation ?? 'base';
                 $invRatio = (float) ($opnameItem->inv_ratio ?? $item?->inventory_ratio ?? 1);
-                $sysQty   = (float) ($opnameItem->stok_sistem ?? 0);
+                $sysQtyBase  = (float) $opnameItem->system_qty_base;  // referensi selisih (snapshot saat sesi mulai)
+                $sysQtyLive  = (float) ($opnameItem->stok_sistem ?? 0); // live balance (info saja)
+                $sysQty      = $sysQtyBase; // tetap expose untuk kompatibilitas isOverSystemStock
                 $isDecimalUnit = in_array(strtolower($inventoryUnit), ['gr', 'g', 'kg', 'mg', 'ml', 'l', 'ltr', 'cc', 'dl', 'cl']);
                 $decimals = $isDecimalUnit ? 4 : 0;
             @endphp
@@ -101,7 +103,8 @@
                     qtyWhole: @js((string) $opnameItem->physical_qty_whole),
                     qtyLoose: @js((string) $opnameItem->physical_qty_loose),
                     invRatio: @js($invRatio),
-                    sysQty: @js($sysQty),
+                    sysQtyBase: @js($sysQtyBase),
+                    sysQty: @js($sysQtyBase),
                     decimals: @js($decimals),
                      wasCounted: @js((bool) $opnameItem->is_counted)
                   })"
@@ -124,16 +127,16 @@
                 </div>
 
                 <div class="mt-4 space-y-1.5">
-                    <div class="rounded-xl px-3 py-2 text-sm flex justify-between gap-3 {{ $sysQty > 0 ? 'bg-blue-50' : 'bg-gray-50' }}">
-                        <span class="{{ $sysQty > 0 ? 'text-blue-600' : 'text-gray-500' }}">Stok Saat Ini</span>
-                        <span class="font-semibold {{ $sysQty > 0 ? 'text-blue-700' : 'text-gray-400' }}">
-                            {{ number_format($sysQty / ($invRatio ?: 1), $decimals) }} {{ $inventoryUnit }}
-                            @if($sysQty > 0)
-                                <span class="text-xs font-normal text-gray-400">({{ number_format($sysQty, 0) }} {{ $baseUnit }})</span>
+                    <div class="rounded-xl px-3 py-2 text-sm flex justify-between gap-3 {{ $sysQtyBase > 0 ? 'bg-blue-50' : 'bg-gray-50' }}">
+                        <span class="{{ $sysQtyBase > 0 ? 'text-blue-600' : 'text-gray-500' }}">Stok Saat Ini</span>
+                        <span class="font-semibold {{ $sysQtyBase > 0 ? 'text-blue-700' : 'text-gray-400' }}">
+                            {{ number_format($sysQtyBase / ($invRatio ?: 1), $decimals) }} {{ $inventoryUnit }}
+                            @if($sysQtyBase > 0)
+                                <span class="text-xs font-normal text-gray-400">({{ number_format($sysQtyBase, 0) }} {{ $baseUnit }})</span>
                             @endif
                         </span>
                     </div>
-                    @if($sysQty == 0)
+                    @if($sysQtyBase == 0)
                         <p class="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1">
                             ⚠️ Stok sistem = 0. Jika ada stok fisik, input jumlah yang sebenarnya.
                         </p>
@@ -171,9 +174,9 @@
                     <div class="rounded-xl bg-gray-50 px-3 py-2 flex justify-between gap-3">
                         <span class="text-gray-500">Selisih</span>
                         <span>
-                            <span x-show="wasCounted && Number(variance) > 0" class="font-semibold text-red-600" x-text="`${varianceDisplay} {{ $inventoryUnit }}`"></span>
-                            <span x-show="wasCounted && Number(variance) < 0" class="font-semibold text-green-600" x-text="`${varianceDisplay} {{ $inventoryUnit }}`"></span>
-                            <span x-show="!wasCounted || Number(variance) === 0" class="font-semibold text-gray-600">0.00 {{ $inventoryUnit }}</span>
+                            <span x-show="hasInput && liveVariance > 0" class="font-semibold text-red-600" x-text="`${liveVarianceDisplay} {{ $inventoryUnit }}`"></span>
+                            <span x-show="hasInput && liveVariance < 0" class="font-semibold text-green-600" x-text="`${liveVarianceDisplay} {{ $inventoryUnit }}`"></span>
+                            <span x-show="!hasInput || liveVariance === 0" class="font-semibold text-gray-600">0.00 {{ $inventoryUnit }}</span>
                         </span>
                     </div>
                 </div>
@@ -327,7 +330,8 @@ function opnameItemCard(config) {
         qtyWhole: parseFloat(config.qtyWhole) > 0 ? String(parseFloat(config.qtyWhole)) : '',
         qtyLoose: parseFloat(config.qtyLoose) > 0 ? String(parseFloat(config.qtyLoose)) : '',
         invRatio: parseFloat(config.invRatio) || 1,
-        sysQty: parseFloat(config.sysQty) || 0,
+        sysQtyBase: parseFloat(config.sysQtyBase) || 0,
+        sysQty: parseFloat(config.sysQtyBase) || 0,
         decimals: config.decimals ?? 2,
         saved: false,
         suggestion: null,
@@ -337,14 +341,24 @@ function opnameItemCard(config) {
         get physicalBaseDisplay() {
             return (this.physicalBase / (this.invRatio || 1)).toFixed(this.decimals);
         },
+        // Real-time variance: sistem (snapshot) - fisik. Positif = kurang fisik, negatif = lebih fisik.
+        get liveVariance() {
+            return this.sysQtyBase - this.physicalBase;
+        },
+        get liveVarianceDisplay() {
+            return (this.liveVariance / (this.invRatio || 1)).toFixed(this.decimals);
+        },
         get varianceDisplay() {
             return (parseFloat(this.variance) / (this.invRatio || 1)).toFixed(this.decimals);
         },
+        get hasInput() {
+            return (parseFloat(this.qtyWhole) || 0) > 0 || (parseFloat(this.qtyLoose) || 0) > 0;
+        },
         get isOverSystemStock() {
-            return this.sysQty > 0 && this.physicalBase > this.sysQty;
+            return this.sysQtyBase > 0 && this.physicalBase > this.sysQtyBase;
         },
         get isSuspiciousWhenZero() {
-            return this.sysQty === 0 && this.physicalBase > 0;
+            return this.sysQtyBase === 0 && this.physicalBase > 0;
         },
         async fetchSuggestion() {
             try {

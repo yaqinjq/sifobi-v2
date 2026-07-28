@@ -312,14 +312,13 @@ class OpnameService
 
     private function systemQty(int $tenantId, int $outletId, int $itemId): string
     {
-        $balance = StockBalance::query()
+        $qty = DB::table('stock_balances')
             ->where('tenant_id', $tenantId)
             ->where('outlet_id', $outletId)
             ->where('item_id', $itemId)
-            ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
-            ->first();
+            ->sum('qty_on_hand');
 
-        return Decimal::toFixed($balance?->qty_on_hand ?? 0, 6);
+        return Decimal::toFixed((string) ($qty ?? 0), 6);
     }
 
     private function physicalBaseQty(?Item $item, string $whole, string $loose): string
