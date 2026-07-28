@@ -116,6 +116,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('default-conversions', [DefaultConversionController::class, 'index'])->name('default-conversions.index');
             Route::post('default-conversions', [DefaultConversionController::class, 'store'])->name('default-conversions.store');
             Route::delete('default-conversions/{id}', [DefaultConversionController::class, 'destroy'])->name('default-conversions.destroy');
+            Route::post('default-conversions/preset/{type}', [DefaultConversionController::class, 'loadPreset'])->name('default-conversions.preset');
             Route::resource('departments', DepartmentController::class)
                 ->only(['index', 'store', 'update', 'destroy'])
                 ->names('departments');
