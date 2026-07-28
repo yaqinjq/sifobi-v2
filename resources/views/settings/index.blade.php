@@ -92,6 +92,16 @@
             </div>
             <i class="ti ti-chevron-right sh-arrow" aria-hidden="true"></i>
         </a>
+        @can('manage_settings')
+            <a href="{{ route('settings.default-conversions.index') }}" class="sh-item">
+                <div class="sh-icon sh-icon-teal"><i class="ti ti-arrows-exchange" aria-hidden="true"></i></div>
+                <div class="sh-text">
+                    <p class="sh-name">Konversi default satuan</p>
+                    <p class="sh-desc">KG→Gram, Liter→mL — otomatis saat item baru dibuat</p>
+                </div>
+                <i class="ti ti-chevron-right sh-arrow" aria-hidden="true"></i>
+            </a>
+        @endcan
     </div>
 
     @if(auth()->user()->can('manage_brands_outlets') || auth()->user()->can('manage_settings'))

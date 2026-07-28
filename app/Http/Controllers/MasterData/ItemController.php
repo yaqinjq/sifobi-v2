@@ -13,6 +13,7 @@ use App\Modules\Inventory\Models\ItemBrandAlias;
 use App\Modules\Inventory\Models\ItemCategory;
 use App\Modules\Inventory\Models\ItemJenis;
 use App\Modules\Inventory\Models\Unit;
+use App\Modules\Inventory\Models\UnitConversion;
 use App\Support\Decimal;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -161,6 +162,7 @@ class ItemController extends Controller
             $item = Item::query()->create($data);
             $this->syncRelations($item, $request, $tenantId);
             $this->syncExtraConversions($item, $request, $tenantId);
+            $this->applyDefaultConversions($item, $tenantId);
 
             return $item;
         });
@@ -360,6 +362,45 @@ class ItemController extends Controller
                 'multiply_rate' => $factor,
                 'factor' => $factor,
             ]);
+        }
+    }
+
+    private function applyDefaultConversions(Item $item, int $tenantId): void
+    {
+        $usedUnitIds = array_filter([
+            $item->inventory_unit_id,
+            $item->purchase_unit_id,
+            $item->base_unit_id,
+        ]);
+
+        if (empty($usedUnitIds)) {
+            return;
+        }
+
+        $defaults = UnitConversion::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->whereNull('item_id')
+            ->whereIn('from_unit_id', $usedUnitIds)
+            ->get();
+
+        foreach ($defaults as $default) {
+            $alreadyExists = UnitConversion::withoutGlobalScopes()
+                ->where('tenant_id', $tenantId)
+                ->where('item_id', $item->id)
+                ->where('from_unit_id', $default->from_unit_id)
+                ->where('to_unit_id', $default->to_unit_id)
+                ->exists();
+
+            if (! $alreadyExists) {
+                $factor = $default->factor ?? $default->multiply_rate;
+                $item->conversions()->create([
+                    'tenant_id'    => $tenantId,
+                    'from_unit_id' => $default->from_unit_id,
+                    'to_unit_id'   => $default->to_unit_id,
+                    'multiply_rate' => $factor,
+                    'factor'        => $factor,
+                ]);
+            }
         }
     }
 

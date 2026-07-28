@@ -20,6 +20,7 @@ use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Settings\AppSettingController;
 use App\Http\Controllers\Settings\BrandController;
 use App\Http\Controllers\Settings\CalendarEventController;
+use App\Http\Controllers\Settings\DefaultConversionController;
 use App\Http\Controllers\Settings\DepartmentController;
 use App\Http\Controllers\Settings\IntegrationController;
 use App\Http\Controllers\Settings\ItemCategoryController;
@@ -112,6 +113,9 @@ Route::middleware('auth')->group(function (): void {
                 ->only(['index', 'store', 'update', 'destroy'])
                 ->parameters(['item-categories' => 'itemCategory'])
                 ->names('item-categories');
+            Route::get('default-conversions', [DefaultConversionController::class, 'index'])->name('default-conversions.index');
+            Route::post('default-conversions', [DefaultConversionController::class, 'store'])->name('default-conversions.store');
+            Route::delete('default-conversions/{id}', [DefaultConversionController::class, 'destroy'])->name('default-conversions.destroy');
             Route::resource('departments', DepartmentController::class)
                 ->only(['index', 'store', 'update', 'destroy'])
                 ->names('departments');
