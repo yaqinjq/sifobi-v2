@@ -17,6 +17,7 @@ use App\Http\Controllers\Operations\OpnameController;
 use App\Http\Controllers\Operations\SpoilWasteController;
 use App\Http\Controllers\Receiving\GoodsReceiptController;
 use App\Http\Controllers\Reports\ReportController;
+use App\Http\Controllers\Procurement\PurchaseOrderController;
 use App\Http\Controllers\Settings\AppSettingController;
 use App\Http\Controllers\Settings\BrandController;
 use App\Http\Controllers\Settings\CalendarEventController;
@@ -412,4 +413,38 @@ Route::middleware('auth')->group(function (): void {
             ->middleware('permission:post_open_stock')
             ->name('open-stocks.void');
     });
+
+    // ── Purchase Order ────────────────────────────────────────────────────
+    Route::prefix('procurement/purchase-orders')
+        ->name('procurement.purchase-orders.')
+        ->middleware('permission:create_po')
+        ->group(function (): void {
+            Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
+
+            Route::get('/create', [PurchaseOrderController::class, 'create'])->name('create');
+            Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
+
+            Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('show');
+
+            Route::post('/{purchaseOrder}/items', [PurchaseOrderController::class, 'addItem'])->name('items.store');
+            Route::delete('/{purchaseOrder}/items/{item}', [PurchaseOrderController::class, 'removeItem'])->name('items.destroy');
+
+            Route::post('/{purchaseOrder}/submit', [PurchaseOrderController::class, 'submit'])->name('submit');
+
+            Route::post('/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])
+                ->middleware('permission:approve_po')
+                ->name('approve');
+
+            Route::post('/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])
+                ->middleware('permission:approve_po')
+                ->name('reject');
+
+            Route::post('/{purchaseOrder}/send', [PurchaseOrderController::class, 'send'])
+                ->middleware('permission:approve_po')
+                ->name('send');
+
+            Route::post('/{purchaseOrder}/close', [PurchaseOrderController::class, 'close'])
+                ->middleware('permission:approve_po')
+                ->name('close');
+        });
 });
