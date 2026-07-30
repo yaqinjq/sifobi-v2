@@ -72,11 +72,8 @@ Route::get('/', function () {
         return redirect()->route('dashboard');
     }
 
-    $mode = config('app.landing_mode', 'saas');
-    $mode = in_array($mode, ['saas', 'mko'], true) ? $mode : 'saas';
-
-    return view("landing.{$mode}");
-})->name('home')->middleware('guest');
+    return redirect()->route('login');
+})->name('home');
 
 if (config('app.debug')) {
     Route::get('/test-db', DatabaseDebugController::class)->name('debug.test-db');
