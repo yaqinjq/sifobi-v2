@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\MasterData;
 
 use App\Exports\ItemOutletMappingExport;
+use App\Exports\ItemPoTagsExport;
 use App\Exports\ItemsExport;
 use App\Exports\StockConfigExport;
 use App\Exports\Templates\ItemImportTemplate;
@@ -11,11 +12,13 @@ use App\Exports\Templates\UnitsImportTemplate;
 use App\Exports\UnitConversionsExport;
 use App\Exports\UnitsExport;
 use App\Http\Controllers\Controller;
+use App\Imports\ItemPoTagsImport;
 use App\Imports\ItemsImport;
 use App\Imports\UnitConversionsImport;
 use App\Imports\UnitsImport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -92,6 +95,42 @@ class ImportExportController extends Controller
         Excel::import($import, $this->uploadedFile($request));
 
         return response()->json($import->summary());
+    }
+
+    // ── PO Tags (tujuan_po per item) ──────────────────────────────────────
+
+    public function exportPoTags(Request $request): BinaryFileResponse
+    {
+        return Excel::download(
+            new ItemPoTagsExport($this->tenantId($request)),
+            'TujuanPO-Items.xlsx'
+        );
+    }
+
+    public function previewPoTags(Request $request): JsonResponse
+    {
+        $import = new ItemPoTagsImport();
+        Excel::import($import, $this->uploadedFile($request));
+
+        return response()->json($import->preview($this->tenantId($request)));
+    }
+
+    public function applyPoTags(Request $request): JsonResponse
+    {
+        $request->validate([
+            'changes'               => ['required', 'array', 'min:1'],
+            'changes.*.sku'         => ['required', 'string', 'max:50'],
+            'changes.*.has_change'  => ['required', 'boolean'],
+            'changes.*.new_tags'    => ['present', 'array'],
+            'changes.*.new_tags.*'  => ['string', Rule::in(['OCIA_ROASTERY', 'CENTRAL_KITCHEN'])],
+        ]);
+
+        $result = ItemPoTagsImport::applyChanges(
+            $request->input('changes'),
+            $this->tenantId($request)
+        );
+
+        return response()->json($result);
     }
 
     private function tenantId(Request $request): int

@@ -217,6 +217,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('export/conversions', [ImportExportController::class, 'exportConversions'])->name('export.conversions');
             Route::get('export/item-outlets', [ImportExportController::class, 'exportItemOutlets'])->name('export.item-outlets');
             Route::get('export/stock-configs', [ImportExportController::class, 'exportStockConfigs'])->name('export.stock-configs');
+            Route::get('export/po-tags', [ImportExportController::class, 'exportPoTags'])->name('export.po-tags');
 
             Route::get('template/items', [ImportExportController::class, 'templateItems'])->name('template.items');
             Route::get('template/units', [ImportExportController::class, 'templateUnits'])->name('template.units');
@@ -230,6 +231,8 @@ Route::middleware('auth')->group(function (): void {
             Route::post('import/items', [ImportExportController::class, 'importItems'])->name('import.items');
             Route::post('import/units', [ImportExportController::class, 'importUnits'])->name('import.units');
             Route::post('import/conversions', [ImportExportController::class, 'importConversions'])->name('import.conversions');
+            Route::post('import/po-tags/preview', [ImportExportController::class, 'previewPoTags'])->name('import.po-tags.preview');
+            Route::post('import/po-tags/apply', [ImportExportController::class, 'applyPoTags'])->name('import.po-tags.apply');
         });
 
     Route::prefix('receiving')

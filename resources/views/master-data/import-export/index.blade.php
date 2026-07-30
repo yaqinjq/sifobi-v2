@@ -165,11 +165,260 @@
             </x-sf.card>
         @endcan
     </section>
+
+    {{-- ── SEKSI TUJUAN PO ─────────────────────────────────────────────── --}}
+    <section class="space-y-3">
+        <div class="flex items-center gap-3">
+            <div class="h-10 w-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                </svg>
+            </div>
+            <div>
+                <h2 class="font-heading font-bold text-gray-900 text-lg">Tujuan PO per Item</h2>
+                <p class="text-sm text-gray-500">Export → isi kolom <code class="bg-gray-100 px-1 rounded text-xs">tujuan_po</code> → import kembali untuk update massal.</p>
+            </div>
+        </div>
+
+        <x-sf.card>
+            {{-- Petunjuk format --}}
+            <div class="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 mb-5">
+                <p class="text-xs font-semibold text-amber-800 mb-1.5">Format kolom <code>tujuan_po</code></p>
+                <div class="space-y-1">
+                    @foreach([
+                        ['OCIA_ROASTERY',                  'Hanya muncul di tab Roastery'],
+                        ['CENTRAL_KITCHEN',                'Hanya muncul di tab Central Kitchen'],
+                        ['OCIA_ROASTERY|CENTRAL_KITCHEN',  'Muncul di kedua tab'],
+                        ['(kosong)',                       'Muncul di semua tab (default)'],
+                    ] as [$val, $desc])
+                    <div class="flex items-center gap-3 text-xs">
+                        <code class="bg-white border border-amber-200 rounded px-1.5 py-0.5 text-amber-900 font-mono shrink-0">{{ $val }}</code>
+                        <span class="text-amber-700">{{ $desc }}</span>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                {{-- Kolom kiri: Export --}}
+                <div class="space-y-3">
+                    <h3 class="text-sm font-semibold text-gray-900">1 · Export data saat ini</h3>
+                    <p class="text-xs text-gray-500">Download Excel berisi semua item aktif beserta tujuan PO yang sudah terdaftar. Isi atau edit kolom <code class="bg-gray-100 px-1 rounded">tujuan_po</code>, lalu import kembali.</p>
+                    <a href="{{ route('master-data.ie.export.po-tags') }}"
+                       class="sf-btn-secondary w-full text-sm flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                        </svg>
+                        Download TujuanPO-Items.xlsx
+                    </a>
+                </div>
+
+                {{-- Kolom kanan: Import dengan preview --}}
+                @can('import_master_data')
+                <div class="space-y-3" x-data="poTagImport()">
+                    <h3 class="text-sm font-semibold text-gray-900">2 · Import & konfirmasi perubahan</h3>
+
+                    {{-- Upload form --}}
+                    <div x-show="!preview" x-cloak class="space-y-3">
+                        <label class="block">
+                            <span class="sf-label">File Excel yang sudah diisi (.xlsx / .csv)</span>
+                            <input type="file"
+                                   accept=".xlsx,.xls,.csv"
+                                   class="sf-input text-base mt-1"
+                                   @change="fileSelected($event)" />
+                        </label>
+                        <button type="button"
+                                class="sf-btn-primary w-full"
+                                :disabled="!file || loading"
+                                @click="doPreview()">
+                            <svg x-show="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                            </svg>
+                            <span x-text="loading ? 'Membaca file...' : 'Preview Perubahan'"></span>
+                        </button>
+                        <div x-show="error" x-cloak class="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700" x-text="error"></div>
+                    </div>
+
+                    {{-- Preview table --}}
+                    <div x-show="preview && !applied" x-cloak class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm text-gray-600">
+                                <span class="font-semibold text-gray-900" x-text="preview?.changed"></span> item akan berubah
+                                <span x-show="preview?.not_found > 0" class="ml-2 text-amber-600">
+                                    · <span x-text="preview?.not_found"></span> SKU tidak ditemukan
+                                </span>
+                            </div>
+                            <button type="button" @click="reset()" class="text-xs text-gray-400 hover:text-gray-700">Ganti file</button>
+                        </div>
+
+                        <div class="rounded-xl border border-gray-100 overflow-hidden">
+                            <table class="w-full text-xs">
+                                <thead class="bg-gray-50 border-b border-gray-100">
+                                    <tr>
+                                        <th class="text-left px-3 py-2 text-gray-500 font-semibold">SKU</th>
+                                        <th class="text-left px-3 py-2 text-gray-500 font-semibold">Item</th>
+                                        <th class="text-left px-3 py-2 text-gray-500 font-semibold">Sebelum</th>
+                                        <th class="text-left px-3 py-2 text-gray-500 font-semibold">Sesudah</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50">
+                                    <template x-for="c in preview.changes" :key="c.sku">
+                                        <tr :class="c.not_found ? 'bg-red-50' : (c.has_change ? 'bg-amber-50' : '')">
+                                            <td class="px-3 py-2 font-mono" x-text="c.sku"></td>
+                                            <td class="px-3 py-2 text-gray-700 max-w-[120px] truncate" x-text="c.name"></td>
+                                            <td class="px-3 py-2">
+                                                <span x-text="tagLabel(c.old_tags)"
+                                                      :class="c.has_change ? 'line-through text-gray-400' : 'text-gray-600'"></span>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <span x-show="c.not_found" class="text-red-500">—</span>
+                                                <span x-show="!c.not_found"
+                                                      x-text="tagLabel(c.new_tags)"
+                                                      :class="c.has_change ? 'font-semibold text-primary-700' : 'text-gray-400'"></span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div x-show="preview?.changed === 0" class="text-sm text-gray-500 text-center py-2">
+                            Tidak ada perubahan — data sudah sama dengan yang ada di database.
+                        </div>
+
+                        <div class="flex gap-3" x-show="preview?.changed > 0">
+                            <button type="button" @click="reset()" class="sf-btn-secondary flex-1">Batal</button>
+                            <button type="button"
+                                    @click="doApply()"
+                                    :disabled="applying"
+                                    class="sf-btn-primary flex-1">
+                                <svg x-show="applying" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                                </svg>
+                                <span x-text="applying ? 'Menerapkan...' : 'Terapkan ' + preview.changed + ' Perubahan'"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Hasil setelah apply --}}
+                    <div x-show="applied" x-cloak class="space-y-3">
+                        <div class="rounded-xl bg-green-50 border border-green-100 px-4 py-4 text-center">
+                            <p class="text-2xl font-bold text-green-700" x-text="applied?.updated"></p>
+                            <p class="text-sm text-green-800 mt-0.5">item berhasil diperbarui</p>
+                        </div>
+                        <button type="button" @click="reset()" class="sf-btn-secondary w-full text-sm">Import lagi</button>
+                    </div>
+                </div>
+                @else
+                <div class="text-sm text-gray-500 flex items-center">
+                    Import memerlukan permission <code class="mx-1 bg-gray-100 px-1 rounded text-xs">import_master_data</code>.
+                </div>
+                @endcan
+            </div>
+        </x-sf.card>
+    </section>
+
 </div>
 @endsection
 
 @push('scripts')
 <script>
+    function poTagImport() {
+        return {
+            file:     null,
+            loading:  false,
+            applying: false,
+            preview:  null,
+            applied:  null,
+            error:    '',
+
+            fileSelected(event) {
+                this.file  = event.target.files?.[0] ?? null;
+                this.error = '';
+            },
+
+            async doPreview() {
+                if (! this.file) return;
+                this.loading = true;
+                this.error   = '';
+                this.preview = null;
+
+                const formData = new FormData();
+                formData.append('file', this.file);
+
+                try {
+                    const res = await fetch('{{ route("master-data.ie.import.po-tags.preview") }}', {
+                        method:  'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            Accept:         'application/json',
+                        },
+                        body: formData,
+                    });
+                    const data = await res.json();
+                    if (! res.ok) {
+                        this.error = data.message || 'Gagal membaca file.';
+                    } else {
+                        this.preview = data;
+                    }
+                } catch {
+                    this.error = 'Koneksi gagal. Coba lagi.';
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async doApply() {
+                if (! this.preview) return;
+                this.applying = true;
+                this.error    = '';
+
+                // Kirim hanya item yang has_change = true
+                const changes = this.preview.changes.filter(c => c.has_change);
+
+                try {
+                    const res = await fetch('{{ route("master-data.ie.import.po-tags.apply") }}', {
+                        method:  'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            Accept:         'application/json',
+                        },
+                        body: JSON.stringify({ changes }),
+                    });
+                    const data = await res.json();
+                    if (! res.ok) {
+                        this.error = data.message || 'Gagal menerapkan perubahan.';
+                    } else {
+                        this.applied  = data;
+                        this.preview  = null;
+                    }
+                } catch {
+                    this.error = 'Koneksi gagal. Coba lagi.';
+                } finally {
+                    this.applying = false;
+                }
+            },
+
+            reset() {
+                this.file    = null;
+                this.preview = null;
+                this.applied = null;
+                this.error   = '';
+            },
+
+            tagLabel(tags) {
+                if (! tags || tags.length === 0) return 'Semua tab';
+                const map = { OCIA_ROASTERY: 'Roastery', CENTRAL_KITCHEN: 'Central Kitchen' };
+                return tags.map(t => map[t] ?? t).join(' + ');
+            },
+        };
+    }
+
     function importExportPage() {
         return {
             files: {},
