@@ -321,6 +321,33 @@
             @endcan
         @endif
 
+        {{-- WIPRO RESEND (Central Kitchen SENT saja) --}}
+        @if($purchaseOrder->status === \App\Modules\Procurement\Models\PurchaseOrder::STATUS_SENT
+            && $purchaseOrder->po_type === \App\Modules\Procurement\Models\PurchaseOrder::TYPE_CENTRAL_KITCHEN)
+            @can('approve_po')
+                @if($purchaseOrder->external_sync_error)
+                    <div class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                        <p class="font-semibold mb-1">Gagal dikirim ke Wipro</p>
+                        <p class="text-xs">{{ $purchaseOrder->external_sync_error }}</p>
+                    </div>
+                    <form method="POST" action="{{ route('procurement.purchase-orders.resend', $purchaseOrder) }}">
+                        @csrf
+                        <button type="submit" class="sf-btn-secondary w-full">
+                            Kirim Ulang ke Wipro
+                        </button>
+                    </form>
+                @elseif($purchaseOrder->external_synced_at)
+                    <div class="rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+                        <p class="font-semibold">Terkirim ke Wipro</p>
+                        <p class="text-xs mt-0.5">
+                            Ref: {{ $purchaseOrder->external_reference ?? '—' }}
+                            &middot; {{ $purchaseOrder->external_synced_at->format('d M Y H:i') }}
+                        </p>
+                    </div>
+                @endif
+            @endcan
+        @endif
+
         {{-- REJECT --}}
         @if($purchaseOrder->canReject())
             @can('approve_po')

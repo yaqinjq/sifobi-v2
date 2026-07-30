@@ -7,9 +7,12 @@ use App\Modules\Procurement\Models\PurchaseOrderApprovalEvent;
 use App\Modules\Procurement\Models\PurchaseOrderItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class PurchaseOrderService
 {
+    public function __construct(private readonly WiproIntegrationService $wipro = new WiproIntegrationService()) {}
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -138,7 +141,7 @@ class PurchaseOrderService
 
     public function send(PurchaseOrder $po, int $userId): PurchaseOrder
     {
-        return DB::transaction(function () use ($po, $userId): PurchaseOrder {
+        $po = DB::transaction(function () use ($po, $userId): PurchaseOrder {
             $po = PurchaseOrder::query()->lockForUpdate()->findOrFail($po->id);
 
             if (! $po->canSend()) {
@@ -157,6 +160,48 @@ class PurchaseOrderService
 
             return $po->refresh();
         });
+
+        if ($po->po_type === PurchaseOrder::TYPE_CENTRAL_KITCHEN) {
+            $this->syncToWipro($po);
+        }
+
+        return $po->refresh();
+    }
+
+    /**
+     * Manually retry pushing a SENT Central Kitchen PO to Wipro after a prior sync failure.
+     */
+    public function resend(PurchaseOrder $po): PurchaseOrder
+    {
+        if ($po->status !== PurchaseOrder::STATUS_SENT || $po->po_type !== PurchaseOrder::TYPE_CENTRAL_KITCHEN) {
+            throw ValidationException::withMessages(['status' => 'Hanya PO Central Kitchen berstatus terkirim yang bisa dikirim ulang ke Wipro.']);
+        }
+
+        $this->syncToWipro($po);
+
+        return $po->refresh();
+    }
+
+    /**
+     * Push a SENT Central Kitchen PO to Wipro and record the outcome on the PO row.
+     * Sync failures never block or reverse the SENT status — the outlet PIC already
+     * approved the order; a transport failure must stay visible and retryable, not silent.
+     */
+    private function syncToWipro(PurchaseOrder $po): void
+    {
+        try {
+            $result = $this->wipro->pushOrder($po);
+
+            $po->forceFill([
+                'external_reference' => $result['wipro_order_number'] ?? $result['wipro_order_id'],
+                'external_synced_at' => now(),
+                'external_sync_error' => null,
+            ])->save();
+        } catch (Throwable $exception) {
+            $po->forceFill([
+                'external_sync_error' => $exception->getMessage(),
+            ])->save();
+        }
     }
 
     public function close(PurchaseOrder $po, int $userId): PurchaseOrder

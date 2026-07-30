@@ -52,12 +52,13 @@ class PurchaseOrder extends Model
     protected function casts(): array
     {
         return [
-            'needed_at'    => 'date',
-            'approved_at'  => 'datetime',
-            'submitted_at' => 'datetime',
-            'rejected_at'  => 'datetime',
-            'sent_at'      => 'datetime',
-            'closed_at'    => 'datetime',
+            'needed_at'          => 'date',
+            'approved_at'        => 'datetime',
+            'submitted_at'       => 'datetime',
+            'rejected_at'        => 'datetime',
+            'sent_at'            => 'datetime',
+            'closed_at'          => 'datetime',
+            'external_synced_at' => 'datetime',
         ];
     }
 

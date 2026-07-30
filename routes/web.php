@@ -446,5 +446,9 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/{purchaseOrder}/close', [PurchaseOrderController::class, 'close'])
                 ->middleware('permission:approve_po')
                 ->name('close');
+
+            Route::post('/{purchaseOrder}/resend', [PurchaseOrderController::class, 'resend'])
+                ->middleware('permission:approve_po')
+                ->name('resend');
         });
 });

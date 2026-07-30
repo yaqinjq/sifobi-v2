@@ -218,6 +218,28 @@ class PurchaseOrderController extends Controller
             ->with('success', 'PO ditandai selesai.');
     }
 
+    public function resend(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        abort_unless((int) $purchaseOrder->tenant_id === $this->tenantId($request), 403);
+
+        try {
+            $this->service->resend($purchaseOrder);
+        } catch (ValidationException $exception) {
+            return back()->withErrors($exception->errors());
+        }
+
+        $purchaseOrder->refresh();
+
+        return redirect()
+            ->route('procurement.purchase-orders.show', $purchaseOrder)
+            ->with(
+                $purchaseOrder->external_sync_error ? 'error' : 'success',
+                $purchaseOrder->external_sync_error
+                    ? 'Kirim ulang ke Wipro gagal: '.$purchaseOrder->external_sync_error
+                    : 'PO berhasil dikirim ulang dan diterima Wipro.'
+            );
+    }
+
     private function tenantId(Request $request): int
     {
         $tenantId = $request->user()?->tenant_id;

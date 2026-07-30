@@ -3,7 +3,7 @@
   "appName": "SIFOBI",
   "webDir": "public",
   "server": {
-    "url": "https://sifobi.mkogroup.com",
+    "url": "https://new-fbi.mykopiogroup.com",
     "cleartext": false,
     "androidScheme": "https"
   },
