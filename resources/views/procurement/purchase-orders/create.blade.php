@@ -50,11 +50,11 @@
     </div>
 
     {{-- Tabs tujuan PO --}}
-    <div x-data="{ activeTab: '' }" x-init="activeTab = tabs.length > 0 ? tabs[0].type : ''" class="space-y-4">
+    <div class="space-y-4">
 
         {{-- Tab headers --}}
         <div class="flex gap-1 bg-gray-100 rounded-xl p-1">
-            <template x-for="(tab, idx) in tabs" :key="tab.type">
+            <template x-for="tab in tabs" :key="tab.type">
                 <button type="button"
                         @click="activeTab = tab.type"
                         :class="activeTab === tab.type
@@ -69,11 +69,11 @@
             </template>
         </div>
 
-        {{-- Tab content --}}
-        <template x-for="(tab, idx) in tabs" :key="tab.type">
+        {{-- Tab content — satu div per tab, show/hide tanpa x-for ganda --}}
+        <template x-for="tab in tabs" :key="tab.type">
             <div x-show="activeTab === tab.type" x-cloak>
 
-                {{-- Live search input --}}
+                {{-- Live search (Google-style) --}}
                 <div class="relative mb-3">
                     <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                         <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,61 +81,64 @@
                                   d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
                         </svg>
                     </div>
-                    <input type="text"
-                           x-model="tab.search"
-                           @input.debounce.300ms="searchItems(tab)"
-                           @focus="if(tab.search.length >= 1) searchItems(tab)"
-                           placeholder="Cari item..."
-                           class="sf-input pl-9 text-sm w-full"
-                           autocomplete="off" />
 
-                    {{-- Loading indicator --}}
+                    <input type="text"
+                           :value="tab.search"
+                           @input.debounce.350ms="tab.search = $event.target.value; doSearch(tab)"
+                           @focus="if (tab.search.length >= 1) doSearch(tab)"
+                           @keydown.escape="closeResults(tab)"
+                           placeholder="Ketik nama item..."
+                           class="sf-input pl-9 text-sm w-full"
+                           autocomplete="off"
+                           spellcheck="false" />
+
+                    {{-- Spinner --}}
                     <div x-show="tab.loading"
-                         class="absolute inset-y-0 right-3 flex items-center">
+                         class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
                         <svg class="w-4 h-4 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                         </svg>
                     </div>
 
-                    {{-- Dropdown results --}}
-                    <div x-show="tab.results.length > 0 && !tab.loading"
+                    {{-- Dropdown hasil pencarian --}}
+                    <div x-show="tab.results.length > 0"
                          x-cloak
-                         @click.outside="tab.results = []"
-                         class="absolute z-30 left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden max-h-60 overflow-y-auto">
-                        <template x-for="item in tab.results" :key="item.id">
+                         class="absolute z-30 left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden max-h-64 overflow-y-auto">
+                        <template x-for="result in tab.results" :key="result.id">
                             <button type="button"
-                                    @click="selectItem(tab, item)"
-                                    class="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 border-b border-gray-50 last:border-0">
+                                    @mousedown.prevent="selectItem(tab, result)"
+                                    class="w-full text-left px-4 py-2.5 hover:bg-primary-50 flex items-center gap-3 border-b border-gray-50 last:border-0 transition-colors">
                                 <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-medium text-gray-800 truncate" x-text="item.name"></p>
-                                    <p class="text-xs text-gray-400 mt-0.5" x-text="item.sku"></p>
+                                    <p class="text-sm font-medium text-gray-800 truncate" x-text="result.name"></p>
+                                    <p class="text-xs text-gray-400 mt-0.5" x-text="result.sku"></p>
                                 </div>
-                                <span class="shrink-0 text-xs text-gray-500 bg-gray-100 rounded px-1.5 py-0.5" x-text="item.unit_code"></span>
+                                <span class="shrink-0 text-xs font-semibold text-primary-700 bg-primary-50 rounded px-2 py-0.5"
+                                      x-text="result.unit_code"></span>
                             </button>
                         </template>
                     </div>
                 </div>
 
-                {{-- Item list for this tab --}}
+                {{-- Daftar item yang sudah dipilih --}}
                 <div x-show="tab.items.length > 0" class="space-y-2 mb-3">
-                    <template x-for="(item, itemIdx) in tab.items" :key="item.item_id">
-                        <div class="rounded-xl border border-gray-100 bg-white px-3 py-2.5 flex items-center gap-3">
+                    <template x-for="(row, rowIdx) in tab.items" :key="row.item_id">
+                        <div class="rounded-xl border border-gray-100 bg-white px-3 py-2.5 flex items-center gap-3 shadow-sm">
                             <div class="flex-1 min-w-0">
-                                <p class="text-sm font-semibold text-gray-800 truncate" x-text="item.name"></p>
+                                <p class="text-sm font-semibold text-gray-800 truncate" x-text="row.name"></p>
                                 <div class="flex items-center gap-2 mt-1.5">
                                     <input type="number"
-                                           x-model="item.qty"
+                                           :value="row.qty"
+                                           @input="row.qty = $event.target.value"
                                            min="0.001"
                                            step="0.001"
                                            placeholder="Jumlah"
-                                           class="sf-input text-sm py-1 px-2 h-auto w-28"
-                                           @input="item.qty = $event.target.value" />
-                                    <span class="text-sm text-gray-500 font-medium" x-text="item.unit_code"></span>
+                                           class="sf-input text-sm py-1 px-2 h-auto w-28" />
+                                    <span class="text-sm text-gray-600 font-semibold" x-text="row.unit_code"></span>
                                 </div>
                             </div>
                             <button type="button"
-                                    @click="removeItem(tab, itemIdx)"
+                                    @click="removeItem(tab, rowIdx)"
                                     class="shrink-0 text-red-400 hover:text-red-600 transition-colors p-1">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -151,12 +154,12 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
                     </svg>
-                    Cari dan tambahkan item di atas
+                    Ketik nama item untuk mencari
                 </div>
             </div>
         </template>
 
-        {{-- Summary per tab --}}
+        {{-- Ringkasan per tab --}}
         <div class="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
             <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Ringkasan</p>
             <template x-for="tab in tabs" :key="tab.type">
@@ -224,11 +227,17 @@
                 <div class="rounded-xl bg-gray-50 px-3 py-3 mb-4 space-y-1.5">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">PO yang akan dibuat:</p>
                     <template x-for="tab in tabs.filter(t => t.items.length > 0)" :key="tab.type">
-                        <div class="flex justify-between text-sm">
-                            <span class="text-gray-700" x-text="tab.label"></span>
-                            <span class="font-semibold text-gray-900">
-                                <span x-text="tab.items.length"></span> item
-                            </span>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800 mb-1" x-text="tab.label"></p>
+                            <template x-for="row in tab.items.filter(i => parseFloat(i.qty) > 0)" :key="row.item_id">
+                                <div class="flex justify-between text-xs text-gray-600 py-0.5 pl-2">
+                                    <span x-text="row.name" class="truncate flex-1 mr-2"></span>
+                                    <span class="shrink-0">
+                                        <span x-text="row.qty"></span>
+                                        <span x-text="row.unit_code" class="ml-1 text-gray-400"></span>
+                                    </span>
+                                </div>
+                            </template>
                         </div>
                     </template>
                 </div>
@@ -269,12 +278,13 @@ function poForm() {
     const today      = '{{ $today }}';
 
     return {
-        tabs: [],
-        date: today,
-        notes: '',
-        isPlanned: false,
+        tabs:        [],
+        activeTab:   '',
+        date:        today,
+        notes:       '',
+        isPlanned:   false,
         showConfirm: false,
-        submitting: false,
+        submitting:  false,
         submitError: '',
 
         init() {
@@ -286,43 +296,56 @@ function poForm() {
                 results: [],
                 loading: false,
             }));
+            this.activeTab = this.tabs.length > 0 ? this.tabs[0].type : '';
         },
 
         onDateChange() {
             this.isPlanned = this.date > today;
         },
 
-        async searchItems(tab) {
-            if (tab.search.length < 1) {
+        async doSearch(tab) {
+            const q = tab.search.trim();
+            if (q.length < 1) {
                 tab.results = [];
                 return;
             }
             tab.loading = true;
             try {
-                const url = `/api/items/search-for-po?q=${encodeURIComponent(tab.search)}&po_type=${tab.type}`;
-                const res = await fetch(url, { headers: { Accept: 'application/json' } });
-                tab.results = await res.json();
+                const url = `/api/items/search-for-po?q=${encodeURIComponent(q)}&po_type=${encodeURIComponent(tab.type)}`;
+                const res = await fetch(url, {
+                    credentials: 'same-origin',
+                    headers:     { Accept: 'application/json' },
+                });
+                if (res.ok) {
+                    tab.results = await res.json();
+                } else {
+                    tab.results = [];
+                }
             } catch {
                 tab.results = [];
             }
             tab.loading = false;
         },
 
-        selectItem(tab, item) {
-            if (tab.items.find(i => i.item_id === item.id)) {
-                tab.search  = '';
-                tab.results = [];
-                return;
-            }
+        closeResults(tab) {
+            tab.results = [];
+        },
+
+        selectItem(tab, result) {
+            // Tutup dropdown dulu
+            tab.results = [];
+            tab.search  = '';
+
+            // Jangan tambah duplikat
+            if (tab.items.find(i => i.item_id === result.id)) return;
+
             tab.items.push({
-                item_id:   item.id,
-                name:      item.name,
-                unit_id:   item.unit_id,
-                unit_code: item.unit_code,
+                item_id:   result.id,
+                name:      result.name,
+                unit_id:   result.unit_id,
+                unit_code: result.unit_code,  // Otomatis dari satuan inventory master item
                 qty:       '',
             });
-            tab.search  = '';
-            tab.results = [];
         },
 
         removeItem(tab, index) {
@@ -330,7 +353,7 @@ function poForm() {
         },
 
         get hasItems() {
-            return this.tabs.some(t => t.items.length > 0);
+            return this.tabs.some(t => t.items.some(i => parseFloat(i.qty) > 0));
         },
 
         openConfirm() {
@@ -363,6 +386,7 @@ function poForm() {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                         Accept:         'application/json',
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         needed_at: this.date,
                         notes:     this.notes,
@@ -373,7 +397,9 @@ function poForm() {
                 const data = await res.json();
 
                 if (!res.ok) {
-                    const errors = data.errors ? Object.values(data.errors).flat().join(' ') : null;
+                    const errors = data.errors
+                        ? Object.values(data.errors).flat().join(' ')
+                        : null;
                     this.submitError = errors || data.message || data.error || 'Terjadi kesalahan. Coba lagi.';
                     this.submitting  = false;
                     return;
