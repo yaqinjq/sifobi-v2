@@ -94,6 +94,30 @@
                 <dd class="text-right text-gray-500 text-xs">{{ $purchaseOrder->sent_at->format('d M Y H:i') }}</dd>
             @endif
 
+            @php
+                $isIntegrated = in_array($purchaseOrder->po_type, [
+                    \App\Modules\Procurement\Models\PurchaseOrder::TYPE_CENTRAL_KITCHEN,
+                    \App\Modules\Procurement\Models\PurchaseOrder::TYPE_OCIA_ROASTERY,
+                ]);
+                $integrationTarget = $purchaseOrder->po_type === \App\Modules\Procurement\Models\PurchaseOrder::TYPE_CENTRAL_KITCHEN ? 'Wipro' : 'OCIA';
+            @endphp
+            @if($isIntegrated && $purchaseOrder->sent_at)
+                <dt class="text-gray-500 border-t border-gray-50 pt-2">Status ke {{ $integrationTarget }}</dt>
+                <dd class="text-right border-t border-gray-50 pt-2">
+                    @if($purchaseOrder->external_sync_error)
+                        <span class="badge-void">Gagal kirim</span>
+                    @elseif($purchaseOrder->external_synced_at)
+                        <span class="badge-posted">Diterima {{ $integrationTarget }}</span>
+                    @else
+                        <span class="badge-pending">Menunggu</span>
+                    @endif
+                </dd>
+                @if($purchaseOrder->external_reference)
+                    <dt class="text-gray-500">No. Order {{ $integrationTarget }}</dt>
+                    <dd class="text-right font-mono text-gray-600 text-xs">{{ $purchaseOrder->external_reference }}</dd>
+                @endif
+            @endif
+
             @if($purchaseOrder->closed_at)
                 <dt class="text-gray-500 border-t border-gray-50 pt-2">Diselesaikan oleh</dt>
                 <dd class="text-right text-gray-600 border-t border-gray-50 pt-2">{{ $purchaseOrder->closedBy?->name ?? '—' }}</dd>
@@ -178,13 +202,36 @@
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Tambah Item</p>
                     <form method="POST"
                           action="{{ route('procurement.purchase-orders.items.store', $purchaseOrder) }}"
-                          class="space-y-3">
+                          class="space-y-3"
+                          x-data="{
+                              outletId: {{ $purchaseOrder->outlet_id ?? 'null' }},
+                              suggestion: null,
+                              loading: false,
+                              async fetchSuggestion(itemId) {
+                                  this.suggestion = null;
+                                  if (!itemId || !this.outletId) return;
+                                  this.loading = true;
+                                  try {
+                                      const res = await fetch(`{{ route('api.stock-suggestion') }}?item_id=${itemId}&outlet_id=${this.outletId}`, {
+                                          headers: { 'Accept': 'application/json' },
+                                      });
+                                      if (res.ok) this.suggestion = await res.json();
+                                  } catch (e) { /* saran opsional, abaikan jika gagal */ }
+                                  this.loading = false;
+                              },
+                              applySuggestion() {
+                                  if (this.suggestion) {
+                                      this.$refs.qtyInput.value = this.suggestion.recommended_order;
+                                  }
+                              },
+                          }">
                         @csrf
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Item <span class="text-red-400">*</span></label>
-                                <select name="item_id" class="sf-input text-sm" required>
+                                <select name="item_id" class="sf-input text-sm" required
+                                        @change="fetchSuggestion($event.target.value)">
                                     <option value="">-- Pilih item --</option>
                                     @foreach($items as $item)
                                         <option value="{{ $item->id }}" @selected(old('item_id') == $item->id)>
@@ -207,10 +254,30 @@
                             </div>
                         </div>
 
+                        <div x-show="loading" class="text-xs text-gray-400">Memuat saran jumlah order&hellip;</div>
+                        <div x-show="suggestion && !loading" x-cloak
+                             class="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 flex items-center justify-between gap-2">
+                            <p class="text-xs text-blue-700">
+                                Saran: <span class="font-semibold" x-text="suggestion?.recommended_order"></span>
+                                <span x-text="suggestion?.unit_abbreviation"></span>
+                                <template x-if="suggestion?.days_remaining !== null">
+                                    <span> &middot; sisa stok ~<span x-text="suggestion?.days_remaining"></span> hari</span>
+                                </template>
+                                <template x-if="suggestion?.is_critical">
+                                    <span class="font-semibold text-red-600"> &middot; kritis</span>
+                                </template>
+                            </p>
+                            <button type="button" @click="applySuggestion()"
+                                    class="text-xs font-semibold text-blue-700 shrink-0 underline">
+                                Pakai saran
+                            </button>
+                        </div>
+
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Jumlah <span class="text-red-400">*</span></label>
                                 <input type="number" name="qty_ordered" step="0.001" min="0.001"
+                                       x-ref="qtyInput"
                                        value="{{ old('qty_ordered') }}"
                                        placeholder="0" class="sf-input text-sm" required />
                             </div>
@@ -321,24 +388,31 @@
             @endcan
         @endif
 
-        {{-- WIPRO RESEND (Central Kitchen SENT saja) --}}
-        @if($purchaseOrder->status === \App\Modules\Procurement\Models\PurchaseOrder::STATUS_SENT
-            && $purchaseOrder->po_type === \App\Modules\Procurement\Models\PurchaseOrder::TYPE_CENTRAL_KITCHEN)
+        {{-- INTEGRATION RESEND (Central Kitchen → Wipro / OCIA Roastery → OCIA) --}}
+        @php
+            $isSentIntegrated = $purchaseOrder->status === \App\Modules\Procurement\Models\PurchaseOrder::STATUS_SENT
+                && in_array($purchaseOrder->po_type, [
+                    \App\Modules\Procurement\Models\PurchaseOrder::TYPE_CENTRAL_KITCHEN,
+                    \App\Modules\Procurement\Models\PurchaseOrder::TYPE_OCIA_ROASTERY,
+                ]);
+            $resendTarget = $purchaseOrder->po_type === \App\Modules\Procurement\Models\PurchaseOrder::TYPE_CENTRAL_KITCHEN ? 'Wipro' : 'OCIA';
+        @endphp
+        @if($isSentIntegrated)
             @can('approve_po')
                 @if($purchaseOrder->external_sync_error)
                     <div class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-                        <p class="font-semibold mb-1">Gagal dikirim ke Wipro</p>
+                        <p class="font-semibold mb-1">Gagal dikirim ke {{ $resendTarget }}</p>
                         <p class="text-xs">{{ $purchaseOrder->external_sync_error }}</p>
                     </div>
                     <form method="POST" action="{{ route('procurement.purchase-orders.resend', $purchaseOrder) }}">
                         @csrf
                         <button type="submit" class="sf-btn-secondary w-full">
-                            Kirim Ulang ke Wipro
+                            Kirim Ulang ke {{ $resendTarget }}
                         </button>
                     </form>
                 @elseif($purchaseOrder->external_synced_at)
                     <div class="rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
-                        <p class="font-semibold">Terkirim ke Wipro</p>
+                        <p class="font-semibold">Terkirim ke {{ $resendTarget }}</p>
                         <p class="text-xs mt-0.5">
                             Ref: {{ $purchaseOrder->external_reference ?? '—' }}
                             &middot; {{ $purchaseOrder->external_synced_at->format('d M Y H:i') }}

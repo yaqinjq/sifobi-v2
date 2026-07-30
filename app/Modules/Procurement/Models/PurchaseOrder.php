@@ -35,6 +35,11 @@ class PurchaseOrder extends Model
         self::TYPE_DRYGOOD         => 'Drygood / Purchasing',
     ];
 
+    const TYPE_LABELS_ACTIVE = [
+        self::TYPE_OCIA_ROASTERY   => 'OCIA / Roastery',
+        self::TYPE_CENTRAL_KITCHEN => 'Central Kitchen (Wipro)',
+    ];
+
     const STATUS_LABELS = [
         self::STATUS_DRAFT     => 'Draft',
         self::STATUS_SUBMITTED => 'Diajukan',

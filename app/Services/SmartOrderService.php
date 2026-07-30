@@ -3,11 +3,12 @@
 namespace App\Services;
 
 use App\Modules\Stock\Models\StockMutation;
+use App\Services\Contracts\OrderSuggestionEngine;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-class SmartOrderService
+class SmartOrderService implements OrderSuggestionEngine
 {
     /**
      * @return array<string, mixed>

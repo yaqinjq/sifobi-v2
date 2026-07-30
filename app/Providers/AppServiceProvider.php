@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Models\AppSetting;
+use App\Services\Contracts\OrderSuggestionEngine;
 use App\Services\NotificationBadgeService;
+use App\Services\SmartOrderService;
 use App\Services\SmtpConfigService;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -16,7 +18,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(OrderSuggestionEngine::class, SmartOrderService::class);
     }
 
     /**

@@ -11,7 +11,10 @@ use Throwable;
 
 class PurchaseOrderService
 {
-    public function __construct(private readonly WiproIntegrationService $wipro = new WiproIntegrationService()) {}
+    public function __construct(
+        private readonly WiproIntegrationService $wipro = new WiproIntegrationService(),
+        private readonly OciaIntegrationService $ocia = new OciaIntegrationService(),
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data
@@ -163,29 +166,36 @@ class PurchaseOrderService
 
         if ($po->po_type === PurchaseOrder::TYPE_CENTRAL_KITCHEN) {
             $this->syncToWipro($po);
+        } elseif ($po->po_type === PurchaseOrder::TYPE_OCIA_ROASTERY) {
+            $this->syncToOcia($po);
         }
 
         return $po->refresh();
     }
 
     /**
-     * Manually retry pushing a SENT Central Kitchen PO to Wipro after a prior sync failure.
+     * Manually retry pushing a SENT PO to its integration target after a prior sync failure.
      */
     public function resend(PurchaseOrder $po): PurchaseOrder
     {
-        if ($po->status !== PurchaseOrder::STATUS_SENT || $po->po_type !== PurchaseOrder::TYPE_CENTRAL_KITCHEN) {
-            throw ValidationException::withMessages(['status' => 'Hanya PO Central Kitchen berstatus terkirim yang bisa dikirim ulang ke Wipro.']);
+        if ($po->status !== PurchaseOrder::STATUS_SENT) {
+            throw ValidationException::withMessages(['status' => 'Hanya PO berstatus terkirim yang bisa dikirim ulang.']);
         }
 
-        $this->syncToWipro($po);
+        if ($po->po_type === PurchaseOrder::TYPE_CENTRAL_KITCHEN) {
+            $this->syncToWipro($po);
+        } elseif ($po->po_type === PurchaseOrder::TYPE_OCIA_ROASTERY) {
+            $this->syncToOcia($po);
+        } else {
+            throw ValidationException::withMessages(['status' => 'Tipe PO ini tidak mendukung kirim ulang ke sistem eksternal.']);
+        }
 
         return $po->refresh();
     }
 
     /**
      * Push a SENT Central Kitchen PO to Wipro and record the outcome on the PO row.
-     * Sync failures never block or reverse the SENT status — the outlet PIC already
-     * approved the order; a transport failure must stay visible and retryable, not silent.
+     * Sync failures never block or reverse the SENT status.
      */
     private function syncToWipro(PurchaseOrder $po): void
     {
@@ -193,8 +203,29 @@ class PurchaseOrderService
             $result = $this->wipro->pushOrder($po);
 
             $po->forceFill([
-                'external_reference' => $result['wipro_order_number'] ?? $result['wipro_order_id'],
-                'external_synced_at' => now(),
+                'external_reference'  => $result['wipro_order_number'] ?? $result['wipro_order_id'],
+                'external_synced_at'  => now(),
+                'external_sync_error' => null,
+            ])->save();
+        } catch (Throwable $exception) {
+            $po->forceFill([
+                'external_sync_error' => $exception->getMessage(),
+            ])->save();
+        }
+    }
+
+    /**
+     * Push a SENT OCIA Roastery PO to the OCIA system and record the outcome.
+     * Sync failures never block or reverse the SENT status.
+     */
+    private function syncToOcia(PurchaseOrder $po): void
+    {
+        try {
+            $result = $this->ocia->pushOrder($po);
+
+            $po->forceFill([
+                'external_reference'  => $result['ocia_order_number'] ?? $result['ocia_order_id'],
+                'external_synced_at'  => now(),
                 'external_sync_error' => null,
             ])->save();
         } catch (Throwable $exception) {

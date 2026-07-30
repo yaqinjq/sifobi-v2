@@ -51,11 +51,11 @@ class PurchaseOrderController extends Controller
 
         $departments = Department::query()
             ->where('tenant_id', $tenantId)
-            ->where('is_active', true)
+            ->where('status', 'ACTIVE')
             ->orderBy('name')
             ->get();
 
-        $types = PurchaseOrder::TYPE_LABELS;
+        $types = PurchaseOrder::TYPE_LABELS_ACTIVE;
 
         return view('procurement.purchase-orders.create', compact('outlets', 'departments', 'types'));
     }
@@ -67,7 +67,7 @@ class PurchaseOrderController extends Controller
         $validated = $request->validate([
             'outlet_id'     => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
             'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')->where('tenant_id', $tenantId)],
-            'po_type'       => ['required', Rule::in(array_keys(PurchaseOrder::TYPE_LABELS))],
+            'po_type'       => ['required', Rule::in(array_keys(PurchaseOrder::TYPE_LABELS_ACTIVE))],
             'needed_at'     => ['nullable', 'date'],
             'notes'         => ['nullable', 'string', 'max:2000'],
         ]);
@@ -230,13 +230,15 @@ class PurchaseOrderController extends Controller
 
         $purchaseOrder->refresh();
 
+        $target = $purchaseOrder->po_type === PurchaseOrder::TYPE_CENTRAL_KITCHEN ? 'Wipro' : 'OCIA';
+
         return redirect()
             ->route('procurement.purchase-orders.show', $purchaseOrder)
             ->with(
                 $purchaseOrder->external_sync_error ? 'error' : 'success',
                 $purchaseOrder->external_sync_error
-                    ? 'Kirim ulang ke Wipro gagal: '.$purchaseOrder->external_sync_error
-                    : 'PO berhasil dikirim ulang dan diterima Wipro.'
+                    ? "Kirim ulang ke {$target} gagal: ".$purchaseOrder->external_sync_error
+                    : "PO berhasil dikirim ulang dan diterima {$target}."
             );
     }
 

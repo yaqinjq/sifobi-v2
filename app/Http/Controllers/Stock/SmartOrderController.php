@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Stock;
 
 use App\Http\Controllers\Controller;
-use App\Services\SmartOrderService;
+use App\Services\Contracts\OrderSuggestionEngine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class SmartOrderController extends Controller
 {
-    public function __construct(private readonly SmartOrderService $smartOrderService)
+    public function __construct(private readonly OrderSuggestionEngine $smartOrderService)
     {
     }
 
