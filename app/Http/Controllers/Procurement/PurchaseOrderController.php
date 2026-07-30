@@ -10,6 +10,7 @@ use App\Modules\Inventory\Models\Unit;
 use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Procurement\Models\PurchaseOrderItem;
 use App\Services\PurchaseOrderService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -40,26 +41,83 @@ class PurchaseOrderController extends Controller
 
     public function create(Request $request): View
     {
-        $tenantId = $this->tenantId($request);
+        $tenantId  = $this->tenantId($request);
+        $user      = $request->user();
 
-        $outlets = Outlet::query()
-            ->where('tenant_id', $tenantId)
-            ->where('status', 'ACTIVE')
-            ->when($request->user()->outlet_id, fn ($q) => $q->where('id', $request->user()->outlet_id))
-            ->orderBy('name')
-            ->get();
+        $outlet = $user->outlet_id
+            ? Outlet::query()->where('tenant_id', $tenantId)->find($user->outlet_id)
+            : null;
 
-        $departments = Department::query()
-            ->where('tenant_id', $tenantId)
-            ->where('status', 'ACTIVE')
-            ->orderBy('name')
-            ->get();
+        $department = $user->department_id
+            ? Department::query()->where('tenant_id', $tenantId)->find($user->department_id)
+            : null;
 
-        $types = PurchaseOrder::TYPE_LABELS_ACTIVE;
+        $allowedTypes = $department
+            ? $department->allowedPoTypes()
+            : array_keys(PurchaseOrder::TYPE_LABELS_ACTIVE);
 
-        return view('procurement.purchase-orders.create', compact('outlets', 'departments', 'types'));
+        $typeLabels = array_intersect_key(PurchaseOrder::TYPE_LABELS_ACTIVE, array_flip($allowedTypes));
+
+        $today = now()->toDateString();
+
+        return view('procurement.purchase-orders.create', compact(
+            'outlet', 'department', 'typeLabels', 'today'
+        ));
     }
 
+    public function storeBatch(Request $request): JsonResponse
+    {
+        $tenantId  = $this->tenantId($request);
+        $user      = $request->user();
+
+        $data = $request->validate([
+            'needed_at'             => ['required', 'date', 'after_or_equal:today'],
+            'notes'                 => ['nullable', 'string', 'max:2000'],
+            'tabs'                  => ['required', 'array', 'min:1'],
+            'tabs.*'                => ['array'],
+            'tabs.*.*.item_id'      => ['required', 'integer', Rule::exists('items', 'id')->where('tenant_id', $tenantId)],
+            'tabs.*.*.unit_id'      => ['required', 'integer', Rule::exists('units', 'id')->where('tenant_id', $tenantId)],
+            'tabs.*.*.qty_ordered'  => ['required', 'numeric', 'min:0.001'],
+        ]);
+
+        $pos = $this->service->createBatch(
+            array_merge($data, [
+                'tenant_id'     => $tenantId,
+                'outlet_id'     => (int) $user->outlet_id,
+                'department_id' => $user->department_id ? (int) $user->department_id : null,
+            ]),
+            (int) $user->id
+        );
+
+        if (empty($pos)) {
+            return response()->json(['error' => 'Tidak ada item yang diisi di tab manapun.'], 422);
+        }
+
+        $ids = collect($pos)->pluck('id')->join(',');
+
+        return response()->json([
+            'redirect' => route('procurement.purchase-orders.batch-summary', ['ids' => $ids]),
+        ]);
+    }
+
+    public function batchSummary(Request $request): View
+    {
+        $tenantId = $this->tenantId($request);
+
+        $ids = array_filter(array_map('intval', explode(',', (string) $request->string('ids'))));
+
+        $pos = PurchaseOrder::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('id', $ids)
+            ->with(['outlet', 'department', 'items.item', 'items.unit'])
+            ->get();
+
+        abort_if($pos->isEmpty(), 404);
+
+        return view('procurement.purchase-orders.batch-summary', compact('pos'));
+    }
+
+    /** @deprecated use storeBatch for new batch create flow */
     public function store(Request $request): RedirectResponse
     {
         $tenantId = $this->tenantId($request);

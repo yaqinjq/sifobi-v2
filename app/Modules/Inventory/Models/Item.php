@@ -36,7 +36,20 @@ class Item extends Model
         'standard_cost',
         'track_stock',
         'is_active',
+        'po_destinations',
     ];
+
+    /**
+     * Filter items available for a given PO type.
+     * Items with no po_destinations appear in all tabs (catch-all).
+     */
+    public function scopeForPoType(\Illuminate\Database\Eloquent\Builder $query, string $poType): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->where(function ($q) use ($poType) {
+            $q->whereNull('po_destinations')
+              ->orWhereJsonContains('po_destinations', $poType);
+        });
+    }
 
     public function inventoryUnit(): BelongsTo
     {
@@ -127,14 +140,15 @@ class Item extends Model
     protected function casts(): array
     {
         return [
-            'standard_cost' => 'decimal:4',
-            'inventory_ratio' => 'decimal:6',
-            'purchase_ratio' => 'decimal:6',
-            'yield_pct' => 'decimal:2',
+            'standard_cost'      => 'decimal:4',
+            'inventory_ratio'    => 'decimal:6',
+            'purchase_ratio'     => 'decimal:6',
+            'yield_pct'          => 'decimal:2',
             'last_purchase_price' => 'decimal:4',
-            'track_expiry' => 'boolean',
-            'track_stock' => 'boolean',
-            'is_active' => 'boolean',
+            'track_expiry'       => 'boolean',
+            'track_stock'        => 'boolean',
+            'is_active'          => 'boolean',
+            'po_destinations'    => 'array',
         ];
     }
 }

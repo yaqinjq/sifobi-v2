@@ -170,6 +170,9 @@ Route::middleware('auth')->group(function (): void {
     Route::get('api/stock-suggestion', [SmartOrderController::class, 'suggest'])
         ->name('api.stock-suggestion');
 
+    Route::get('api/items/search-for-po', \App\Http\Controllers\Api\PoItemSearchController::class)
+        ->name('api.items.search-for-po');
+
     Route::middleware('permission:manage_units')->group(function (): void {
         Route::resource('master-data/units', UnitController::class)
             ->except(['index', 'show'])
@@ -422,6 +425,8 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
 
             Route::get('/create', [PurchaseOrderController::class, 'create'])->name('create');
+            Route::post('/store-batch', [PurchaseOrderController::class, 'storeBatch'])->name('store-batch');
+            Route::get('/batch-summary', [PurchaseOrderController::class, 'batchSummary'])->name('batch-summary');
             Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
 
             Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('show');

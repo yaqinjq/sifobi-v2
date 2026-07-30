@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Procurement\Models\PurchaseOrderApprovalEvent;
 use App\Modules\Procurement\Models\PurchaseOrderItem;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -17,6 +18,47 @@ class PurchaseOrderService
     ) {}
 
     /**
+     * Create multiple POs in one batch (one per active PO type tab that has items).
+     *
+     * @param  array<string, mixed>  $data  Must include: tenant_id, outlet_id, department_id, needed_at, tabs
+     * @return PurchaseOrder[]
+     */
+    public function createBatch(array $data, int $userId): array
+    {
+        $pos = [];
+        $neededAt = Carbon::parse($data['needed_at']);
+        $isPlanned = $neededAt->startOfDay()->isAfter(now()->startOfDay());
+
+        foreach ($data['tabs'] as $poType => $items) {
+            if (empty($items)) {
+                continue;
+            }
+
+            if (! array_key_exists($poType, PurchaseOrder::TYPE_LABELS_ACTIVE)) {
+                continue;
+            }
+
+            $po = $this->create([
+                'tenant_id'         => $data['tenant_id'],
+                'outlet_id'         => $data['outlet_id'],
+                'department_id'     => $data['department_id'] ?? null,
+                'po_type'           => $poType,
+                'needed_at'         => $data['needed_at'],
+                'planned_submit_at' => $isPlanned ? $neededAt->startOfDay() : null,
+                'notes'             => $data['notes'] ?? null,
+            ], $userId);
+
+            foreach ($items as $item) {
+                $this->addItem($po, (int) $data['tenant_id'], $item);
+            }
+
+            $pos[] = $po->fresh(['items.item', 'items.unit', 'outlet']);
+        }
+
+        return $pos;
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     public function create(array $data, int $userId): PurchaseOrder
@@ -27,15 +69,16 @@ class PurchaseOrderService
             $poNumber = $this->generatePoNumber($tenantId, $data['po_type']);
 
             $po = PurchaseOrder::query()->create([
-                'tenant_id'    => $tenantId,
-                'outlet_id'    => $data['outlet_id'],
-                'department_id' => $data['department_id'] ?? null,
-                'po_number'    => $poNumber,
-                'po_type'      => $data['po_type'],
-                'needed_at'    => $data['needed_at'] ?? null,
-                'status'       => PurchaseOrder::STATUS_DRAFT,
-                'notes'        => $data['notes'] ?? null,
-                'requested_by' => $userId,
+                'tenant_id'         => $tenantId,
+                'outlet_id'         => $data['outlet_id'],
+                'department_id'     => $data['department_id'] ?? null,
+                'po_number'         => $poNumber,
+                'po_type'           => $data['po_type'],
+                'needed_at'         => $data['needed_at'] ?? null,
+                'planned_submit_at' => $data['planned_submit_at'] ?? null,
+                'status'            => PurchaseOrder::STATUS_DRAFT,
+                'notes'             => $data['notes'] ?? null,
+                'requested_by'      => $userId,
             ]);
 
             return $po;
