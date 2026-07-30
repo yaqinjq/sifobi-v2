@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Modules\Operations\Models\OpenStock;
 use App\Modules\Operations\Models\OpnameSession;
 use App\Modules\Operations\Models\SpoilWaste;
+use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Receiving\Models\GoodsReceipt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -88,6 +89,9 @@ class DashboardController extends Controller
                 'opname_pending' => $tenantTable('opname_sessions')->where('status', OpnameSession::STATUS_SUBMITTED)->count(),
                 'receiving_pending_review' => $tenantTable('goods_receipts')->where('status', GoodsReceipt::STATUS_SUBMITTED)->count(),
                 'spoil_pending_approval' => $tenantTable('spoil_wastes')->where('status', SpoilWaste::STATUS_PENDING)->count(),
+                'po_draft'               => $tenantTable('purchase_orders')->where('status', PurchaseOrder::STATUS_DRAFT)->count(),
+                'po_submitted'           => $tenantTable('purchase_orders')->where('status', PurchaseOrder::STATUS_SUBMITTED)->count(),
+                'po_sent_today'          => $tenantTable('purchase_orders')->where('status', PurchaseOrder::STATUS_SENT)->whereDate('sent_at', today())->count(),
             ],
             'latestMutations' => DB::table('stock_mutations as sm')
                 ->join('items as i', 'i.id', '=', 'sm.item_id')

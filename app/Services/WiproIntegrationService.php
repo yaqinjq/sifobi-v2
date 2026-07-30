@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Modules\Core\Models\IntegrationProfile;
 use App\Modules\Procurement\Models\PurchaseOrder;
+use App\Modules\Receiving\Models\GoodsReceipt;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -94,6 +95,68 @@ class WiproIntegrationService
         }
 
         return $client;
+    }
+
+    /**
+     * Notify Wipro that goods from a Central Kitchen order have been received at the outlet.
+     * Wire this in GoodsReceiptService::postToLedger() once Wipro's confirm-receipt endpoint is live.
+     *
+     * @return array{success: bool, duplicate: bool}
+     */
+    public function confirmReceipt(GoodsReceipt $gr): array
+    {
+        $profile = $this->profile((int) $gr->tenant_id);
+
+        if (! $profile) {
+            throw new RuntimeException('Integrasi WIPRO belum dikonfigurasi atau tidak aktif untuk tenant ini.');
+        }
+
+        $gr->loadMissing(['purchaseOrder', 'outlet', 'submittedBy', 'items.item', 'items.unit']);
+
+        $path     = (string) (data_get($profile->meta, 'confirm_receipt_path') ?: '/api/fbi/confirm-receipt');
+        $response = $this->client($profile)->post($this->url($profile, $path), $this->receiptPayload($gr));
+
+        if (! $response->successful()) {
+            throw new RuntimeException(
+                'Wipro merespons HTTP '.$response->status().': '.($response->json('message') ?? $response->body())
+            );
+        }
+
+        $body = $response->json();
+
+        return [
+            'success'   => (bool) data_get($body, 'success', true),
+            'duplicate' => (bool) data_get($body, 'duplicate', false),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function receiptPayload(GoodsReceipt $gr): array
+    {
+        $po = $gr->purchaseOrder;
+
+        return [
+            'wipro_order_number' => $po?->external_reference,
+            'external_po_id'     => $po?->id,
+            'sifobi_gr_number'   => $gr->receipt_number,
+            'outlet_code'        => $gr->outlet?->code,
+            'outlet_name'        => $gr->outlet?->name,
+            'received_date'      => optional($gr->receipt_date)->toDateString(),
+            'received_at'        => optional($gr->approved_at ?? $gr->received_at)->toIso8601String(),
+            'received_by'        => $gr->submittedBy?->name,
+            'notes'              => $gr->notes,
+            'items'              => $gr->items->map(fn ($item) => [
+                'sku'           => $item->item?->canonical_sku,
+                'qty_ordered'   => (float) $item->qty_ordered,
+                'qty_received'  => (float) $item->qty_received,
+                'qty_short'     => (float) $item->qty_short,
+                'qty_over'      => (float) $item->qty_over,
+                'uom'           => $item->unit?->code,
+                'notes'         => $item->notes,
+            ])->values()->all(),
+        ];
     }
 
     private function url(IntegrationProfile $profile, string $path): string

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Department;
+use App\Modules\Procurement\Models\PurchaseOrder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,7 @@ class DepartmentController extends Controller
                 ->where('status', 'ACTIVE')
                 ->orderBy('name')
                 ->get(),
+            'poTypeLabels' => PurchaseOrder::TYPE_LABELS_ACTIVE,
         ]);
     }
 
@@ -30,13 +32,18 @@ class DepartmentController extends Controller
         $tenantId = $this->tenantId($request);
         $validated = $this->validated($request, $tenantId);
 
-        DB::transaction(function () use ($tenantId, $validated): void {
+        DB::transaction(function () use ($tenantId, $validated, $request): void {
+            $allowedTypes = array_intersect(
+                $request->input('allowed_po_types', []),
+                array_keys(PurchaseOrder::TYPE_LABELS_ACTIVE)
+            );
             Department::query()->create([
-                'tenant_id' => $tenantId,
-                'code' => strtoupper($validated['code']),
-                'name' => $validated['name'],
-                'is_operational' => true,
-                'status' => 'ACTIVE',
+                'tenant_id'        => $tenantId,
+                'code'             => strtoupper($validated['code']),
+                'name'             => $validated['name'],
+                'is_operational'   => true,
+                'status'           => 'ACTIVE',
+                'allowed_po_types' => !empty($allowedTypes) ? array_values($allowedTypes) : null,
             ]);
         });
 
@@ -50,11 +57,16 @@ class DepartmentController extends Controller
 
         $validated = $this->validated($request, $tenantId, $department->id);
 
+        $allowedTypes = array_intersect(
+            $request->input('allowed_po_types', []),
+            array_keys(PurchaseOrder::TYPE_LABELS_ACTIVE)
+        );
         DB::transaction(fn () => $department->update([
-            'code' => strtoupper($validated['code']),
-            'name' => $validated['name'],
-            'is_operational' => $request->boolean('is_operational', true),
-            'status' => 'ACTIVE',
+            'code'             => strtoupper($validated['code']),
+            'name'             => $validated['name'],
+            'is_operational'   => $request->boolean('is_operational', true),
+            'status'           => 'ACTIVE',
+            'allowed_po_types' => !empty($allowedTypes) ? array_values($allowedTypes) : null,
         ]));
 
         return back()->with('success', 'Departemen berhasil diperbarui.');

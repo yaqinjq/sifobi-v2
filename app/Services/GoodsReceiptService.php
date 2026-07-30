@@ -263,6 +263,17 @@ class GoodsReceiptService
 
             $receipt->update(['status' => GoodsReceipt::STATUS_POSTED]);
         });
+
+        // Notify Wipro that goods have been received (non-blocking, recorded for retry)
+        // TODO: uncomment when Wipro /api/fbi/confirm-receipt endpoint is live
+        // if ($receipt->isWiproReceipt() && $receipt->purchaseOrder?->external_reference) {
+        //     try {
+        //         app(WiproIntegrationService::class)->confirmReceipt($receipt->fresh(['purchaseOrder', 'outlet', 'submittedBy', 'items.item', 'items.unit']));
+        //         $receipt->forceFill(['receipt_synced_at' => now(), 'receipt_sync_error' => null])->save();
+        //     } catch (\Throwable $e) {
+        //         $receipt->forceFill(['receipt_sync_error' => $e->getMessage()])->save();
+        //     }
+        // }
     }
 
     private function assertOutletBelongsToTenant(int $outletId, int $tenantId): void

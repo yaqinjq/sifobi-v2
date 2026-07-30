@@ -17,33 +17,35 @@
     @endif
 
     <x-sf.card title="Daftar Departemen">
-        <div class="hidden lg:grid grid-cols-[1fr_2fr_1fr_auto] gap-3 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-100">
+        <div class="hidden lg:grid grid-cols-[1fr_2fr_1fr_2fr_auto] gap-3 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-100">
             <span>Kode</span>
             <span>Nama Departemen</span>
             <span>Operasional</span>
+            <span>Tujuan PO (kosong = semua)</span>
             <span class="text-right">Aksi</span>
         </div>
 
         <div class="divide-y divide-gray-50">
             @foreach($departments as $department)
+                @php $deptPoTypes = $department->allowed_po_types ?? []; @endphp
                 <div class="py-3" x-data="{ editing: false }">
-                    <form method="POST" action="{{ route('settings.departments.update', $department) }}" class="grid grid-cols-1 lg:grid-cols-[1fr_2fr_1fr_auto] gap-3 items-center">
+                    <form method="POST" action="{{ route('settings.departments.update', $department) }}" class="grid grid-cols-1 lg:grid-cols-[1fr_2fr_1fr_2fr_auto] gap-3 items-start">
                         @csrf
                         @method('PUT')
 
-                        <div>
+                        <div class="self-center">
                             <span class="lg:hidden sf-label">Kode</span>
                             <span x-show="!editing" class="font-semibold text-gray-900">{{ $department->code }}</span>
                             <input x-show="editing" x-cloak name="code" value="{{ $department->code }}" class="sf-input text-base uppercase">
                         </div>
 
-                        <div>
+                        <div class="self-center">
                             <span class="lg:hidden sf-label">Nama Departemen</span>
                             <span x-show="!editing" class="text-gray-700">{{ $department->name }}</span>
                             <input x-show="editing" x-cloak name="name" value="{{ $department->name }}" class="sf-input text-base">
                         </div>
 
-                        <div>
+                        <div class="self-center">
                             <span class="lg:hidden sf-label">Operasional</span>
                             <span x-show="!editing" class="{{ $department->is_operational ? 'badge-active' : 'badge-inactive' }}">
                                 {{ $department->is_operational ? 'YA' : 'TIDAK' }}
@@ -54,7 +56,35 @@
                             </label>
                         </div>
 
-                        <div class="flex justify-end gap-2">
+                        <div>
+                            <span class="lg:hidden sf-label">Tujuan PO</span>
+                            {{-- View mode --}}
+                            <div x-show="!editing" class="flex flex-wrap gap-1">
+                                @if(empty($deptPoTypes))
+                                    <span class="text-xs text-gray-400 italic">Semua tujuan</span>
+                                @else
+                                    @foreach($deptPoTypes as $t)
+                                        <span class="badge-pending text-xs">{{ $poTypeLabels[$t] ?? $t }}</span>
+                                    @endforeach
+                                @endif
+                            </div>
+                            {{-- Edit mode --}}
+                            <div x-show="editing" x-cloak class="flex flex-col gap-1.5 pt-1">
+                                @foreach($poTypeLabels as $typeKey => $typeLabel)
+                                    <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                        <input type="checkbox"
+                                               name="allowed_po_types[]"
+                                               value="{{ $typeKey }}"
+                                               @checked(in_array($typeKey, $deptPoTypes))
+                                               class="rounded border-gray-300 text-primary-700 focus:ring-primary-500">
+                                        {{ $typeLabel }}
+                                    </label>
+                                @endforeach
+                                <p class="text-xs text-gray-400">Kosong = boleh semua tujuan</p>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-2 self-start">
                             <x-icon-btn icon="edit" label="Edit" color="blue" x-show="!editing" @click="editing = true" />
                             <x-icon-btn icon="approve" label="Simpan" color="green" type="submit" x-show="editing" x-cloak />
                             <x-icon-btn icon="reject" label="Batal" color="gray" x-show="editing" x-cloak @click="editing = false" />

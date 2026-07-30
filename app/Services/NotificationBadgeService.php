@@ -11,11 +11,12 @@ class NotificationBadgeService
         $badges = [];
 
         $tables = [
-            'open_stock_pending'  => ['table' => 'open_stocks',    'status' => 'DRAFT'],
-            'opname_pending'      => ['table' => 'opname_sessions', 'status' => 'SUBMITTED'],
-            'spoil_pending'       => ['table' => 'spoil_wastes',    'status' => 'PENDING'],
-            'receiving_pending'   => ['table' => 'goods_receipts',  'status' => 'SUBMITTED'],
-            'transfer_pending'    => ['table' => 'stock_transfers',  'status' => 'SUBMITTED'],
+            'open_stock_pending'  => ['table' => 'open_stocks',     'status' => 'DRAFT'],
+            'opname_pending'      => ['table' => 'opname_sessions',  'status' => 'SUBMITTED'],
+            'spoil_pending'       => ['table' => 'spoil_wastes',     'status' => 'PENDING'],
+            'receiving_pending'   => ['table' => 'goods_receipts',   'status' => 'SUBMITTED'],
+            'transfer_pending'    => ['table' => 'stock_transfers',   'status' => 'SUBMITTED'],
+            'po_pending_approval' => ['table' => 'purchase_orders',  'status' => 'SUBMITTED'],
         ];
 
         foreach ($tables as $key => $config) {

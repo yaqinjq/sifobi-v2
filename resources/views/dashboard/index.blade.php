@@ -150,6 +150,69 @@
     </x-sf.card>
 </div>
 
+{{-- ══ PURCHASE ORDER WIDGET ══ --}}
+@can('create_po')
+<div class="px-4 mt-6 lg:px-6">
+    <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Purchase Order</h2>
+    <x-sf.card>
+        <a href="{{ route('procurement.purchase-orders.create') }}"
+           class="flex items-center justify-between py-2 active:bg-gray-50 rounded-lg -mx-1 px-1">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </div>
+                <span class="text-sm font-semibold text-primary-700">Buat PO Baru</span>
+            </div>
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        </a>
+        <div class="border-t border-gray-50 my-1"></div>
+        <div class="flex items-center justify-between py-2">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                </div>
+                <span class="text-sm text-gray-700 font-medium">Draft</span>
+            </div>
+            <span class="badge-draft">{{ $metrics['po_draft'] }}</span>
+        </div>
+        <div class="border-t border-gray-50"></div>
+        <div class="flex items-center justify-between py-2">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <span class="text-sm text-gray-700 font-medium">Menunggu Approval</span>
+            </div>
+            @if($metrics['po_submitted'] > 0)
+                <span class="badge-pending">{{ $metrics['po_submitted'] }}</span>
+            @else
+                <span class="badge-draft">0</span>
+            @endif
+        </div>
+        <div class="border-t border-gray-50"></div>
+        <div class="flex items-center justify-between py-2">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </div>
+                <span class="text-sm text-gray-700 font-medium">Terkirim Hari Ini</span>
+            </div>
+            <span class="badge-posted">{{ $metrics['po_sent_today'] }}</span>
+        </div>
+    </x-sf.card>
+</div>
+@endcan
+
 {{-- ══ SECONDARY METRICS ══ --}}
 <div class="px-4 mt-6 lg:px-6">
     <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Data Sistem</h2>
@@ -164,11 +227,19 @@
 </div>
 
 {{-- ══ ACTION ITEMS ══ --}}
-@if($metrics['penerimaan_pending'] > 0 || $metrics['spoil_pending_approval'] > 0 || $metrics['opname_pending'] > 0)
+@if($metrics['penerimaan_pending'] > 0 || $metrics['spoil_pending_approval'] > 0 || $metrics['opname_pending'] > 0 || $metrics['po_submitted'] > 0)
 <div class="px-4 mt-6 lg:px-6">
     <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Perlu Tindakan</h2>
     <x-sf.card>
         <div class="space-y-3">
+            @can('create_po')
+            @if($metrics['po_submitted'] > 0)
+                <a href="{{ route('procurement.purchase-orders.index', ['status' => 'SUBMITTED']) }}" class="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-amber-50 px-3 py-2 text-sm">
+                    <span class="text-amber-800">{{ $metrics['po_submitted'] }} PO menunggu approval</span>
+                    <span class="font-semibold text-primary-700">Lihat</span>
+                </a>
+            @endif
+            @endcan
             @if($metrics['penerimaan_pending'] > 0)
                 <a href="{{ route('receiving.goods-receipts.index', ['status' => 'SUBMITTED']) }}" class="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2 text-sm">
                     <span>{{ $metrics['penerimaan_pending'] }} penerimaan perlu approval</span>

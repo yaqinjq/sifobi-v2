@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\MasterData;
 
+use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Support\Decimal;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
@@ -81,7 +82,9 @@ class StoreItemRequest extends FormRequest
             'extra_conversions.*.from_unit_id' => ['required_with:extra_conversions', 'integer', $this->unitExistsRule($tenantId)],
             'extra_conversions.*.to_unit_id' => ['required_with:extra_conversions', 'integer', $this->unitExistsRule($tenantId)],
             'extra_conversions.*.factor' => ['required_with:extra_conversions', Decimal::validationRule(8), $this->decimalMinRule('0.00000001')],
-            'is_active' => ['boolean'],
+            'is_active'          => ['boolean'],
+            'po_destinations'    => ['nullable', 'array'],
+            'po_destinations.*'  => ['string', Rule::in(array_keys(PurchaseOrder::TYPE_LABELS_ACTIVE))],
         ];
     }
 
@@ -117,8 +120,9 @@ class StoreItemRequest extends FormRequest
             'track_expiry' => $this->boolean('track_expiry'),
             'last_purchase_price' => $lastPurchasePrice,
             'standard_cost' => $lastPurchasePrice ?? '0.0000',
-            'track_stock' => true,
-            'is_active' => $this->boolean('is_active'),
+            'track_stock'     => true,
+            'is_active'       => $this->boolean('is_active'),
+            'po_destinations' => !empty($this->input('po_destinations')) ? $this->input('po_destinations') : null,
         ];
     }
 

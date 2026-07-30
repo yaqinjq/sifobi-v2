@@ -350,6 +350,25 @@
             </button>
         </div>
 
+        {{-- Tujuan Purchase Order --}}
+        @php $currentDestinations = old('po_destinations', $item->po_destinations ?? []); @endphp
+        <div class="mt-4">
+            <span class="sf-label">Tujuan Purchase Order</span>
+            <p class="text-xs text-gray-400 mt-0.5 mb-2">Kosong = muncul di semua tab PO. Centang untuk membatasi ke tujuan tertentu.</p>
+            <div class="flex flex-wrap gap-3">
+                @foreach(\App\Modules\Procurement\Models\PurchaseOrder::TYPE_LABELS_ACTIVE as $destType => $destLabel)
+                    <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer rounded-xl border border-gray-200 bg-white px-3 py-2 hover:border-primary-400">
+                        <input type="checkbox"
+                               name="po_destinations[]"
+                               value="{{ $destType }}"
+                               @checked(in_array($destType, $currentDestinations ?? []))
+                               class="rounded border-gray-300 text-primary-700 focus:ring-primary-500">
+                        {{ $destLabel }}
+                    </label>
+                @endforeach
+            </div>
+        </div>
+
         <div class="mt-4 rounded-2xl border border-gray-100 bg-white p-4" x-data="{ open: false }">
             <button type="button" class="w-full min-h-11 flex items-center justify-between gap-3 text-left" @click="open = !open">
                 <span class="text-sm font-semibold text-gray-900">Konversi Tambahan</span>

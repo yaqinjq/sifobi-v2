@@ -5,6 +5,7 @@ namespace App\Modules\Receiving\Models;
 use App\Models\Scopes\TenantScope;
 use App\Models\User;
 use App\Modules\Core\Models\Outlet;
+use App\Modules\Procurement\Models\PurchaseOrder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -48,6 +49,7 @@ class GoodsReceipt extends Model
         'vendor_name',
         'doc_number',
         'invoice_number',
+        'purchase_order_id',
         'photo_document',
         'receipt_date',
         'received_at',
@@ -62,6 +64,8 @@ class GoodsReceipt extends Model
         'approved_at',
         'review_notes',
         'notes',
+        'receipt_synced_at',
+        'receipt_sync_error',
     ];
 
     protected static function booted(): void
@@ -75,10 +79,11 @@ class GoodsReceipt extends Model
     protected function casts(): array
     {
         return [
-            'receipt_date' => 'date',
-            'received_at' => 'datetime',
-            'reviewed_at' => 'datetime',
-            'approved_at' => 'datetime',
+            'receipt_date'       => 'date',
+            'received_at'        => 'datetime',
+            'reviewed_at'        => 'datetime',
+            'approved_at'        => 'datetime',
+            'receipt_synced_at'  => 'datetime',
         ];
     }
 
@@ -90,6 +95,16 @@ class GoodsReceipt extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    public function isWiproReceipt(): bool
+    {
+        return $this->source === self::SOURCE_WIP_CENTRAL_KITCHEN;
     }
 
     public function items(): HasMany
