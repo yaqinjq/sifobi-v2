@@ -5,10 +5,9 @@ namespace App\Services;
 use App\Modules\Core\Models\IntegrationProfile;
 use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Receiving\Models\GoodsReceipt;
-use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
+use Symfony\Component\Process\Process;
 
 class WiproIntegrationService
 {
@@ -39,34 +38,22 @@ class WiproIntegrationService
 
         $path = (string) (data_get($profile->meta, 'order_path') ?: '/api/fbi/orders');
         $fullUrl = $this->url($profile, $path);
-        Log::error('[WIPRO] pushOrder request', [
-            'po' => $po->po_number,
-            'profile_id' => $profile->id,
-            'tenant_id' => $po->tenant_id,
-            'base_url' => $profile->base_url,
-            'meta_order_path' => data_get($profile->meta, 'order_path'),
-            'url' => $fullUrl,
-        ]);
-        $response = $this->client($profile)->post($fullUrl, $this->payload($po));
-        Log::error('[WIPRO] pushOrder response', [
-            'po' => $po->po_number,
-            'status' => $response->status(),
-            'headers' => $response->headers(),
-            'body' => substr($response->body(), 0, 1000),
-        ]);
 
-        if (! $response->successful()) {
+        $result = $this->curlPost($profile, $fullUrl, $this->payload($po));
+        $json = json_decode($result['body'], true);
+
+        if ($result['status'] < 200 || $result['status'] >= 300) {
+            Log::error('[WIPRO] pushOrder failed', ['po' => $po->po_number, 'status' => $result['status'], 'body' => $result['body']]);
+
             throw new RuntimeException(
-                'Wipro merespons HTTP '.$response->status().': '.($response->json('message') ?? $response->body())
+                'Wipro merespons HTTP '.$result['status'].': '.(data_get($json, 'message') ?? $result['body'])
             );
         }
 
-        $body = $response->json();
-
         return [
-            'wipro_order_id' => data_get($body, 'wipro_order_id'),
-            'wipro_order_number' => data_get($body, 'wipro_order_number'),
-            'duplicate' => (bool) data_get($body, 'duplicate', false),
+            'wipro_order_id' => data_get($json, 'wipro_order_id'),
+            'wipro_order_number' => data_get($json, 'wipro_order_number'),
+            'duplicate' => (bool) data_get($json, 'duplicate', false),
         ];
     }
 
@@ -94,35 +81,57 @@ class WiproIntegrationService
         ];
     }
 
-    private function client(IntegrationProfile $profile): PendingRequest
+    /**
+     * Shells out to the system `curl` binary instead of Guzzle. Wipro's Cloudflare
+     * edge consistently 404s PHP-cURL/Guzzle requests (proven not to be UA, Expect:
+     * 100-continue, or HTTP version — all ruled out) while plain `curl` from the same
+     * server always succeeds; the two link against different libcurl/OpenSSL builds
+     * on this box, so this is almost certainly a TLS-handshake fingerprint difference
+     * at Cloudflare's edge. Shelling out to the binary that's proven to work is the
+     * pragmatic fix.
+     *
+     * @return array{status: int, body: string}
+     */
+    private function curlPost(IntegrationProfile $profile, string $url, array $payload): array
     {
-        // Plain `curl` to Wipro's endpoint always succeeds; PHP-cURL/Guzzle always gets
-        // a bare-nginx 404 through Cloudflare (works fine hitting origin directly) — the
-        // one consistent PHP-cURL vs curl-CLI difference is libcurl's automatic
-        // "Expect: 100-continue" on POST bodies, which some proxies/edges mishandle.
-        // Force HTTP/1.1 too, in case it's an HTTP/2 stream-multiplexing quirk on an
-        // origin IP shared by many Cloudflare zones.
-        $client = Http::timeout((int) data_get($profile->meta, 'timeout_seconds', 10))
-            ->acceptJson()
-            ->withUserAgent('Sifobi-Integration/1.0 (+https://new-fbi.mykopiogroup.com)')
-            ->withOptions([
-                'version' => 1.1,
-                'expect' => false,
-            ]);
         $authMode = $profile->auth_mode ?: $profile->auth_type;
         $token = $profile->auth_token ?: $profile->api_token;
         $username = $profile->auth_username ?: $profile->username;
         $password = $profile->auth_password ?: $profile->password;
+        $timeout = (int) data_get($profile->meta, 'timeout_seconds', 10);
+
+        $args = [
+            'curl', '-s', '-X', 'POST', $url,
+            '-H', 'Content-Type: application/json',
+            '-H', 'Accept: application/json',
+            '--max-time', (string) $timeout,
+            '-d', json_encode($payload),
+            '-w', "\n%{http_code}",
+        ];
 
         if ($authMode === 'BEARER' && $token) {
-            return $client->withToken($token);
+            $args[] = '-H';
+            $args[] = "Authorization: Bearer {$token}";
+        } elseif ($authMode === 'BASIC' && $username) {
+            $args[] = '-u';
+            $args[] = "{$username}:{$password}";
         }
 
-        if ($authMode === 'BASIC' && $username) {
-            return $client->withBasicAuth($username, (string) $password);
+        $process = new Process($args);
+        $process->setTimeout($timeout + 5);
+        $process->run();
+
+        if (! $process->isSuccessful()) {
+            throw new RuntimeException('Gagal menjalankan curl ke Wipro: '.$process->getErrorOutput());
         }
 
-        return $client;
+        $output = $process->getOutput();
+        $splitAt = strrpos($output, "\n");
+
+        return [
+            'status' => (int) trim(substr($output, $splitAt + 1)),
+            'body' => $splitAt !== false ? substr($output, 0, $splitAt) : '',
+        ];
     }
 
     /**
@@ -141,20 +150,19 @@ class WiproIntegrationService
 
         $gr->loadMissing(['purchaseOrder', 'outlet', 'submittedBy', 'items.item', 'items.unit']);
 
-        $path     = (string) (data_get($profile->meta, 'confirm_receipt_path') ?: '/api/fbi/confirm-receipt');
-        $response = $this->client($profile)->post($this->url($profile, $path), $this->receiptPayload($gr));
+        $path = (string) (data_get($profile->meta, 'confirm_receipt_path') ?: '/api/fbi/confirm-receipt');
+        $result = $this->curlPost($profile, $this->url($profile, $path), $this->receiptPayload($gr));
+        $json = json_decode($result['body'], true);
 
-        if (! $response->successful()) {
+        if ($result['status'] < 200 || $result['status'] >= 300) {
             throw new RuntimeException(
-                'Wipro merespons HTTP '.$response->status().': '.($response->json('message') ?? $response->body())
+                'Wipro merespons HTTP '.$result['status'].': '.(data_get($json, 'message') ?? $result['body'])
             );
         }
 
-        $body = $response->json();
-
         return [
-            'success'   => (bool) data_get($body, 'success', true),
-            'duplicate' => (bool) data_get($body, 'duplicate', false),
+            'success'   => (bool) data_get($json, 'success', true),
+            'duplicate' => (bool) data_get($json, 'duplicate', false),
         ];
     }
 
