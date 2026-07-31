@@ -7,6 +7,7 @@ use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Receiving\Models\GoodsReceipt;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class WiproIntegrationService
@@ -37,7 +38,9 @@ class WiproIntegrationService
         $po->loadMissing(['outlet', 'requestedBy', 'items.item', 'items.unit']);
 
         $path = (string) (data_get($profile->meta, 'order_path') ?: '/api/fbi/orders');
-        $response = $this->client($profile)->post($this->url($profile, $path), $this->payload($po));
+        $fullUrl = $this->url($profile, $path);
+        Log::debug('[WIPRO] pushOrder', ['po' => $po->po_number, 'url' => $fullUrl, 'meta_order_path' => data_get($profile->meta, 'order_path')]);
+        $response = $this->client($profile)->post($fullUrl, $this->payload($po));
 
         if (! $response->successful()) {
             throw new RuntimeException(
