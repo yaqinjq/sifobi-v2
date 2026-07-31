@@ -96,12 +96,19 @@ class WiproIntegrationService
 
     private function client(IntegrationProfile $profile): PendingRequest
     {
-        // Default Guzzle UA ("GuzzleHttp/7") gets caught by Cloudflare bot rules on
-        // the Wipro side, producing a JS-challenge page instead of a real response —
-        // spoofing a non-library UA gets the request past the edge.
+        // Plain `curl` to Wipro's endpoint always succeeds; PHP-cURL/Guzzle always gets
+        // a bare-nginx 404 through Cloudflare (works fine hitting origin directly) — the
+        // one consistent PHP-cURL vs curl-CLI difference is libcurl's automatic
+        // "Expect: 100-continue" on POST bodies, which some proxies/edges mishandle.
+        // Force HTTP/1.1 too, in case it's an HTTP/2 stream-multiplexing quirk on an
+        // origin IP shared by many Cloudflare zones.
         $client = Http::timeout((int) data_get($profile->meta, 'timeout_seconds', 10))
             ->acceptJson()
-            ->withUserAgent('Sifobi-Integration/1.0 (+https://new-fbi.mykopiogroup.com)');
+            ->withUserAgent('Sifobi-Integration/1.0 (+https://new-fbi.mykopiogroup.com)')
+            ->withOptions([
+                'version' => 1.1,
+                'expect' => false,
+            ]);
         $authMode = $profile->auth_mode ?: $profile->auth_type;
         $token = $profile->auth_token ?: $profile->api_token;
         $username = $profile->auth_username ?: $profile->username;
