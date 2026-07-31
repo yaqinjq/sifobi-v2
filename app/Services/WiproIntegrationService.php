@@ -83,7 +83,12 @@ class WiproIntegrationService
 
     private function client(IntegrationProfile $profile): PendingRequest
     {
-        $client = Http::timeout((int) data_get($profile->meta, 'timeout_seconds', 10))->acceptJson();
+        // Default Guzzle UA ("GuzzleHttp/7") gets caught by Cloudflare bot rules on
+        // the Wipro side, producing a JS-challenge page instead of a real response —
+        // spoofing a non-library UA gets the request past the edge.
+        $client = Http::timeout((int) data_get($profile->meta, 'timeout_seconds', 10))
+            ->acceptJson()
+            ->withUserAgent('Sifobi-Integration/1.0 (+https://new-fbi.mykopiogroup.com)');
         $authMode = $profile->auth_mode ?: $profile->auth_type;
         $token = $profile->auth_token ?: $profile->api_token;
         $username = $profile->auth_username ?: $profile->username;
