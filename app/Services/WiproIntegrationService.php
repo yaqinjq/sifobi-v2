@@ -39,8 +39,21 @@ class WiproIntegrationService
 
         $path = (string) (data_get($profile->meta, 'order_path') ?: '/api/fbi/orders');
         $fullUrl = $this->url($profile, $path);
-        Log::debug('[WIPRO] pushOrder', ['po' => $po->po_number, 'url' => $fullUrl, 'meta_order_path' => data_get($profile->meta, 'order_path')]);
+        Log::error('[WIPRO] pushOrder request', [
+            'po' => $po->po_number,
+            'profile_id' => $profile->id,
+            'tenant_id' => $po->tenant_id,
+            'base_url' => $profile->base_url,
+            'meta_order_path' => data_get($profile->meta, 'order_path'),
+            'url' => $fullUrl,
+        ]);
         $response = $this->client($profile)->post($fullUrl, $this->payload($po));
+        Log::error('[WIPRO] pushOrder response', [
+            'po' => $po->po_number,
+            'status' => $response->status(),
+            'headers' => $response->headers(),
+            'body' => substr($response->body(), 0, 1000),
+        ]);
 
         if (! $response->successful()) {
             throw new RuntimeException(
