@@ -290,6 +290,15 @@ class PurchaseOrderController extends Controller
 
         $target = $purchaseOrder->po_type === PurchaseOrder::TYPE_CENTRAL_KITCHEN ? 'Wipro' : 'OCIA';
 
+        // Wipro pushes run in a queue worker (see PushOrderToWiproJob), not
+        // synchronously, so the outcome isn't known yet at this point — OCIA
+        // still pushes synchronously and its result is available immediately.
+        if ($purchaseOrder->po_type === PurchaseOrder::TYPE_CENTRAL_KITCHEN) {
+            return redirect()
+                ->route('procurement.purchase-orders.show', $purchaseOrder)
+                ->with('success', "Kirim ulang ke {$target} sedang diproses, cek status dalam beberapa saat.");
+        }
+
         return redirect()
             ->route('procurement.purchase-orders.show', $purchaseOrder)
             ->with(

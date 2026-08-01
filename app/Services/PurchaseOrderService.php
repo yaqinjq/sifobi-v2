@@ -237,24 +237,19 @@ class PurchaseOrderService
     }
 
     /**
-     * Push a SENT Central Kitchen PO to Wipro and record the outcome on the PO row.
-     * Sync failures never block or reverse the SENT status.
+     * Queue a SENT Central Kitchen PO to be pushed to Wipro; the queue worker
+     * records the outcome on the PO row once it runs (see PushOrderToWiproJob —
+     * pushing synchronously from a web request never reaches Wipro, see its
+     * docblock). Sync failures never block or reverse the SENT status.
      */
     private function syncToWipro(PurchaseOrder $po): void
     {
-        try {
-            $result = $this->wipro->pushOrder($po);
+        $po->forceFill([
+            'external_sync_error' => null,
+            'external_synced_at'  => null,
+        ])->save();
 
-            $po->forceFill([
-                'external_reference'  => $result['wipro_order_number'] ?? $result['wipro_order_id'],
-                'external_synced_at'  => now(),
-                'external_sync_error' => null,
-            ])->save();
-        } catch (Throwable $exception) {
-            $po->forceFill([
-                'external_sync_error' => $exception->getMessage(),
-            ])->save();
-        }
+        \App\Jobs\PushOrderToWiproJob::dispatch($po->id);
     }
 
     /**
