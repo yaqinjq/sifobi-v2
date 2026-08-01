@@ -12,21 +12,22 @@ use Illuminate\Queue\SerializesModels;
 use Throwable;
 
 /**
- * Runs as a queue worker process (plain `php artisan queue:work`), never as a
- * PHP-FPM request. Wipro's Cloudflare edge consistently 404s any HTTP request
- * whose parent process is php-fpm — proven across Guzzle, PHP-cURL via
- * proc_open, and even the system curl binary invoked through proc_open, while
- * the identical curl binary run directly from a shell (any user) always
- * succeeds. Root cause undetermined; running the push from a queue worker
- * process sidesteps it entirely.
+ * Wipro's Cloudflare zone intermittently 404s a fraction of requests — proven
+ * to vary by which anycast edge node the connection happens to land on, not
+ * by anything on this side (UA, TLS, TTY, process ancestry, env, curl binary
+ * all ruled out; two curl calls seconds apart landed on different Cloudflare
+ * edge IPs, one clean, one broken). So: let handle() throw on failure so
+ * Laravel's own retry/backoff actually re-dials (each attempt is a fresh
+ * connection, likely a different edge), and only record a failure on the PO
+ * once every retry is exhausted via failed().
  */
 class PushOrderToWiproJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    public int $tries = 5;
 
-    public int $backoff = 30;
+    public int $backoff = 15;
 
     public function __construct(public int $purchaseOrderId) {}
 
@@ -38,18 +39,21 @@ class PushOrderToWiproJob implements ShouldQueue
             return;
         }
 
-        try {
-            $result = $wipro->pushOrder($po);
+        $result = $wipro->pushOrder($po);
 
-            $po->forceFill([
-                'external_reference'  => $result['wipro_order_number'] ?? $result['wipro_order_id'],
-                'external_synced_at'  => now(),
-                'external_sync_error' => null,
-            ])->save();
-        } catch (Throwable $exception) {
-            $po->forceFill([
-                'external_sync_error' => $exception->getMessage(),
-            ])->save();
-        }
+        $po->forceFill([
+            'external_reference'  => $result['wipro_order_number'] ?? $result['wipro_order_id'],
+            'external_synced_at'  => now(),
+            'external_sync_error' => null,
+        ])->save();
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        $po = PurchaseOrder::find($this->purchaseOrderId);
+
+        $po?->forceFill([
+            'external_sync_error' => $exception->getMessage(),
+        ])->save();
     }
 }
