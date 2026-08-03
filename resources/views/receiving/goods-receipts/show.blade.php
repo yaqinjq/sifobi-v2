@@ -77,6 +77,19 @@
         @endif
     </x-sf.card>
 
+    @if($receipt->isWiproReceipt() && $receipt->status === 'POSTED')
+        <x-sf.card title="Status Konfirmasi ke Wipro">
+            @if($receipt->receipt_sync_error)
+                <span class="badge-void">Gagal konfirmasi</span>
+                <p class="mt-2 text-xs text-red-700">{{ $receipt->receipt_sync_error }}</p>
+            @elseif($receipt->receipt_synced_at)
+                <span class="badge-posted">Terkonfirmasi ke Wipro</span>
+            @else
+                <span class="badge-pending">Menunggu</span>
+            @endif
+        </x-sf.card>
+    @endif
+
     <x-sf.card title="Item Diterima" subtitle="{{ $receipt->items->count() }} item">
         <div class="lg:hidden space-y-3">
             @foreach($receipt->items as $item)
