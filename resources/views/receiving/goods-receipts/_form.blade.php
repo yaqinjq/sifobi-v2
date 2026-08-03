@@ -103,10 +103,44 @@
     </x-sf.card>
 
     <x-sf.card title="Detail Sumber">
-        @if($activeSource === 'OCIA_PO')
-            <label class="sf-label">Nomor PO OCIA</label>
-            <input type="text" name="external_po_number" value="{{ old('external_po_number', $receipt->external_po_number) }}" class="sf-input text-base min-h-11" maxlength="120">
-            <p class="text-sm text-gray-500 mt-2">Integrasi OCIA belum aktif; item tetap diisi manual pada versi ini.</p>
+        @if($activeSource === 'WIP_CENTRAL_KITCHEN' || $activeSource === 'OCIA_PO')
+            @php
+                $poType = $activeSource === 'WIP_CENTRAL_KITCHEN'
+                    ? \App\Modules\Procurement\Models\PurchaseOrder::TYPE_CENTRAL_KITCHEN
+                    : \App\Modules\Procurement\Models\PurchaseOrder::TYPE_OCIA_ROASTERY;
+                $filteredPos = collect($shippedPos)->filter(fn($p) => $p['po_type'] === $poType)->values();
+                $linkedPoId = old('purchase_order_id', $receipt->purchase_order_id);
+            @endphp
+
+            <input type="hidden" name="purchase_order_id" x-ref="poIdInput"
+                   value="{{ $linkedPoId }}">
+
+            <label class="sf-label">
+                Pilih PO {{ $activeSource === 'WIP_CENTRAL_KITCHEN' ? 'Central Kitchen (Wipro)' : 'OCIA' }}
+                <span class="text-gray-400 font-normal">&mdash; hanya PO berstatus Dikirim Vendor atau Terkirim</span>
+            </label>
+
+            @if($filteredPos->isEmpty())
+                <div class="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
+                    Tidak ada PO dengan status "Dikirim Vendor" atau "Terkirim ke Vendor" saat ini.
+                    Pastikan PO sudah disetujui dan dikirim ke vendor terlebih dahulu.
+                </div>
+            @else
+                <select class="sf-input text-base min-h-11"
+                        @change="loadPoItems($event.target.value, @js($filteredPos->values()->all()), $refs.poIdInput)">
+                    <option value="">— Pilih PO —</option>
+                    @foreach($filteredPos as $p)
+                        <option value="{{ $p['id'] }}" @selected((string)$linkedPoId === (string)$p['id'])>
+                            {{ $p['po_number'] }}
+                            &middot; {{ $p['outlet'] }}
+                            @if($p['shipped_at']) &middot; Dikirim {{ $p['shipped_at'] }} @endif
+                            &middot; {{ $p['status'] === 'SHIPPED' ? 'Dikirim Vendor' : 'Terkirim ke Vendor' }}
+                        </option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-gray-400 mt-1">Pilih PO untuk auto-isi daftar item di bawah.</p>
+            @endif
+
         @elseif($activeSource === 'SUPPLIER_LUAR')
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -125,7 +159,6 @@
                     <input type="text" name="supplier_name" value="{{ old('supplier_name', $receipt->supplier_name) }}" class="sf-input text-base min-h-11" maxlength="150">
                 </div>
             </div>
-            <p class="text-sm text-gray-500 mt-2">OCR dokumen belum diaktifkan; data invoice perlu diverifikasi manual.</p>
         @else
             <label class="sf-label">Nama Pengirim</label>
             <input type="text" name="supplier_name" value="{{ old('supplier_name', $receipt->supplier_name) }}" class="sf-input text-base min-h-11" maxlength="150" placeholder="Central Kitchen / Purchasing">
@@ -254,6 +287,27 @@ function goodsReceiptForm(config) {
         },
         removeRow(index) {
             if (this.rows.length > 1) this.rows.splice(index, 1);
+        },
+        loadPoItems(poId, poList, hiddenInput) {
+            if (hiddenInput) hiddenInput.value = poId || '';
+            if (!poId) return;
+            const po = poList.find(p => String(p.id) === String(poId));
+            if (!po || !po.items || po.items.length === 0) return;
+            this.rows = po.items.map(pi => {
+                const item = this.items.find(i => Number(i.id) === Number(pi.item_id));
+                return {
+                    key: `${Date.now()}-${Math.random()}`,
+                    item_id: String(pi.item_id),
+                    unit_id: String(pi.unit_id),
+                    qty_ordered: String(pi.qty_ordered),
+                    qty_received: String(pi.qty_ordered),
+                    unit_price: '0',
+                    expired_date: '',
+                    batch_code: '',
+                    notes: '',
+                    track_expiry: item ? item.track_expiry === true : false,
+                };
+            });
         },
         selectedItem(row) {
             return this.items.find((item) => Number(item.id) === Number(row.item_id));

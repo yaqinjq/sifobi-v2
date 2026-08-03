@@ -24,19 +24,37 @@ class PurchaseOrderController extends Controller
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
+        $tab      = $request->input('tab', 'all');
 
-        $pos = PurchaseOrder::query()
+        $tabStatusMap = [
+            'draft'     => PurchaseOrder::STATUS_DRAFT,
+            'submitted' => PurchaseOrder::STATUS_SUBMITTED,
+            'approved'  => PurchaseOrder::STATUS_APPROVED,
+            'sent'      => PurchaseOrder::STATUS_SENT,
+            'shipped'   => PurchaseOrder::STATUS_SHIPPED,
+            'closed'    => PurchaseOrder::STATUS_CLOSED,
+            'rejected'  => PurchaseOrder::STATUS_REJECTED,
+        ];
+
+        $baseQuery = PurchaseOrder::query()
             ->where('tenant_id', $tenantId)
             ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->when($request->filled('type'), fn ($q) => $q->where('po_type', $request->string('type')->upper()->toString()));
+
+        $counts = (clone $baseQuery)
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $pos = (clone $baseQuery)
             ->with(['outlet', 'department', 'requestedBy'])
             ->withCount('items')
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')->upper()->toString()))
-            ->when($request->filled('type'), fn ($q) => $q->where('po_type', $request->string('type')->upper()->toString()))
+            ->when(isset($tabStatusMap[$tab]), fn ($q) => $q->where('status', $tabStatusMap[$tab]))
             ->latest('id')
             ->paginate(20)
             ->withQueryString();
 
-        return view('procurement.purchase-orders.index', compact('pos'));
+        return view('procurement.purchase-orders.index', compact('pos', 'counts', 'tab'));
     }
 
     public function create(Request $request): View

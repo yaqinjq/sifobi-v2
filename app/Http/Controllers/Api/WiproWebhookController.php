@@ -7,6 +7,7 @@ use App\Modules\Core\Models\IntegrationProfile;
 use App\Modules\Procurement\Models\PurchaseOrder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Inbound webhooks called BY Wipro (the reverse direction of
@@ -48,14 +49,24 @@ class WiproWebhookController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
+        $previousStatus = $po->status;
+
         $po->forceFill([
-            'wipro_shipped_at' => $request->input('shipped_at') ?: now(),
+            'status'                => PurchaseOrder::STATUS_SHIPPED,
+            'wipro_shipped_at'      => $request->input('shipped_at') ?: now(),
             'wipro_dispatch_number' => $request->input('dispatch_number'),
         ])->save();
 
+        Log::info('[WIPRO] dispatch-notification received', [
+            'po'              => $po->po_number,
+            'previous_status' => $previousStatus,
+            'dispatch_number' => $request->input('dispatch_number'),
+        ]);
+
         return response()->json([
             'success' => true,
-            'message' => 'Notifikasi pengiriman diterima.',
+            'message' => 'Notifikasi pengiriman diterima. Status PO diperbarui ke SHIPPED.',
+            'po_number' => $po->po_number,
         ]);
     }
 }

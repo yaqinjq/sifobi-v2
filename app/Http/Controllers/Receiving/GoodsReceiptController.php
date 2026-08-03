@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\Unit;
+use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Receiving\Models\GoodsReceipt;
 use App\Modules\Receiving\Models\Supplier;
 use App\Services\GoodsReceiptService;
@@ -287,6 +288,30 @@ class GoodsReceiptController extends Controller
                 'purchase_ratio' => (float) ($item->purchase_ratio ?? 1),
                 'track_expiry' => (bool) $item->track_expiry,
             ])->values()->all(),
+            'shippedPos' => PurchaseOrder::query()
+                ->where('tenant_id', $tenantId)
+                ->whereIn('status', [PurchaseOrder::STATUS_SHIPPED, PurchaseOrder::STATUS_SENT])
+                ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+                ->with(['outlet', 'items.item', 'items.unit'])
+                ->latest('id')
+                ->get()
+                ->map(fn (PurchaseOrder $po) => [
+                    'id'         => $po->id,
+                    'po_number'  => $po->po_number,
+                    'po_type'    => $po->po_type,
+                    'status'     => $po->status,
+                    'outlet_id'  => $po->outlet_id,
+                    'outlet'     => $po->outlet?->name,
+                    'needed_at'  => optional($po->needed_at)->format('d M Y'),
+                    'shipped_at' => optional($po->wipro_shipped_at)->format('d M Y'),
+                    'dispatch_no' => $po->wipro_dispatch_number,
+                    'items'      => $po->items->map(fn ($item) => [
+                        'item_id'     => $item->item_id,
+                        'unit_id'     => $item->unit_id,
+                        'qty_ordered' => (float) $item->qty_ordered,
+                        'unit_code'   => $item->unit?->code,
+                    ])->values()->all(),
+                ])->values()->all(),
         ];
     }
 

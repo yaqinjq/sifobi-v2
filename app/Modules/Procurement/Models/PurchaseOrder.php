@@ -22,6 +22,7 @@ class PurchaseOrder extends Model
     const STATUS_SUBMITTED = 'SUBMITTED';
     const STATUS_APPROVED  = 'APPROVED';
     const STATUS_SENT      = 'SENT';
+    const STATUS_SHIPPED   = 'SHIPPED';
     const STATUS_CLOSED    = 'CLOSED';
     const STATUS_REJECTED  = 'REJECTED';
 
@@ -44,7 +45,8 @@ class PurchaseOrder extends Model
         self::STATUS_DRAFT     => 'Draft',
         self::STATUS_SUBMITTED => 'Diajukan',
         self::STATUS_APPROVED  => 'Disetujui',
-        self::STATUS_SENT      => 'Terkirim',
+        self::STATUS_SENT      => 'Terkirim ke Vendor',
+        self::STATUS_SHIPPED   => 'Dikirim Vendor',
         self::STATUS_CLOSED    => 'Selesai',
         self::STATUS_REJECTED  => 'Ditolak',
     ];
@@ -160,6 +162,7 @@ class PurchaseOrder extends Model
             self::STATUS_SUBMITTED => 'badge-pending',
             self::STATUS_APPROVED  => 'badge-active',
             self::STATUS_SENT      => 'badge-posted',
+            self::STATUS_SHIPPED   => 'badge-info',
             self::STATUS_CLOSED    => 'badge-posted',
             self::STATUS_REJECTED  => 'badge-void',
             default                => 'badge-draft',
@@ -188,7 +191,7 @@ class PurchaseOrder extends Model
 
     public function canClose(): bool
     {
-        return $this->status === self::STATUS_SENT;
+        return in_array($this->status, [self::STATUS_SHIPPED, self::STATUS_SENT]);
     }
 
     public function canReject(): bool
