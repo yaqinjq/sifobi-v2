@@ -67,6 +67,10 @@ Route::get('/offline', function () {
     return view('pwa.offline');
 })->name('pwa.offline');
 
+// Inbound webhook dari Wipro — auth sendiri lewat bearer token, bukan session.
+Route::post('/api/wipro/dispatch-notification', [\App\Http\Controllers\Api\WiproWebhookController::class, 'dispatchNotification'])
+    ->name('api.wipro.dispatch-notification');
+
 Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('dashboard');

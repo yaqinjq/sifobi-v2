@@ -65,6 +65,7 @@ class PurchaseOrder extends Model
             'sent_at'             => 'datetime',
             'closed_at'           => 'datetime',
             'external_synced_at'  => 'datetime',
+            'wipro_shipped_at'    => 'datetime',
         ];
     }
 

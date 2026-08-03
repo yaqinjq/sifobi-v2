@@ -23,6 +23,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
         ]);
+
+        // Inbound webhook dari Wipro — otentikasi lewat bearer token sendiri,
+        // tidak punya CSRF token karena bukan request dari browser/session.
+        $middleware->validateCsrfTokens(except: [
+            'api/wipro/dispatch-notification',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

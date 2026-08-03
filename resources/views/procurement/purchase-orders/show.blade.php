@@ -116,6 +116,15 @@
                     <dt class="text-gray-500">No. Order {{ $integrationTarget }}</dt>
                     <dd class="text-right font-mono text-gray-600 text-xs">{{ $purchaseOrder->external_reference }}</dd>
                 @endif
+                @if($purchaseOrder->po_type === \App\Modules\Procurement\Models\PurchaseOrder::TYPE_CENTRAL_KITCHEN && $purchaseOrder->wipro_shipped_at)
+                    <dt class="text-gray-500 border-t border-gray-50 pt-2">Dikirim oleh Wipro</dt>
+                    <dd class="text-right border-t border-gray-50 pt-2">
+                        <span class="badge-posted">{{ $purchaseOrder->wipro_shipped_at->format('d M Y H:i') }}</span>
+                        @if($purchaseOrder->wipro_dispatch_number)
+                            <p class="text-xs text-gray-500 mt-1 font-mono">{{ $purchaseOrder->wipro_dispatch_number }}</p>
+                        @endif
+                    </dd>
+                @endif
             @endif
 
             @if($purchaseOrder->closed_at)
