@@ -85,6 +85,11 @@ class GoodsReceiptController extends Controller
                 ->store("tenants/{$tenantId}/receiving", 'public');
         }
 
+        if ($request->hasFile('photo_invoice')) {
+            $validated['photo_invoice'] = $request->file('photo_invoice')
+                ->store("tenants/{$tenantId}/receiving", 'public');
+        }
+
         $validated['tenant_id'] = $tenantId;
 
         $receipt = $this->goodsReceiptService->createDraft($validated, (int) $request->user()->id);
@@ -143,6 +148,11 @@ class GoodsReceiptController extends Controller
 
         if ($request->hasFile('photo_document')) {
             $validated['photo_document'] = $request->file('photo_document')
+                ->store("tenants/{$tenantId}/receiving", 'public');
+        }
+
+        if ($request->hasFile('photo_invoice')) {
+            $validated['photo_invoice'] = $request->file('photo_invoice')
                 ->store("tenants/{$tenantId}/receiving", 'public');
         }
 
@@ -287,6 +297,7 @@ class GoodsReceiptController extends Controller
                 'inventory_ratio' => (float) ($item->inventory_ratio ?? 1),
                 'purchase_ratio' => (float) ($item->purchase_ratio ?? 1),
                 'track_expiry' => (bool) $item->track_expiry,
+                'barcode' => $item->barcode,
             ])->values()->all(),
             'shippedPos' => PurchaseOrder::query()
                 ->where('tenant_id', $tenantId)
@@ -348,6 +359,7 @@ class GoodsReceiptController extends Controller
             'doc_number' => ['nullable', 'string', 'max:120'],
             'invoice_number' => ['nullable', 'string', 'max:120'],
             'photo_document' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'photo_invoice' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'receipt_date' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],

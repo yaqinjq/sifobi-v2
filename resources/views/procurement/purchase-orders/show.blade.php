@@ -332,6 +332,23 @@
             </x-slot:header>
             <div class="divide-y divide-gray-50">
                 @foreach($purchaseOrder->shipments as $i => $shipment)
+                    @php
+                        $qrPayload = json_encode([
+                            'app'   => 'SIFOBI',
+                            'type'  => 'shipment',
+                            'v'     => 1,
+                            'sid'   => $shipment->id,
+                            'po_id' => $purchaseOrder->id,
+                            'po'    => $purchaseOrder->po_number,
+                            'do'    => $shipment->do_number,
+                            'inv'   => $shipment->invoice_number,
+                            'items' => $purchaseOrder->items->map(fn($item) => [
+                                'iid' => $item->item_id,
+                                'uid' => $item->unit_id,
+                                'qty' => (float) $item->qty_ordered,
+                            ])->values()->all(),
+                        ], JSON_UNESCAPED_UNICODE);
+                    @endphp
                     <div class="px-4 py-3">
                         <div class="flex items-start justify-between gap-3">
                             <div class="flex-1 min-w-0">
@@ -355,6 +372,25 @@
                                 @if($shipment->notes)
                                     <p class="text-xs text-gray-400 mt-0.5 italic">{{ $shipment->notes }}</p>
                                 @endif
+
+                                {{-- QR Code per box/shipment --}}
+                                <div class="mt-2">
+                                    <button type="button"
+                                            data-qr-target="shipment-qr-{{ $shipment->id }}"
+                                            data-qr-payload="{{ htmlspecialchars($qrPayload) }}"
+                                            onclick="toggleShipmentQr(this)"
+                                            class="inline-flex items-center gap-1.5 text-xs font-medium text-primary-700 hover:text-primary-900 border border-primary-200 rounded-lg px-2.5 py-1.5 hover:bg-primary-50 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+                                        </svg>
+                                        Tampilkan QR Box
+                                    </button>
+                                    <div id="shipment-qr-{{ $shipment->id }}" class="hidden mt-2">
+                                        <canvas class="mx-auto rounded-xl border border-gray-100 p-2" width="200" height="200"></canvas>
+                                        <p class="text-xs text-center text-gray-400 mt-1">Scan dengan kamera saat penerimaan barang</p>
+                                    </div>
+                                </div>
                             </div>
                             <div class="shrink-0">
                                 @if($shipment->is_confirmed)
@@ -605,6 +641,40 @@
                 }
             });
         });
+    </script>
+    @endpush
+@endif
+
+@if($purchaseOrder->shipments->isNotEmpty())
+    @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
+    <script>
+    function toggleShipmentQr(btn) {
+        const targetId = btn.getAttribute('data-qr-target');
+        const wrapper = document.getElementById(targetId);
+        if (!wrapper) return;
+
+        if (wrapper.classList.contains('hidden')) {
+            wrapper.classList.remove('hidden');
+            const canvas = wrapper.querySelector('canvas');
+            if (canvas && !canvas.dataset.rendered) {
+                const payload = btn.getAttribute('data-qr-payload');
+                // QRCode library may not be loaded yet if defer — wait for it
+                const render = () => QRCode.toCanvas(canvas, payload, { width: 200, margin: 1, color: { dark: '#111827', light: '#ffffff' } });
+                if (typeof QRCode !== 'undefined') {
+                    render();
+                } else {
+                    const s = document.querySelector('script[src*="qrcode"]');
+                    s && s.addEventListener('load', render);
+                }
+                canvas.dataset.rendered = '1';
+            }
+            btn.textContent = 'Sembunyikan QR';
+        } else {
+            wrapper.classList.add('hidden');
+            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg> Tampilkan QR Box`;
+        }
+    }
     </script>
     @endpush
 @endif

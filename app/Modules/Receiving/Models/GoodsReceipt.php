@@ -53,6 +53,7 @@ class GoodsReceipt extends Model
         'purchase_order_id',
         'purchase_order_shipment_id',
         'photo_document',
+        'photo_invoice',
         'receipt_date',
         'received_at',
         'status',

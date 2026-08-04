@@ -45,6 +45,51 @@
     ])->values()->all();
 @endphp
 
+{{-- ── SCAN MODAL ── --}}
+<div x-data
+     x-show="$store.scanner.open"
+     x-cloak
+     class="fixed inset-0 z-50 flex flex-col bg-black"
+     style="display:none;">
+    <div class="flex items-center justify-between px-4 py-3 bg-gray-900 text-white">
+        <div class="flex gap-2">
+            <button type="button"
+                    @click="$store.scanner.mode = 'qr'"
+                    :class="$store.scanner.mode === 'qr' ? 'bg-primary-600 text-white' : 'bg-gray-700 text-gray-300'"
+                    class="rounded-full px-4 py-1.5 text-sm font-semibold transition-colors">
+                Scan QR Box
+            </button>
+            <button type="button"
+                    @click="$store.scanner.mode = 'barcode'"
+                    :class="$store.scanner.mode === 'barcode' ? 'bg-primary-600 text-white' : 'bg-gray-700 text-gray-300'"
+                    class="rounded-full px-4 py-1.5 text-sm font-semibold transition-colors">
+                Scan Barcode Item
+            </button>
+        </div>
+        <button type="button" @click="$store.scanner.close()" class="text-gray-400 hover:text-white p-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+    <div class="flex-1 flex items-center justify-center bg-black relative">
+        <div id="scanner-viewport" class="w-full max-w-sm aspect-square rounded-xl overflow-hidden"></div>
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div class="border-2 border-white/40 rounded-xl w-64 h-64">
+                <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary-400 rounded-tl-lg"></div>
+                <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary-400 rounded-tr-lg"></div>
+                <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary-400 rounded-bl-lg"></div>
+                <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary-400 rounded-br-lg"></div>
+            </div>
+        </div>
+    </div>
+    <div class="px-4 py-3 bg-gray-900 text-center text-sm text-gray-400">
+        <p x-show="$store.scanner.mode === 'qr'">Arahkan kamera ke QR code yang ada di box/paket pengiriman</p>
+        <p x-show="$store.scanner.mode === 'barcode'">Arahkan kamera ke barcode item untuk menambah ke daftar penerimaan</p>
+        <p x-show="$store.scanner.scanResult" x-text="$store.scanner.scanResult" class="text-green-400 font-semibold mt-1"></p>
+    </div>
+</div>
+
 <form method="POST"
       action="{{ $formAction }}"
       enctype="multipart/form-data"
@@ -63,6 +108,21 @@
     @endif
 
     <input type="hidden" name="source" value="{{ $activeSource }}">
+
+    {{-- Tombol Scan (muncul di PO source) --}}
+    @if(in_array($activeSource, ['WIP_CENTRAL_KITCHEN', 'OCIA_PO']))
+    <div class="flex justify-end">
+        <button type="button"
+                @click="$store.scanner.openWith($store.scanner.mode, $el.closest('form'))"
+                class="inline-flex items-center gap-2 sf-btn-secondary min-h-11 px-4">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+            </svg>
+            <span>Scan QR / Barcode</span>
+        </button>
+    </div>
+    @endif
 
     <x-sf.card title="Informasi Dokumen">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -96,10 +156,41 @@
                 <input type="text" name="invoice_number" value="{{ old('invoice_number', $receipt->invoice_number) }}" class="sf-input text-base min-h-11" maxlength="120">
             </div>
             <div>
-                <label class="sf-label">Foto Dokumen</label>
-                <input type="file" name="photo_document" accept="image/png,image/jpeg,image/webp" class="sf-input text-base min-h-11">
+                <label class="sf-label">Foto Surat Jalan / SJ</label>
+                <div class="flex gap-2">
+                    <input type="file" name="photo_document" accept="image/png,image/jpeg,image/webp" class="sf-input text-base min-h-11 flex-1">
+                    <button type="button"
+                            @click="capturePhoto('photo_document')"
+                            class="sf-btn-secondary min-h-11 px-3 shrink-0"
+                            title="Foto dengan kamera">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </button>
+                </div>
                 @if($receipt->photo_document)
-                    <p class="text-xs text-gray-500 mt-1">Dokumen lama tersimpan. Upload baru untuk mengganti.</p>
+                    <p class="text-xs text-gray-500 mt-1">Foto lama tersimpan. Upload baru untuk mengganti.</p>
+                @endif
+            </div>
+            <div>
+                <label class="sf-label">Foto Invoice</label>
+                <div class="flex gap-2">
+                    <input type="file" name="photo_invoice" accept="image/png,image/jpeg,image/webp" class="sf-input text-base min-h-11 flex-1">
+                    <button type="button"
+                            @click="capturePhoto('photo_invoice')"
+                            class="sf-btn-secondary min-h-11 px-3 shrink-0"
+                            title="Foto dengan kamera">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </button>
+                </div>
+                @if($receipt->photo_invoice)
+                    <p class="text-xs text-gray-500 mt-1">Foto invoice lama tersimpan. Upload baru untuk mengganti.</p>
                 @endif
             </div>
         </div>
@@ -132,6 +223,7 @@
                 </div>
             @else
                 <select class="sf-input text-base min-h-11"
+                        x-ref="poSelect"
                         @change="loadPoItems($event.target.value, @js($filteredPos->values()->all()), $refs.poIdInput)">
                     <option value="">— Pilih PO —</option>
                     @foreach($filteredPos as $p)
@@ -143,9 +235,9 @@
                         </option>
                     @endforeach
                 </select>
-                <p class="text-xs text-gray-400 mt-1">Pilih PO untuk auto-isi daftar item di bawah.</p>
+                <p class="text-xs text-gray-400 mt-1">Pilih PO atau scan QR box untuk auto-isi form.</p>
 
-                {{-- Shipment / DO picker — muncul jika PO yang dipilih punya data pengiriman --}}
+                {{-- Shipment / DO picker --}}
                 <div x-show="currentPoShipments.length > 0" x-cloak class="mt-3">
                     <label class="sf-label">
                         Pilih Pengiriman / Surat Jalan (DO)
@@ -262,7 +354,18 @@
             </template>
         </div>
 
-        <button type="button" @click="addRow()" class="sf-btn-secondary min-h-11 px-4 mt-4 w-full md:w-auto">+ Tambah Baris</button>
+        <div class="flex flex-wrap gap-2 mt-4">
+            <button type="button" @click="addRow()" class="sf-btn-secondary min-h-11 px-4">+ Tambah Baris</button>
+            <button type="button"
+                    @click="$store.scanner.openWith('barcode', $el.closest('form'))"
+                    class="inline-flex items-center gap-2 sf-btn-secondary min-h-11 px-4">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+                </svg>
+                Scan Barcode Item
+            </button>
+        </div>
     </x-sf.card>
 
     <x-sf.card title="Catatan">
@@ -285,7 +388,94 @@
 </form>
 
 @push('scripts')
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
 <script>
+// ── Alpine Store: scanner singleton ─────────────────────────────────────────
+document.addEventListener('alpine:init', () => {
+    Alpine.store('scanner', {
+        open: false,
+        mode: 'qr',
+        scanResult: '',
+        _scanner: null,
+        _formEl: null,
+
+        openWith(mode, formEl) {
+            this.mode = mode || 'qr';
+            this.scanResult = '';
+            this._formEl = formEl;
+            this.open = true;
+            setTimeout(() => this._start(), 300);
+        },
+
+        close() {
+            this.open = false;
+            this._stop();
+        },
+
+        _stop() {
+            if (this._scanner) {
+                this._scanner.stop().catch(() => {});
+                this._scanner = null;
+            }
+        },
+
+        _start() {
+            this._stop();
+            const el = document.getElementById('scanner-viewport');
+            if (!el) return;
+
+            this._scanner = new Html5Qrcode('scanner-viewport');
+
+            const fmts = this.mode === 'barcode'
+                ? [
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.EAN_8,
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.CODE_39,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E,
+                ]
+                : [Html5QrcodeSupportedFormats.QR_CODE];
+
+            this._scanner.start(
+                { facingMode: 'environment' },
+                { fps: 10, qrbox: { width: 260, height: 260 }, formatsToSupport: fmts },
+                (text) => this._onSuccess(text),
+                () => {}
+            ).catch(err => {
+                console.error('Camera error:', err);
+                alert('Kamera tidak bisa diakses. Pastikan izin kamera diizinkan.');
+                this.close();
+            });
+        },
+
+        _onSuccess(text) {
+            this.close();
+
+            // Find the goodsReceiptForm Alpine component
+            const formEl = this._formEl || document.querySelector('[x-data*="goodsReceiptForm"]');
+            if (!formEl) return;
+            const component = Alpine.$data(formEl);
+            if (!component) return;
+
+            // Try parse as SIFOBI shipment QR
+            try {
+                const data = JSON.parse(text);
+                if (data.app === 'SIFOBI' && data.type === 'shipment') {
+                    this.scanResult = 'QR Box terdeteksi: ' + (data.do || data.po || text.substring(0, 30));
+                    component.applyShipmentQr(data);
+                    return;
+                }
+            } catch (_) {}
+
+            // Treat as item barcode
+            this.scanResult = 'Barcode: ' + text;
+            component.addItemByBarcode(text);
+        },
+    });
+});
+
+// ── goodsReceiptForm Alpine component ───────────────────────────────────────
 function goodsReceiptForm(config) {
     const blankRow = () => ({
         key: `${Date.now()}-${Math.random()}`,
@@ -308,7 +498,6 @@ function goodsReceiptForm(config) {
 
     if (rows.length === 0) rows.push(blankRow());
 
-    // Build initial PO/shipment state
     const allPoList = config.allPoList || [];
     const initialPoId = config.initialPoId ? String(config.initialPoId) : '';
     const initialShipmentId = config.initialShipmentId ? String(config.initialShipmentId) : '';
@@ -320,24 +509,21 @@ function goodsReceiptForm(config) {
         rows,
         selectedShipmentId: initialShipmentId,
         currentPoShipments: initialPo ? (initialPo.shipments || []) : [],
+
         addRow() {
             this.rows.push(blankRow());
         },
         removeRow(index) {
             if (this.rows.length > 1) this.rows.splice(index, 1);
         },
+
         loadPoItems(poId, poList, hiddenInput) {
             if (hiddenInput) hiddenInput.value = poId || '';
             this.selectedShipmentId = '';
-            if (!poId) {
-                this.currentPoShipments = [];
-                return;
-            }
+            if (!poId) { this.currentPoShipments = []; return; }
             const po = poList.find(p => String(p.id) === String(poId));
             if (!po) { this.currentPoShipments = []; return; }
-            // Show shipment picker if this PO has shipment records
             this.currentPoShipments = po.shipments || [];
-            // Auto-select if only 1 unconfirmed shipment
             const pending = this.currentPoShipments.filter(s => !s.is_confirmed);
             if (pending.length === 1) {
                 this.selectedShipmentId = String(pending[0].id);
@@ -360,8 +546,8 @@ function goodsReceiptForm(config) {
                 };
             });
         },
+
         applyShipmentDoc(shipmentId, shipments) {
-            // Auto-fill doc_number and invoice_number from the selected shipment
             if (!shipmentId) return;
             const s = shipments.find(x => String(x.id) === String(shipmentId));
             if (!s) return;
@@ -370,6 +556,74 @@ function goodsReceiptForm(config) {
             if (docEl && !docEl.value && s.do_number) docEl.value = s.do_number;
             if (invEl && !invEl.value && s.invoice_number) invEl.value = s.invoice_number;
         },
+
+        applyShipmentQr(data) {
+            const po = allPoList.find(p => Number(p.id) === Number(data.po_id));
+            if (!po) {
+                alert('PO tidak ditemukan di daftar. Pastikan PO sudah berstatus Dikirim.');
+                return;
+            }
+            // Update PO select dropdown
+            const poSelectEl = this.$refs.poSelect;
+            if (poSelectEl) poSelectEl.value = String(po.id);
+            this.loadPoItems(String(po.id), allPoList, this.$refs.poIdInput);
+
+            // Override shipment to the scanned one
+            if (data.sid) {
+                this.selectedShipmentId = String(data.sid);
+            }
+
+            // Fill doc + invoice from QR (override even if already set)
+            this.$nextTick(() => {
+                const docEl = document.querySelector('[name="doc_number"]');
+                const invEl = document.querySelector('[name="invoice_number"]');
+                if (docEl && data.do) docEl.value = data.do;
+                if (invEl && data.inv) invEl.value = data.inv;
+            });
+        },
+
+        addItemByBarcode(barcode) {
+            const item = this.items.find(i => i.barcode === barcode);
+            if (!item) {
+                alert(`Barcode "${barcode}" tidak ditemukan di daftar item. Tambahkan barcode item di Master Data.`);
+                return;
+            }
+            const existingRow = this.rows.find(r => String(r.item_id) === String(item.id));
+            if (existingRow) {
+                const current = parseFloat(existingRow.qty_received) || 0;
+                existingRow.qty_received = String(current + 1);
+            } else {
+                this.rows.push({
+                    key: `${Date.now()}-${Math.random()}`,
+                    item_id: String(item.id),
+                    unit_id: String(item.purchase_unit_id || item.inventory_unit_id || item.base_unit_id || ''),
+                    qty_ordered: '0',
+                    qty_received: '1',
+                    unit_price: '0',
+                    expired_date: '',
+                    batch_code: '',
+                    notes: '',
+                    track_expiry: item.track_expiry === true,
+                });
+            }
+        },
+
+        capturePhoto(inputName) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.capture = 'environment';
+            input.onchange = () => {
+                if (!input.files || !input.files[0]) return;
+                const realInput = document.querySelector(`[name="${inputName}"]`);
+                if (!realInput) return;
+                const dt = new DataTransfer();
+                dt.items.add(input.files[0]);
+                realInput.files = dt.files;
+            };
+            input.click();
+        },
+
         selectedItem(row) {
             return this.items.find((item) => Number(item.id) === Number(row.item_id));
         },
