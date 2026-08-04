@@ -19,6 +19,7 @@ use App\Http\Controllers\Receiving\GoodsReceiptController;
 use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Procurement\PurchaseOrderController;
 use App\Http\Controllers\Settings\AppSettingController;
+use App\Http\Controllers\Settings\RoleController;
 use App\Http\Controllers\Settings\BrandController;
 use App\Http\Controllers\Settings\CalendarEventController;
 use App\Http\Controllers\Settings\DefaultConversionController;
@@ -136,6 +137,12 @@ Route::middleware('auth')->group(function (): void {
                     ->name('users.toggle-status');
                 Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])
                     ->name('users.reset-password');
+
+                Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
+                Route::post('roles', [RoleController::class, 'store'])->name('roles.store');
+                Route::get('roles/{role}/edit', [RoleController::class, 'edit'])->name('roles.edit');
+                Route::put('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+                Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
             });
 
             Route::middleware('permission:manage_brands_outlets')->group(function (): void {

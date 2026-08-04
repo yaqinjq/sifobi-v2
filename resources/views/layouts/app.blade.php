@@ -189,7 +189,7 @@
             @endcan
 
             @can('manage_settings')
-                @php $settingsActive = request()->routeIs('settings.*') && ! request()->routeIs('settings.users.*'); @endphp
+                @php $settingsActive = request()->routeIs('settings.*') && ! request()->routeIs('settings.users.*') && ! request()->routeIs('settings.roles.*'); @endphp
                 @can('manage_users')
                     <a href="{{ route('settings.users.index') }}"
                        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
@@ -199,6 +199,17 @@
                         </svg>
                         Manajemen User
                         @if(request()->routeIs('settings.users.*'))
+                            <span class="ml-auto w-1.5 h-1.5 rounded-full bg-primary-400"></span>
+                        @endif
+                    </a>
+                    <a href="{{ route('settings.roles.index') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+                              {{ request()->routeIs('settings.roles.*') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                        Manajemen Role
+                        @if(request()->routeIs('settings.roles.*'))
                             <span class="ml-auto w-1.5 h-1.5 rounded-full bg-primary-400"></span>
                         @endif
                     </a>
