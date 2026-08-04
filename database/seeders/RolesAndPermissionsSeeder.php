@@ -53,6 +53,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'import_master_data',
             'create_stock_transfers',
             'approve_stock_transfers',
+            'view_all_po',
         ];
 
         foreach ($permissions as $permission) {
@@ -66,6 +67,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'SUPER_ADMIN' => $permissions,
             'ADMIN'       => $permissions,
             'GENERAL_FINANCE' => [
+                'view_all_po',
                 'view_dashboard',
                 'manage_settings',
                 'manage_stock_configs',
@@ -104,6 +106,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'export_master_data',
             ],
             'MANAGER_AREA' => [
+                'view_all_po',
                 'view_dashboard',
                 'view_master_data',
                 'view_inventory',

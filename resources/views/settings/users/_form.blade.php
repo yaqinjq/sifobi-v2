@@ -141,6 +141,18 @@
                 </select>
             </x-sf.form-group>
 
+            <x-sf.form-group label="Departemen" for="department_id"
+                hint="Isi untuk staff departemen tertentu (misal: Pastry, Bar). Kosongkan untuk Admin/Manager yang melihat semua departemen.">
+                <select name="department_id" id="department_id" class="sf-input text-base">
+                    <option value="">Semua departemen / global</option>
+                    @foreach($departments as $dept)
+                        <option value="{{ $dept->id }}" @selected((string) old('department_id', $user->department_id) === (string) $dept->id)>
+                            {{ $dept->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </x-sf.form-group>
+
             <div>
                 <p class="sf-label mb-1.5">Status</p>
                 <div class="grid grid-cols-2 gap-2">
@@ -165,6 +177,39 @@
                         </span>
                     </label>
                 </div>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- ── Permission Tambahan (override per-user) ── --}}
+    <x-sf.card title="Permission Tambahan">
+        <div class="px-4 pb-4">
+            <p class="text-xs text-gray-500 mb-3">
+                Permission ini diberikan langsung ke user, <strong>di atas</strong> permission bawaan role-nya.
+                Berguna untuk memberikan akses tambahan tanpa harus mengganti role.
+            </p>
+            <div class="space-y-2">
+                @foreach($extraPerms as $permName => $permLabel)
+                    @php
+                        $checked = in_array($permName, old('extra_permissions', []))
+                            || ($isEdit && $user->hasDirectPermission($permName));
+                    @endphp
+                    <label class="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 cursor-pointer hover:bg-primary-50 hover:border-primary-100 transition-colors">
+                        <input type="checkbox"
+                               name="extra_permissions[]"
+                               value="{{ $permName }}"
+                               class="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                               @checked($checked)>
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-gray-800">{{ $permLabel }}</p>
+                            <p class="text-xs text-gray-400 font-mono mt-0.5">{{ $permName }}</p>
+                        </div>
+                    </label>
+                @endforeach
+            </div>
+            <div class="mt-3 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-700">
+                <strong>Catatan:</strong> Permission di atas role tidak menghapus permission role — keduanya berlaku bersamaan.
+                Untuk membatasi akses (bukan menambah), gunakan Role yang lebih terbatas.
             </div>
         </div>
     </x-sf.card>
