@@ -89,9 +89,6 @@
                 $waText .= "Outlet: " . ($pos->first()?->outlet?->name ?? '—') . "\n";
                 $waText .= "Dept: " . ($pos->first()?->department?->name ?? '—') . "\n";
                 $waText .= "Tanggal: " . now()->format('d M Y') . "\n";
-                if ($pos->first()?->needed_at) {
-                    $waText .= "Dibutuhkan: " . $pos->first()->needed_at->format('d M Y') . "\n";
-                }
                 $waText .= "\n";
                 foreach ($pos as $po) {
                     $waText .= "*PO " . $po->typeLabel() . ":* " . $po->po_number . "\n";
