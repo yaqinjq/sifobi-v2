@@ -96,6 +96,7 @@ Route::middleware('guest')->group(function (): void {
 Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/changelog', fn () => view('changelog'))->name('changelog');
+    Route::get('/tutorial', fn () => view('tutorial'))->name('tutorial');
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
     Route::get('/admin/core', CoreHealthController::class)->middleware('permission:manage_core')->name('admin.core');

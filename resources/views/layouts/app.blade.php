@@ -172,6 +172,11 @@
                                   {{ request()->routeIs('laporan.penerimaan') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
                             Penerimaan
                         </a>
+                        <a href="{{ route('laporan.stok-menipis') }}"
+                           class="block px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                                  {{ request()->routeIs('laporan.stok-menipis') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
+                            Stok Menipis ⚠
+                        </a>
                         @can('view_all_reports')
                             <a href="{{ route('laporan.stok-summary') }}"
                                class="block px-3 py-2 rounded-xl text-sm font-medium transition-colors
@@ -212,6 +217,26 @@
                 </a>
             @endcan
         </nav>
+
+        {{-- Tutorial & Changelog links --}}
+        <div class="shrink-0 px-3 pb-1 flex gap-1">
+            <a href="{{ route('tutorial') }}"
+               class="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-xl text-xs font-medium
+                      {{ request()->routeIs('tutorial') ? 'bg-primary-700 text-white' : 'text-primary-400 hover:text-white hover:bg-primary-700/50' }} transition-colors">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+                Tutorial
+            </a>
+            <a href="{{ route('changelog') }}"
+               class="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-xl text-xs font-medium
+                      {{ request()->routeIs('changelog') ? 'bg-primary-700 text-white' : 'text-primary-400 hover:text-white hover:bg-primary-700/50' }} transition-colors">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                Changelog
+            </a>
+        </div>
 
         {{-- User footer --}}
         <div class="shrink-0 border-t border-primary-700/60 p-4">

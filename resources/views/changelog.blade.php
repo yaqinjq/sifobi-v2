@@ -8,12 +8,60 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.5 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.5 &mdash; Agustus 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Scan QR Box — Auto-isi Form Penerimaan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Tombol "Scan QR / Barcode" di form penerimaan barang — buka kamera langsung dari browser</li>
+                    <li>Scan QR yang tertempel di box pengiriman → PO, DO, Invoice, dan semua item otomatis terisi sekaligus (seperti scan paket Shopee)</li>
+                    <li>QR per box tersedia di halaman detail PO (bagian Pengiriman dari Vendor) — klik "Tampilkan QR Box"</li>
+                    <li>QR berisi data lengkap: nomor PO, DO, Invoice, dan daftar item + qty — dibaca offline tanpa koneksi</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Scan Barcode Item — Verifikasi per Item</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Tombol "Scan Barcode Item" di bagian daftar item form GR</li>
+                    <li>Scan barcode EAN-13, EAN-8, atau Code128 pada kemasan item → item langsung ditambah ke baris penerimaan</li>
+                    <li>Scan item yang sama berulang → qty bertambah +1 per scan</li>
+                    <li>Butuh field Barcode diisi di Master Data → Item terlebih dahulu</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Foto Dokumen Terpisah (SJ & Invoice)</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Form GR kini punya dua field foto: Foto Surat Jalan dan Foto Invoice (terpisah)</li>
+                    <li>Tombol kamera di setiap field — buka kamera belakang langsung untuk foto dokumen</li>
+                    <li>Foto tersimpan sebagai arsip digital per GR</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">SOP & Tutorial</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Halaman baru: <a href="{{ route('tutorial') }}" class="text-primary-600 underline">SOP & Tutorial</a> — panduan lengkap penggunaan semua fitur per alur dan per role</li>
+                    <li>Mencakup: setup master data, alur PO, alur GR, cara scan, opname, laporan, roles, integrasi Wipro, dan troubleshooting</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.4 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.4 &mdash; Agustus 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
