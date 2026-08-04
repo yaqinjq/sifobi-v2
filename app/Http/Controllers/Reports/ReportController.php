@@ -240,6 +240,48 @@ class ReportController extends Controller
         ]);
     }
 
+    public function stokMenipis(Request $request): View
+    {
+        $tenantId = $this->tenantId($request);
+
+        $filters = $request->validate([
+            'outlet_id'   => ['nullable', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'category_id' => ['nullable', 'integer', Rule::exists('item_categories', 'id')->where('tenant_id', $tenantId)],
+        ]);
+
+        $lowStockItems = DB::table('stock_balances as sb')
+            ->join('items as i', 'i.id', '=', 'sb.item_id')
+            ->join('outlets as o', 'o.id', '=', 'sb.outlet_id')
+            ->leftJoin('units as u', 'u.id', '=', 'i.inventory_unit_id')
+            ->leftJoin('item_categories as ic', 'ic.id', '=', 'i.item_category_id')
+            ->where('sb.tenant_id', $tenantId)
+            ->where('i.is_active', true)
+            ->where('i.min_stock', '>', 0)
+            ->whereRaw('sb.qty_on_hand < i.min_stock')
+            ->when($filters['outlet_id'] ?? null, fn ($q, $id) => $q->where('sb.outlet_id', $id))
+            ->when($filters['category_id'] ?? null, fn ($q, $id) => $q->where('i.item_category_id', $id))
+            ->selectRaw('
+                i.canonical_sku,
+                i.name as item_name,
+                i.min_stock,
+                sb.qty_on_hand,
+                o.name as outlet_name,
+                COALESCE(u.abbreviation, \'pcs\') as unit,
+                COALESCE(ic.name, \'Tanpa Kategori\') as category,
+                ROUND(i.min_stock - sb.qty_on_hand, 6) as kekurangan
+            ')
+            ->orderByRaw('(i.min_stock - sb.qty_on_hand) DESC')
+            ->orderBy('o.name')
+            ->get();
+
+        return view('laporan.stok-menipis', [
+            'lowStockItems' => $lowStockItems,
+            'outlets'       => $this->outlets($tenantId),
+            'categories'    => ItemCategory::query()->where('tenant_id', $tenantId)->where('is_active', true)->orderBy('name')->get(),
+            'filters'       => $filters,
+        ]);
+    }
+
     public function exportMutasi(Request $request): BinaryFileResponse
     {
         $tenantId = $this->tenantId($request);

@@ -6,6 +6,7 @@ use App\Models\Scopes\TenantScope;
 use App\Models\User;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Procurement\Models\PurchaseOrder;
+use App\Modules\Procurement\Models\PurchaseOrderShipment;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -50,6 +51,7 @@ class GoodsReceipt extends Model
         'doc_number',
         'invoice_number',
         'purchase_order_id',
+        'purchase_order_shipment_id',
         'photo_document',
         'receipt_date',
         'received_at',
@@ -100,6 +102,11 @@ class GoodsReceipt extends Model
     public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    public function purchaseOrderShipment(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrderShipment::class);
     }
 
     public function isWiproReceipt(): bool

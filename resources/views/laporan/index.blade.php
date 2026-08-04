@@ -28,6 +28,12 @@
                 <a href="{{ route('stock.balance.index') }}" class="sf-btn-primary min-h-11 w-full mt-2">Buka</a>
             </x-sf.card>
         @endcan
+
+        <x-sf.card title="Stok Menipis" subtitle="Item dengan saldo di bawah minimum stok yang telah dikonfigurasi">
+            <a href="{{ route('laporan.stok-menipis') }}" class="sf-btn-secondary min-h-11 w-full mt-2 border-red-200 text-red-700 hover:bg-red-50">
+                Cek Stok Menipis
+            </a>
+        </x-sf.card>
     </div>
 </div>
 @endsection

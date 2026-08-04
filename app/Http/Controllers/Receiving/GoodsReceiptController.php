@@ -292,20 +292,27 @@ class GoodsReceiptController extends Controller
                 ->where('tenant_id', $tenantId)
                 ->whereIn('status', [PurchaseOrder::STATUS_SHIPPED, PurchaseOrder::STATUS_SENT])
                 ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
-                ->with(['outlet', 'items.item', 'items.unit'])
+                ->with(['outlet', 'items.item', 'items.unit', 'shipments'])
                 ->latest('id')
                 ->get()
                 ->map(fn (PurchaseOrder $po) => [
-                    'id'         => $po->id,
-                    'po_number'  => $po->po_number,
-                    'po_type'    => $po->po_type,
-                    'status'     => $po->status,
-                    'outlet_id'  => $po->outlet_id,
-                    'outlet'     => $po->outlet?->name,
-                    'needed_at'  => optional($po->needed_at)->format('d M Y'),
-                    'shipped_at' => optional($po->wipro_shipped_at)->format('d M Y'),
+                    'id'          => $po->id,
+                    'po_number'   => $po->po_number,
+                    'po_type'     => $po->po_type,
+                    'status'      => $po->status,
+                    'outlet_id'   => $po->outlet_id,
+                    'outlet'      => $po->outlet?->name,
+                    'needed_at'   => optional($po->needed_at)->format('d M Y'),
+                    'shipped_at'  => optional($po->wipro_shipped_at)->format('d M Y'),
                     'dispatch_no' => $po->wipro_dispatch_number,
-                    'items'      => $po->items->map(fn ($item) => [
+                    'shipments'   => $po->shipments->map(fn ($s) => [
+                        'id'             => $s->id,
+                        'do_number'      => $s->do_number,
+                        'invoice_number' => $s->invoice_number,
+                        'shipped_at'     => optional($s->shipped_at)->format('d M Y'),
+                        'is_confirmed'   => (bool) $s->is_confirmed,
+                    ])->values()->all(),
+                    'items'       => $po->items->map(fn ($item) => [
                         'item_id'     => $item->item_id,
                         'unit_id'     => $item->unit_id,
                         'qty_ordered' => (float) $item->qty_ordered,
@@ -324,6 +331,8 @@ class GoodsReceiptController extends Controller
 
         $validated = $request->validate([
             'source' => ['required', 'string', Rule::in(array_keys($this->sources()))],
+            'purchase_order_id' => ['nullable', 'integer', Rule::exists('purchase_orders', 'id')],
+            'purchase_order_shipment_id' => ['nullable', 'integer', Rule::exists('purchase_order_shipments', 'id')],
             'outlet_id' => [
                 'required',
                 'integer',

@@ -51,7 +51,10 @@
       x-data="goodsReceiptForm({
           items: @js($itemsForAlpine),
           units: @js($unitsForAlpine),
-          rows: @js($rows)
+          rows: @js($rows),
+          allPoList: @js($shippedPos),
+          initialPoId: @js(old('purchase_order_id', $receipt->purchase_order_id)),
+          initialShipmentId: @js(old('purchase_order_shipment_id', $receipt->purchase_order_shipment_id ?? null))
       })"
       class="space-y-4">
     @csrf
@@ -114,6 +117,8 @@
 
             <input type="hidden" name="purchase_order_id" x-ref="poIdInput"
                    value="{{ $linkedPoId }}">
+            <input type="hidden" name="purchase_order_shipment_id" x-ref="shipmentIdInput"
+                   :value="selectedShipmentId">
 
             <label class="sf-label">
                 Pilih PO {{ $activeSource === 'WIP_CENTRAL_KITCHEN' ? 'Central Kitchen (Wipro)' : 'OCIA' }}
@@ -139,6 +144,31 @@
                     @endforeach
                 </select>
                 <p class="text-xs text-gray-400 mt-1">Pilih PO untuk auto-isi daftar item di bawah.</p>
+
+                {{-- Shipment / DO picker — muncul jika PO yang dipilih punya data pengiriman --}}
+                <div x-show="currentPoShipments.length > 0" x-cloak class="mt-3">
+                    <label class="sf-label">
+                        Pilih Pengiriman / Surat Jalan (DO)
+                        <span class="text-gray-400 font-normal">&mdash; 1 GR per DO</span>
+                    </label>
+                    <select class="sf-input text-base min-h-11"
+                            x-model="selectedShipmentId"
+                            @change="applyShipmentDoc($event.target.value, currentPoShipments)">
+                        <option value="">— Pilih DO/Pengiriman —</option>
+                        <template x-for="s in currentPoShipments" :key="s.id">
+                            <option :value="String(s.id)"
+                                    :disabled="s.is_confirmed"
+                                    x-text="(s.do_number ? 'DO: ' + s.do_number : 'Box tanpa no. DO')
+                                        + (s.invoice_number ? '  ·  Inv: ' + s.invoice_number : '')
+                                        + (s.shipped_at ? '  ·  ' + s.shipped_at : '')
+                                        + (s.is_confirmed ? '  ✓ Sudah diterima' : '')">
+                            </option>
+                        </template>
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">
+                        Pilih DO/box yang sedang Anda terima. Setiap DO jadi 1 GR terpisah.
+                    </p>
+                </div>
             @endif
 
         @elseif($activeSource === 'SUPPLIER_LUAR')
@@ -278,10 +308,18 @@ function goodsReceiptForm(config) {
 
     if (rows.length === 0) rows.push(blankRow());
 
+    // Build initial PO/shipment state
+    const allPoList = config.allPoList || [];
+    const initialPoId = config.initialPoId ? String(config.initialPoId) : '';
+    const initialShipmentId = config.initialShipmentId ? String(config.initialShipmentId) : '';
+    const initialPo = initialPoId ? allPoList.find(p => String(p.id) === initialPoId) : null;
+
     return {
         items: config.items || [],
         units: config.units || [],
         rows,
+        selectedShipmentId: initialShipmentId,
+        currentPoShipments: initialPo ? (initialPo.shipments || []) : [],
         addRow() {
             this.rows.push(blankRow());
         },
@@ -290,9 +328,22 @@ function goodsReceiptForm(config) {
         },
         loadPoItems(poId, poList, hiddenInput) {
             if (hiddenInput) hiddenInput.value = poId || '';
-            if (!poId) return;
+            this.selectedShipmentId = '';
+            if (!poId) {
+                this.currentPoShipments = [];
+                return;
+            }
             const po = poList.find(p => String(p.id) === String(poId));
-            if (!po || !po.items || po.items.length === 0) return;
+            if (!po) { this.currentPoShipments = []; return; }
+            // Show shipment picker if this PO has shipment records
+            this.currentPoShipments = po.shipments || [];
+            // Auto-select if only 1 unconfirmed shipment
+            const pending = this.currentPoShipments.filter(s => !s.is_confirmed);
+            if (pending.length === 1) {
+                this.selectedShipmentId = String(pending[0].id);
+                this.applyShipmentDoc(this.selectedShipmentId, this.currentPoShipments);
+            }
+            if (!po.items || po.items.length === 0) return;
             this.rows = po.items.map(pi => {
                 const item = this.items.find(i => Number(i.id) === Number(pi.item_id));
                 return {
@@ -308,6 +359,16 @@ function goodsReceiptForm(config) {
                     track_expiry: item ? item.track_expiry === true : false,
                 };
             });
+        },
+        applyShipmentDoc(shipmentId, shipments) {
+            // Auto-fill doc_number and invoice_number from the selected shipment
+            if (!shipmentId) return;
+            const s = shipments.find(x => String(x.id) === String(shipmentId));
+            if (!s) return;
+            const docEl = document.querySelector('[name="doc_number"]');
+            const invEl = document.querySelector('[name="invoice_number"]');
+            if (docEl && !docEl.value && s.do_number) docEl.value = s.do_number;
+            if (invEl && !invEl.value && s.invoice_number) invEl.value = s.invoice_number;
         },
         selectedItem(row) {
             return this.items.find((item) => Number(item.id) === Number(row.item_id));

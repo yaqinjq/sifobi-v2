@@ -143,6 +143,11 @@ class PurchaseOrder extends Model
         return $this->hasMany(GoodsReceipt::class);
     }
 
+    public function shipments(): HasMany
+    {
+        return $this->hasMany(PurchaseOrderShipment::class)->orderBy('id');
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
 
     public function statusLabel(): string

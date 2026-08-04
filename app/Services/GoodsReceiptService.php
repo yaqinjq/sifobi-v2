@@ -262,6 +262,16 @@ class GoodsReceiptService
             }
 
             $receipt->update(['status' => GoodsReceipt::STATUS_POSTED]);
+
+            // Mark the linked shipment as confirmed
+            if ($receipt->purchase_order_shipment_id) {
+                \App\Modules\Procurement\Models\PurchaseOrderShipment::where('id', $receipt->purchase_order_shipment_id)
+                    ->update([
+                        'is_confirmed'    => true,
+                        'confirmed_at'    => now(),
+                        'goods_receipt_id' => $receipt->id,
+                    ]);
+            }
         });
 
         // Notify Wipro that goods have been received — queued (see PushOrderToWiproJob

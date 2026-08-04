@@ -34,6 +34,7 @@ class Item extends Model
         'track_expiry',
         'barcode',
         'standard_cost',
+        'min_stock',
         'track_stock',
         'is_active',
         'po_destinations',
@@ -141,6 +142,7 @@ class Item extends Model
     {
         return [
             'standard_cost'      => 'decimal:4',
+            'min_stock'          => 'decimal:6',
             'inventory_ratio'    => 'decimal:6',
             'purchase_ratio'     => 'decimal:6',
             'yield_pct'          => 'decimal:2',

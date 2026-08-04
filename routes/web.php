@@ -95,6 +95,7 @@ Route::middleware('guest')->group(function (): void {
 
 Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/changelog', fn () => view('changelog'))->name('changelog');
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
     Route::get('/admin/core', CoreHealthController::class)->middleware('permission:manage_core')->name('admin.core');
@@ -289,6 +290,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('spoil', [ReportController::class, 'spoilReport'])->name('spoil');
             Route::get('penerimaan', [ReportController::class, 'receivingReport'])->name('penerimaan');
             Route::get('stok-summary', [ReportController::class, 'stockSummary'])->name('stok-summary');
+            Route::get('stok-menipis', [ReportController::class, 'stokMenipis'])->name('stok-menipis');
             Route::get('mutasi/export', [ReportController::class, 'exportMutasi'])->name('mutasi.export');
             Route::get('spoil/export', [ReportController::class, 'exportSpoil'])->name('spoil.export');
             Route::get('penerimaan/export', [ReportController::class, 'exportPenerimaan'])->name('penerimaan.export');

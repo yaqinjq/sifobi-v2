@@ -36,9 +36,15 @@ class PurchaseOrderController extends Controller
             'rejected'  => PurchaseOrder::STATUS_REJECTED,
         ];
 
+        $user = $request->user();
+
         $baseQuery = PurchaseOrder::query()
             ->where('tenant_id', $tenantId)
-            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->when($user->outlet_id, fn ($q) => $q->where('outlet_id', $user->outlet_id))
+            ->when(
+                $user->department_id && ! $user->can('view_all_po'),
+                fn ($q) => $q->where('department_id', $user->department_id)
+            )
             ->when($request->filled('type'), fn ($q) => $q->where('po_type', $request->string('type')->upper()->toString()));
 
         $counts = (clone $baseQuery)
@@ -177,6 +183,8 @@ class PurchaseOrderController extends Controller
             'items.item.inventoryUnit',
             'items.unit',
             'approvalEvents.actor',
+            'shipments.goodsReceipt',
+            'goodsReceipts',
         ]);
 
         $items = collect();

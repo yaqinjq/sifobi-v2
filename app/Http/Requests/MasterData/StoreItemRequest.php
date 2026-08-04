@@ -85,6 +85,7 @@ class StoreItemRequest extends FormRequest
             'is_active'          => ['boolean'],
             'po_destinations'    => ['nullable', 'array'],
             'po_destinations.*'  => ['string', Rule::in(array_keys(PurchaseOrder::TYPE_LABELS_ACTIVE))],
+            'min_stock'          => ['nullable', Decimal::validationRule(6), $this->decimalMinRule('0')],
         ];
     }
 
@@ -120,6 +121,7 @@ class StoreItemRequest extends FormRequest
             'track_expiry' => $this->boolean('track_expiry'),
             'last_purchase_price' => $lastPurchasePrice,
             'standard_cost' => $lastPurchasePrice ?? '0.0000',
+            'min_stock'     => $this->filled('min_stock') ? Decimal::toFixed($this->input('min_stock'), 6) : '0.000000',
             'track_stock'     => true,
             'is_active'       => $this->boolean('is_active'),
             'po_destinations' => !empty($this->input('po_destinations')) ? $this->input('po_destinations') : null,

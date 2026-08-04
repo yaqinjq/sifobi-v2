@@ -337,6 +337,17 @@
                     <span class="px-4 text-sm font-semibold text-gray-500">%</span>
                 </div>
             </x-sf.form-group>
+
+            <x-sf.form-group label="Minimum Stok" for="min_stock"
+                hint="Stok di bawah angka ini akan muncul di Laporan Stok Menipis. Isi 0 untuk tidak memantau.">
+                <div class="flex items-center rounded-xl border border-gray-200 bg-gray-50 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500">
+                    <input id="min_stock" name="min_stock" type="text" inputmode="decimal"
+                           value="{{ old('min_stock', $item->min_stock ?? '0') }}"
+                           class="block w-full rounded-l-xl border-0 bg-transparent text-base text-gray-900 px-4 py-3 focus:ring-0"
+                           placeholder="0">
+                    <span class="px-4 text-sm font-semibold text-gray-500">satuan inv.</span>
+                </div>
+            </x-sf.form-group>
         </div>
 
         <div class="mt-4">

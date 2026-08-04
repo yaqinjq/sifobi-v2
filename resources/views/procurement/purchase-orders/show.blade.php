@@ -116,7 +116,15 @@
                     <dt class="text-gray-500">No. Order {{ $integrationTarget }}</dt>
                     <dd class="text-right font-mono text-gray-600 text-xs">{{ $purchaseOrder->external_reference }}</dd>
                 @endif
-                @if($purchaseOrder->po_type === \App\Modules\Procurement\Models\PurchaseOrder::TYPE_CENTRAL_KITCHEN && $purchaseOrder->wipro_shipped_at)
+                @if($purchaseOrder->shipments->isNotEmpty())
+                    <dt class="text-gray-500 border-t border-gray-50 pt-2">Pengiriman (DO)</dt>
+                    <dd class="text-right border-t border-gray-50 pt-2">
+                        <span class="badge-info">{{ $purchaseOrder->shipments->count() }} DO dikirim</span>
+                        <span class="text-xs text-gray-400 block mt-0.5">
+                            {{ $purchaseOrder->shipments->where('is_confirmed', true)->count() }} dikonfirmasi
+                        </span>
+                    </dd>
+                @elseif($purchaseOrder->po_type === \App\Modules\Procurement\Models\PurchaseOrder::TYPE_CENTRAL_KITCHEN && $purchaseOrder->wipro_shipped_at)
                     <dt class="text-gray-500 border-t border-gray-50 pt-2">Dikirim oleh Wipro</dt>
                     <dd class="text-right border-t border-gray-50 pt-2">
                         <span class="badge-posted">{{ $purchaseOrder->wipro_shipped_at->format('d M Y H:i') }}</span>
@@ -312,6 +320,91 @@
             @endcan
         @endif
     </x-sf.card>
+
+    {{-- ── PENGIRIMAN / DO ── --}}
+    @if($purchaseOrder->shipments->isNotEmpty())
+        <x-sf.card>
+            <x-slot:header>
+                <div class="flex items-center justify-between">
+                    <h3 class="font-heading font-semibold text-gray-900 text-sm">Pengiriman dari Vendor (DO)</h3>
+                    <span class="text-xs text-gray-400">{{ $purchaseOrder->shipments->count() }} pengiriman</span>
+                </div>
+            </x-slot:header>
+            <div class="divide-y divide-gray-50">
+                @foreach($purchaseOrder->shipments as $i => $shipment)
+                    <div class="px-4 py-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-semibold text-gray-800">
+                                    Box #{{ $i + 1 }}
+                                    @if($shipment->do_number)
+                                        &mdash; <span class="font-mono">{{ $shipment->do_number }}</span>
+                                    @endif
+                                </p>
+                                <p class="text-xs text-gray-500 mt-0.5">
+                                    Invoice: <span class="font-mono">{{ $shipment->invoice_number ?: '—' }}</span>
+                                    &middot; Dikirim: {{ $shipment->shipped_at?->format('d M Y H:i') ?: '—' }}
+                                </p>
+                                @if($shipment->goodsReceipt)
+                                    <p class="text-xs text-green-700 mt-0.5">
+                                        Penerimaan:
+                                        <a href="{{ route('receiving.goods-receipts.show', $shipment->goodsReceipt) }}"
+                                           class="underline font-mono">{{ $shipment->goodsReceipt->code }}</a>
+                                    </p>
+                                @endif
+                                @if($shipment->notes)
+                                    <p class="text-xs text-gray-400 mt-0.5 italic">{{ $shipment->notes }}</p>
+                                @endif
+                            </div>
+                            <div class="shrink-0">
+                                @if($shipment->is_confirmed)
+                                    <span class="badge-posted text-xs">Diterima</span>
+                                    @if($shipment->confirmed_at)
+                                        <p class="text-xs text-gray-400 text-right mt-0.5">{{ $shipment->confirmed_at->format('d M Y') }}</p>
+                                    @endif
+                                @else
+                                    <span class="badge-pending text-xs">Belum Diterima</span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </x-sf.card>
+    @endif
+
+    {{-- ── PENERIMAAN BARANG TERKAIT ── --}}
+    @if($purchaseOrder->goodsReceipts->isNotEmpty())
+        <x-sf.card>
+            <x-slot:header>
+                <div class="flex items-center justify-between">
+                    <h3 class="font-heading font-semibold text-gray-900 text-sm">Penerimaan Barang (GR)</h3>
+                    <span class="text-xs text-gray-400">{{ $purchaseOrder->goodsReceipts->count() }} GR</span>
+                </div>
+            </x-slot:header>
+            <div class="divide-y divide-gray-50">
+                @foreach($purchaseOrder->goodsReceipts as $gr)
+                    <a href="{{ route('receiving.goods-receipts.show', $gr) }}"
+                       class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold font-mono text-gray-800">{{ $gr->code }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">
+                                {{ $gr->receipt_date?->format('d M Y') ?: '—' }}
+                                &middot; SJ: {{ $gr->doc_number ?: '—' }}
+                                &middot; Inv: {{ $gr->invoice_number ?: '—' }}
+                            </p>
+                        </div>
+                        <span class="badge-{{ $gr->status === 'POSTED' ? 'posted' : ($gr->status === 'SUBMITTED' ? 'pending' : 'draft') }} text-xs shrink-0">
+                            {{ $gr->status }}
+                        </span>
+                        <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                @endforeach
+            </div>
+        </x-sf.card>
+    @endif
 
     {{-- ── RIWAYAT APPROVAL ── --}}
     @if($purchaseOrder->approvalEvents->isNotEmpty())
