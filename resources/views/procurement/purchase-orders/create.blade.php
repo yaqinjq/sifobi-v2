@@ -193,77 +193,130 @@
          x-transition:enter-end="opacity-100"
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-end="opacity-0"
-         class="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-black/40"
+         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm"
          @keydown.escape.window="showConfirm = false"
          x-cloak>
 
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm"
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="opacity-0 translate-y-4"
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden"
+             x-transition:enter="transition ease-out duration-250"
+             x-transition:enter-start="opacity-0 translate-y-8"
              x-transition:enter-end="opacity-100 translate-y-0"
              @click.stop>
-            <div class="p-5">
-                <h3 class="font-heading font-bold text-gray-900 text-lg mb-3">Konfirmasi PO</h3>
 
-                <div class="space-y-2 mb-4">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">Outlet</span>
-                        <span class="font-medium text-gray-800">{{ $outlet?->name ?? '—' }}</span>
+            {{-- Header --}}
+            <div class="bg-primary-700 px-6 py-5 flex items-center gap-4">
+                <div class="w-11 h-11 rounded-2xl bg-white/15 flex items-center justify-center shrink-0">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-heading font-bold text-white text-base leading-tight">Konfirmasi Purchase Order</h3>
+                    <p class="text-primary-200 text-xs mt-0.5">Periksa kembali sebelum dikirim</p>
+                </div>
+            </div>
+
+            <div class="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
+
+                {{-- Info Ringkas --}}
+                <div class="rounded-2xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
+                    @if($outlet?->name)
+                    <div class="flex items-center justify-between px-4 py-3">
+                        <span class="text-xs text-gray-500 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                            Outlet
+                        </span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $outlet->name }}</span>
                     </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">Departemen</span>
-                        <span class="font-medium text-gray-800">{{ $department?->name ?? '—' }}</span>
+                    @endif
+                    @if($department?->name)
+                    <div class="flex items-center justify-between px-4 py-3">
+                        <span class="text-xs text-gray-500 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                            Departemen
+                        </span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $department->name }}</span>
                     </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">Tanggal</span>
-                        <span class="font-medium text-gray-800" x-text="date"></span>
+                    @endif
+                    <div class="flex items-center justify-between px-4 py-3">
+                        <span class="text-xs text-gray-500 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            Tanggal Order
+                        </span>
+                        <span class="text-sm font-semibold text-gray-800" x-text="date"></span>
                     </div>
-                    <div x-show="isPlanned" class="flex justify-between text-sm">
-                        <span class="text-amber-600">Mode</span>
-                        <span class="font-semibold text-amber-600">Plan Order</span>
+                    <div x-show="isPlanned" class="flex items-center justify-between px-4 py-3 bg-amber-50 rounded-b-2xl">
+                        <span class="text-xs text-amber-600 font-medium flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Mode
+                        </span>
+                        <span class="text-sm font-bold text-amber-600">Plan Order</span>
                     </div>
                 </div>
 
-                <div class="rounded-xl bg-gray-50 px-3 py-3 mb-4 space-y-1.5">
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">PO yang akan dibuat:</p>
-                    <template x-for="tab in tabs.filter(t => t.items.length > 0)" :key="tab.type">
-                        <div>
-                            <p class="text-sm font-semibold text-gray-800 mb-1" x-text="tab.label"></p>
-                            <template x-for="row in tab.items.filter(i => parseFloat(i.qty) > 0)" :key="row.item_id">
-                                <div class="flex justify-between text-xs text-gray-600 py-0.5 pl-2">
-                                    <span x-text="row.name" class="truncate flex-1 mr-2"></span>
-                                    <span class="shrink-0">
-                                        <span x-text="row.qty"></span>
-                                        <span x-text="row.unit_code" class="ml-1 text-gray-400"></span>
-                                    </span>
+                {{-- Daftar Item per PO --}}
+                <div>
+                    <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Item yang dipesan</p>
+                    <div class="space-y-2">
+                        <template x-for="tab in tabs.filter(t => t.items.filter(i => parseFloat(i.qty) > 0).length > 0)" :key="tab.type">
+                            <div class="rounded-2xl border border-gray-100 overflow-hidden">
+                                {{-- Group label --}}
+                                <div class="bg-primary-50 px-4 py-2.5 flex items-center justify-between">
+                                    <p class="text-xs font-bold text-primary-800" x-text="tab.label"></p>
+                                    <span class="text-[10px] font-semibold bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full"
+                                          x-text="tab.items.filter(i => parseFloat(i.qty) > 0).length + ' item'"></span>
                                 </div>
-                            </template>
-                        </div>
-                    </template>
+                                {{-- Items --}}
+                                <div class="divide-y divide-gray-50">
+                                    <template x-for="(row, idx) in tab.items.filter(i => parseFloat(i.qty) > 0)" :key="row.item_id">
+                                        <div class="flex items-center justify-between px-4 py-2.5 gap-3">
+                                            <div class="flex items-center gap-2.5 min-w-0">
+                                                <span class="w-5 h-5 rounded-full bg-gray-100 text-gray-400 text-[10px] font-bold flex items-center justify-center shrink-0"
+                                                      x-text="idx + 1"></span>
+                                                <span class="text-sm text-gray-800 truncate" x-text="row.name"></span>
+                                            </div>
+                                            <div class="shrink-0 flex items-baseline gap-1">
+                                                <span class="text-sm font-bold text-primary-700" x-text="row.qty"></span>
+                                                <span class="text-xs text-gray-400 font-medium" x-text="row.unit_code"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
                 </div>
 
+                {{-- Error --}}
                 <div x-show="submitError" x-cloak
-                     class="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700 mb-3"
-                     x-text="submitError"></div>
-
-                <div class="flex gap-3">
-                    <button type="button"
-                            @click="showConfirm = false"
-                            :disabled="submitting"
-                            class="sf-btn-secondary flex-1">
-                        Batal
-                    </button>
-                    <button type="button"
-                            @click="submitBatch()"
-                            :disabled="submitting"
-                            class="sf-btn-primary flex-1 flex items-center justify-center gap-2">
-                        <svg x-show="submitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                        </svg>
-                        <span x-text="submitting ? 'Menyimpan...' : 'Ya, Simpan'"></span>
-                    </button>
+                     class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
+                    <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span x-text="submitError"></span>
                 </div>
+
+            </div>
+
+            {{-- Action Buttons --}}
+            <div class="px-6 pb-6 pt-2 flex gap-3">
+                <button type="button"
+                        @click="showConfirm = false"
+                        :disabled="submitting"
+                        class="sf-btn-secondary flex-1 min-h-12">
+                    Batal
+                </button>
+                <button type="button"
+                        @click="submitBatch()"
+                        :disabled="submitting"
+                        class="sf-btn-primary flex-1 min-h-12 flex items-center justify-center gap-2">
+                    <svg x-show="submitting" class="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    <svg x-show="!submitting" class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                    </svg>
+                    <span x-text="submitting ? 'Menyimpan...' : 'Kirim PO'"></span>
+                </button>
             </div>
         </div>
     </div>
