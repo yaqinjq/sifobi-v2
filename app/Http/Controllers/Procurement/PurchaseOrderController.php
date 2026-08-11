@@ -243,6 +243,25 @@ class PurchaseOrderController extends Controller
             ->with('success', 'Item berhasil dihapus.');
     }
 
+    public function updateItem(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderItem $item): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+
+        abort_unless((int) $purchaseOrder->tenant_id === $tenantId, 403);
+        abort_unless((int) $item->purchase_order_id === (int) $purchaseOrder->id, 404);
+        abort_unless($purchaseOrder->canEdit(), 403);
+
+        $validated = $request->validate([
+            'qty_ordered' => ['required', 'numeric', 'min:0.001'],
+        ]);
+
+        $item->update(['qty_ordered' => $validated['qty_ordered']]);
+
+        return redirect()
+            ->route('procurement.purchase-orders.show', $purchaseOrder)
+            ->with('success', 'Jumlah item berhasil diubah.');
+    }
+
     public function submit(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
     {
         abort_unless((int) $purchaseOrder->tenant_id === $this->tenantId($request), 403);

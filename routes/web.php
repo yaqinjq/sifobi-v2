@@ -446,6 +446,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('show');
 
             Route::post('/{purchaseOrder}/items', [PurchaseOrderController::class, 'addItem'])->name('items.store');
+            Route::patch('/{purchaseOrder}/items/{item}', [PurchaseOrderController::class, 'updateItem'])->name('items.update');
             Route::delete('/{purchaseOrder}/items/{item}', [PurchaseOrderController::class, 'removeItem'])->name('items.destroy');
 
             Route::post('/{purchaseOrder}/submit', [PurchaseOrderController::class, 'submit'])->name('submit');

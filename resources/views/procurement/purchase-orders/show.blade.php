@@ -171,12 +171,56 @@
         @else
             <div class="divide-y divide-gray-50">
                 @foreach($purchaseOrder->items as $poItem)
-                    <div class="flex items-center gap-3 px-4 py-3">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-semibold text-gray-800 truncate">
-                                {{ $poItem->item?->name ?? '—' }}
-                            </p>
-                            <p class="text-xs text-gray-500 mt-0.5">
+                    <div class="px-4 py-3">
+                        {{-- Nama item --}}
+                        <p class="text-sm font-semibold text-gray-800 truncate mb-1.5">
+                            {{ $poItem->item?->name ?? '—' }}
+                        </p>
+
+                        @if($purchaseOrder->canEdit())
+                            @can('create_po')
+                                {{-- DRAFT: qty editable inline --}}
+                                <form method="POST"
+                                      action="{{ route('procurement.purchase-orders.items.update', [$purchaseOrder, $poItem]) }}"
+                                      class="flex items-center gap-2">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="number"
+                                           name="qty_ordered"
+                                           value="{{ rtrim(rtrim((string) $poItem->qty_ordered, '0'), '.') }}"
+                                           min="0.001" step="0.001"
+                                           class="sf-input text-sm py-1.5 px-2 h-auto w-28 font-semibold text-primary-700"
+                                           required>
+                                    <span class="text-sm text-gray-500 font-medium shrink-0">{{ $poItem->unit?->code ?? '—' }}</span>
+                                    <button type="submit"
+                                            class="text-xs text-primary-600 hover:text-primary-800 font-semibold px-2.5 py-1.5 rounded-lg bg-primary-50 hover:bg-primary-100 transition-colors shrink-0">
+                                        Simpan
+                                    </button>
+                                    <form method="POST"
+                                          action="{{ route('procurement.purchase-orders.items.destroy', [$purchaseOrder, $poItem]) }}"
+                                          onsubmit="return confirm('Hapus item ini dari PO?')"
+                                          class="ml-auto">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-400 hover:text-red-600 transition-colors p-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </form>
+                            @else
+                                <p class="text-xs text-gray-500">
+                                    <span class="font-medium text-gray-700">
+                                        {{ rtrim(rtrim((string) $poItem->qty_ordered, '0'), '.') }}
+                                        {{ $poItem->unit?->code ?? '—' }}
+                                    </span>
+                                </p>
+                            @endcan
+                        @else
+                            {{-- Non-DRAFT: read-only --}}
+                            <p class="text-xs text-gray-500">
                                 <span class="font-medium text-gray-700">
                                     {{ rtrim(rtrim((string) $poItem->qty_ordered, '0'), '.') }}
                                     {{ $poItem->unit?->code ?? '—' }}
@@ -186,26 +230,10 @@
                                     &middot; <span class="text-primary-700 font-medium">Rp {{ number_format((float) $poItem->subtotal(), 0, ',', '.') }}</span>
                                 @endif
                             </p>
-                            @if($poItem->notes)
-                                <p class="text-xs text-gray-400 mt-0.5 italic">{{ $poItem->notes }}</p>
-                            @endif
-                        </div>
-                        @if($purchaseOrder->canEdit())
-                            @can('create_po')
-                                <form method="POST"
-                                      action="{{ route('procurement.purchase-orders.items.destroy', [$purchaseOrder, $poItem]) }}"
-                                      onsubmit="return confirm('Hapus item ini dari PO?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                            class="text-red-400 hover:text-red-600 transition-colors p-1 shrink-0">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                        </svg>
-                                    </button>
-                                </form>
-                            @endcan
+                        @endif
+
+                        @if($poItem->notes)
+                            <p class="text-xs text-gray-400 mt-1 italic">{{ $poItem->notes }}</p>
                         @endif
                     </div>
                 @endforeach

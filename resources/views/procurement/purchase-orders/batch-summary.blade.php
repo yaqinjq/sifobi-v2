@@ -15,20 +15,22 @@
      x-data="{ copied: false }">
 
     {{-- Success banner --}}
+    @php $po1 = $pos->first(); @endphp
     <div class="rounded-xl bg-green-50 border border-green-200 px-4 py-3 flex items-start gap-3">
         <svg class="w-5 h-5 text-green-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
         </svg>
         <div>
             <p class="text-sm font-semibold text-green-800">{{ $pos->count() }} PO berhasil dibuat!</p>
-            @php $po1 = $pos->first(); @endphp
             @if($po1->isPlanOrder())
                 <p class="text-xs text-green-600 mt-0.5">
                     Plan order — akan otomatis diajukan ke PIC pada
                     <strong>{{ $po1->needed_at->format('d M Y') }}</strong>.
                 </p>
             @else
-                <p class="text-xs text-green-600 mt-0.5">Ajukan PO untuk persetujuan PIC.</p>
+                <p class="text-xs text-green-600 mt-0.5">
+                    Periksa dan edit jumlah item sebelum mengajukan. Klik <strong>Detail & Edit</strong> jika ada yang perlu diubah.
+                </p>
             @endif
         </div>
     </div>
@@ -67,11 +69,18 @@
             </div>
 
             @if(!$po->isPlanOrder())
-                <div class="px-4 pb-3 pt-2">
+                <div class="px-4 pb-4 pt-2 flex flex-col gap-2">
+                    <a href="{{ route('procurement.purchase-orders.show', $po) }}"
+                       class="sf-btn-secondary w-full text-sm text-center flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        Detail & Edit Item
+                    </a>
                     <form method="POST" action="{{ route('procurement.purchase-orders.submit', $po) }}">
                         @csrf
                         <button type="submit" class="sf-btn-primary w-full text-sm">
-                            Ajukan ke PIC untuk Persetujuan
+                            Ajukan untuk Persetujuan
                         </button>
                     </form>
                 </div>
