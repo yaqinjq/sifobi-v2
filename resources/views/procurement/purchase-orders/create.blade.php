@@ -11,7 +11,7 @@
 @endsection
 
 @section('content')
-<div class="px-4 pt-4 pb-32 lg:px-6 lg:pb-12 max-w-3xl mx-auto w-full"
+<div class="px-4 pt-4 pb-44 lg:px-6 lg:pb-4 max-w-3xl mx-auto w-full"
      x-data="poForm()"
      x-init="init()">
 
@@ -174,17 +174,35 @@
 
     </div>
 
-    {{-- Simpan button (fixed bottom) --}}
-    <div class="fixed inset-x-0 bottom-0 z-30 bg-white border-t border-gray-100 px-4 py-3"
-         style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+    {{-- Simpan button --}}
+    <div id="po-submit-bar" class="fixed inset-x-0 z-50 bg-white border-t border-gray-100 px-4 py-3">
         <button type="button"
                 @click="openConfirm()"
                 :disabled="!hasItems"
                 :class="hasItems ? '' : 'opacity-40 cursor-not-allowed'"
-                class="sf-btn-primary w-full">
+                class="sf-btn-primary w-full min-h-12 text-base font-semibold">
             Simpan PO
         </button>
     </div>
+    <style>
+        /* Mobile: letakkan DI ATAS bottom nav (h-16 = 4rem) + safe area iPhone */
+        #po-submit-bar {
+            bottom: calc(4rem + env(safe-area-inset-bottom));
+        }
+        /* Desktop (lg 1024px+): sticky dalam alur konten, tidak overlap sidebar */
+        @media (min-width: 1024px) {
+            #po-submit-bar {
+                position: sticky;
+                bottom: 0;
+                left: auto;
+                right: auto;
+                margin-left: -1.5rem;
+                margin-right: -1.5rem;
+                padding-left: 1.5rem;
+                padding-right: 1.5rem;
+            }
+        }
+    </style>
 
     {{-- Konfirmasi Modal --}}
     <div x-show="showConfirm"
