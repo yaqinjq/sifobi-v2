@@ -53,6 +53,14 @@
                 </div>
                 <i class="ti ti-chevron-right sh-arrow" aria-hidden="true"></i>
             </a>
+            <a href="{{ route('settings.wipro-catalog.index') }}" class="sh-item">
+                <div class="sh-icon sh-icon-blue"><i class="ti ti-package" aria-hidden="true"></i></div>
+                <div class="sh-text">
+                    <p class="sh-name">Katalog Wipro</p>
+                    <p class="sh-desc">Import produk Central Kitchen — diperbarui tiap bulan</p>
+                </div>
+                <i class="ti ti-chevron-right sh-arrow" aria-hidden="true"></i>
+            </a>
         @endcan
     </div>
 
