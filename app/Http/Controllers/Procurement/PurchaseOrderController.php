@@ -194,7 +194,11 @@ class PurchaseOrderController extends Controller
             $items = Item::query()
                 ->where('tenant_id', $tenantId)
                 ->where('is_active', true)
-                ->where('track_stock', true)
+                ->when(
+                    $purchaseOrder->po_type === PurchaseOrder::TYPE_CENTRAL_KITCHEN,
+                    fn ($q) => $q->where('item_source', 'WIPRO'),
+                    fn ($q) => $q->where('track_stock', true)->forPoType($purchaseOrder->po_type)
+                )
                 ->with(['inventoryUnit'])
                 ->orderBy('name')
                 ->get(['id', 'name', 'canonical_sku', 'inventory_unit_id']);
