@@ -24,10 +24,7 @@ class PoCatalogBrowseController extends Controller
         $items = Item::query()
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
-            ->where(function ($q) {
-                $q->where('item_source', 'WIPRO')->orWhere('track_stock', true);
-            })
-            ->forPoType($poType)
+            ->where('item_source', 'WIPRO')
             ->with(['inventoryUnit', 'category'])
             ->orderBy('name')
             ->get(['id', 'name', 'canonical_sku', 'inventory_unit_id', 'item_category_id', 'item_source'])
