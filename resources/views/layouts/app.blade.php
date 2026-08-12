@@ -189,7 +189,7 @@
             @endcan
 
             @can('manage_settings')
-                @php $settingsActive = request()->routeIs('settings.*') && ! request()->routeIs('settings.users.*') && ! request()->routeIs('settings.roles.*'); @endphp
+                @php $settingsActive = request()->routeIs('settings.*') && ! request()->routeIs('settings.users.*') && ! request()->routeIs('settings.roles.*') && ! request()->routeIs('settings.wipro-catalog.*'); @endphp
                 @can('manage_users')
                     <a href="{{ route('settings.users.index') }}"
                        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
@@ -210,6 +210,19 @@
                         </svg>
                         Manajemen Role
                         @if(request()->routeIs('settings.roles.*'))
+                            <span class="ml-auto w-1.5 h-1.5 rounded-full bg-primary-400"></span>
+                        @endif
+                    </a>
+                @endcan
+                @can('manage_integrations')
+                    <a href="{{ route('settings.wipro-catalog.index') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+                              {{ request()->routeIs('settings.wipro-catalog.*') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                        Katalog Wipro
+                        @if(request()->routeIs('settings.wipro-catalog.*'))
                             <span class="ml-auto w-1.5 h-1.5 rounded-full bg-primary-400"></span>
                         @endif
                     </a>

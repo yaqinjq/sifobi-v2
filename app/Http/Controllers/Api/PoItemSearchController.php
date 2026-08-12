@@ -25,7 +25,10 @@ class PoItemSearchController extends Controller
         $items = Item::query()
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
-            ->where('track_stock', true)
+            ->where(function ($query) {
+                // Wipro catalog items don't track stock in SIFOBI; all others must
+                $query->where('track_stock', true)->orWhere('item_source', 'WIPRO');
+            })
             ->forPoType($poType)
             ->where(function ($query) use ($q) {
                 $query->where('name', 'like', '%'.$q.'%')

@@ -25,6 +25,7 @@ use App\Http\Controllers\Settings\CalendarEventController;
 use App\Http\Controllers\Settings\DefaultConversionController;
 use App\Http\Controllers\Settings\DepartmentController;
 use App\Http\Controllers\Settings\IntegrationController;
+use App\Http\Controllers\Settings\WiproCatalogController;
 use App\Http\Controllers\Settings\ItemCategoryController;
 use App\Http\Controllers\Settings\ItemJenisController;
 use App\Http\Controllers\Settings\OutletController;
@@ -162,6 +163,11 @@ Route::middleware('auth')->group(function (): void {
                     ->name('integrations.test');
                 Route::post('integrations/{integration}/sync-outlets', [IntegrationController::class, 'syncOutlets'])
                     ->name('integrations.sync-outlets');
+
+                Route::get('wipro-catalog', [WiproCatalogController::class, 'index'])
+                    ->name('wipro-catalog.index');
+                Route::post('wipro-catalog/import', [WiproCatalogController::class, 'import'])
+                    ->name('wipro-catalog.import');
             });
         });
 
@@ -182,6 +188,9 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('api/items/search-for-po', \App\Http\Controllers\Api\PoItemSearchController::class)
         ->name('api.items.search-for-po');
+
+    Route::get('api/items/po-catalog', \App\Http\Controllers\Api\PoCatalogBrowseController::class)
+        ->name('api.items.po-catalog');
 
     Route::middleware('permission:manage_units')->group(function (): void {
         Route::resource('master-data/units', UnitController::class)

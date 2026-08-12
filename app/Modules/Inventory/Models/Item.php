@@ -38,6 +38,7 @@ class Item extends Model
         'track_stock',
         'is_active',
         'po_destinations',
+        'item_source',
     ];
 
     /**
@@ -151,6 +152,7 @@ class Item extends Model
             'track_stock'        => 'boolean',
             'is_active'          => 'boolean',
             'po_destinations'    => 'array',
+            'item_source'        => 'string',
         ];
     }
 }

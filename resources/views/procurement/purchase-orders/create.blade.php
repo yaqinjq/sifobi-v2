@@ -73,89 +73,199 @@
         <template x-for="tab in tabs" :key="tab.type">
             <div x-show="activeTab === tab.type" x-cloak>
 
-                {{-- Live search (Google-style) --}}
-                <div class="relative mb-3">
-                    <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
-                        </svg>
-                    </div>
+                {{-- ========== CENTRAL_KITCHEN: Marketplace Wipro ========== --}}
+                <div x-show="tab.type === 'CENTRAL_KITCHEN'">
 
-                    <input type="text"
-                           :value="tab.search"
-                           @input.debounce.350ms="tab.search = $event.target.value; doSearch(tab)"
-                           @focus="if (tab.search.length >= 1) doSearch(tab)"
-                           @keydown.escape="closeResults(tab)"
-                           placeholder="Ketik nama item..."
-                           class="sf-input pl-9 text-sm w-full"
-                           autocomplete="off"
-                           spellcheck="false" />
-
-                    {{-- Spinner --}}
-                    <div x-show="tab.loading"
-                         class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                        <svg class="w-4 h-4 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                    {{-- Loading state --}}
+                    <div x-show="tab.catalogLoading" class="text-center py-10 text-gray-400 text-sm">
+                        <svg class="w-6 h-6 mx-auto mb-2 animate-spin text-primary-400" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                         </svg>
+                        Memuat katalog Wipro…
                     </div>
 
-                    {{-- Dropdown hasil pencarian --}}
-                    <div x-show="tab.results.length > 0"
-                         x-cloak
-                         class="absolute z-30 left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden max-h-64 overflow-y-auto">
-                        <template x-for="result in tab.results" :key="result.id">
-                            <button type="button"
-                                    @mousedown.prevent="selectItem(tab, result)"
-                                    class="w-full text-left px-4 py-2.5 hover:bg-primary-50 flex items-center gap-3 border-b border-gray-50 last:border-0 transition-colors">
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-medium text-gray-800 truncate" x-text="result.name"></p>
-                                    <p class="text-xs text-gray-400 mt-0.5" x-text="result.sku"></p>
+                    {{-- Kosong / belum di-import --}}
+                    <div x-show="!tab.catalogLoading && tab.catalogEmpty" class="text-center py-10">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                        <p class="text-sm text-gray-500 font-medium mb-1">Katalog Wipro belum tersedia</p>
+                        <p class="text-xs text-gray-400">Admin perlu mengimport katalog terlebih dahulu.</p>
+                    </div>
+
+                    {{-- Katalog sudah ada --}}
+                    <div x-show="!tab.catalogLoading && !tab.catalogEmpty" class="space-y-3">
+
+                        {{-- Filter bar --}}
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+                                </svg>
+                            </div>
+                            <input type="text"
+                                   x-model="tab.catalogFilter"
+                                   placeholder="Filter nama produk…"
+                                   class="sf-input pl-9 text-sm w-full"
+                                   autocomplete="off" />
+                        </div>
+
+                        {{-- Badge ringkasan item dipilih --}}
+                        <div x-show="tab.items.length > 0"
+                             class="flex items-center gap-2 px-3 py-2 bg-primary-50 rounded-xl border border-primary-100">
+                            <svg class="w-4 h-4 text-primary-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                            </svg>
+                            <span class="text-sm text-primary-700 font-semibold"
+                                  x-text="tab.items.length + ' produk dipilih'"></span>
+                        </div>
+
+                        {{-- Grup per kategori --}}
+                        <template x-for="[kategori, produk] in filteredCatalog(tab)" :key="kategori">
+                            <div class="rounded-xl border border-gray-100 overflow-hidden">
+                                {{-- Header kategori --}}
+                                <div class="bg-gray-50 px-4 py-2.5 flex items-center justify-between">
+                                    <p class="text-xs font-bold text-gray-700 uppercase tracking-wide" x-text="kategori"></p>
+                                    <span class="text-[10px] font-semibold bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full"
+                                          x-text="produk.length + ' item'"></span>
                                 </div>
-                                <span class="shrink-0 text-xs font-semibold text-primary-700 bg-primary-50 rounded px-2 py-0.5"
-                                      x-text="result.unit_code"></span>
-                            </button>
+
+                                {{-- Items dalam kategori --}}
+                                <div class="divide-y divide-gray-50">
+                                    <template x-for="item in produk" :key="item.id">
+                                        <div class="px-3 py-2.5">
+                                            {{-- Baris atas: nama + tombol + --}}
+                                            <div class="flex items-center gap-2">
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm font-medium text-gray-800 leading-tight" x-text="item.name"></p>
+                                                    <p class="text-[11px] text-gray-400 mt-0.5" x-text="item.sku + ' · ' + item.unit_code"></p>
+                                                </div>
+                                                {{-- Toggle add/remove --}}
+                                                <button type="button"
+                                                        @click="toggleCatalogItem(tab, item)"
+                                                        :class="isSelected(tab, item.id)
+                                                            ? 'bg-primary-600 text-white border-primary-600'
+                                                            : 'bg-white text-primary-600 border-primary-200 hover:border-primary-400'"
+                                                        class="shrink-0 w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all">
+                                                    <svg x-show="!isSelected(tab, item.id)" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                                                    </svg>
+                                                    <svg x-show="isSelected(tab, item.id)" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                            {{-- Qty input — muncul hanya jika dipilih --}}
+                                            <div x-show="isSelected(tab, item.id)"
+                                                 x-transition:enter="transition ease-out duration-150"
+                                                 x-transition:enter-start="opacity-0 -translate-y-1"
+                                                 x-transition:enter-end="opacity-100 translate-y-0"
+                                                 class="flex items-center gap-2 mt-2 pl-1">
+                                                <input type="number"
+                                                       :value="getItemQty(tab, item.id)"
+                                                       @input="setItemQty(tab, item.id, $event.target.value)"
+                                                       min="0.001"
+                                                       step="0.001"
+                                                       placeholder="Jumlah"
+                                                       class="sf-input text-sm py-1 px-2 h-auto w-28" />
+                                                <span class="text-sm text-gray-600 font-semibold" x-text="item.unit_code"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
                         </template>
                     </div>
                 </div>
 
-                {{-- Daftar item yang sudah dipilih --}}
-                <div x-show="tab.items.length > 0" class="space-y-2 mb-3">
-                    <template x-for="(row, rowIdx) in tab.items" :key="row.item_id">
-                        <div class="rounded-xl border border-gray-100 bg-white px-3 py-2.5 flex items-center gap-3 shadow-sm">
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-semibold text-gray-800 truncate" x-text="row.name"></p>
-                                <div class="flex items-center gap-2 mt-1.5">
-                                    <input type="number"
-                                           :value="row.qty"
-                                           @input="row.qty = $event.target.value"
-                                           min="0.001"
-                                           step="0.001"
-                                           placeholder="Jumlah"
-                                           class="sf-input text-sm py-1 px-2 h-auto w-28" />
-                                    <span class="text-sm text-gray-600 font-semibold" x-text="row.unit_code"></span>
-                                </div>
-                            </div>
-                            <button type="button"
-                                    @click="removeItem(tab, rowIdx)"
-                                    class="shrink-0 text-red-400 hover:text-red-600 transition-colors p-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                </svg>
-                            </button>
+                {{-- ========== Tab LAIN: Search autocomplete (existing) ========== --}}
+                <div x-show="tab.type !== 'CENTRAL_KITCHEN'">
+                    {{-- Live search (Google-style) --}}
+                    <div class="relative mb-3">
+                        <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+                            </svg>
                         </div>
-                    </template>
+
+                        <input type="text"
+                               :value="tab.search"
+                               @input.debounce.350ms="tab.search = $event.target.value; doSearch(tab)"
+                               @focus="if (tab.search.length >= 1) doSearch(tab)"
+                               @keydown.escape="closeResults(tab)"
+                               placeholder="Ketik nama item..."
+                               class="sf-input pl-9 text-sm w-full"
+                               autocomplete="off"
+                               spellcheck="false" />
+
+                        {{-- Spinner --}}
+                        <div x-show="tab.loading"
+                             class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                            <svg class="w-4 h-4 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                            </svg>
+                        </div>
+
+                        {{-- Dropdown hasil pencarian --}}
+                        <div x-show="tab.results.length > 0"
+                             x-cloak
+                             class="absolute z-30 left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden max-h-64 overflow-y-auto">
+                            <template x-for="result in tab.results" :key="result.id">
+                                <button type="button"
+                                        @mousedown.prevent="selectItem(tab, result)"
+                                        class="w-full text-left px-4 py-2.5 hover:bg-primary-50 flex items-center gap-3 border-b border-gray-50 last:border-0 transition-colors">
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-800 truncate" x-text="result.name"></p>
+                                        <p class="text-xs text-gray-400 mt-0.5" x-text="result.sku"></p>
+                                    </div>
+                                    <span class="shrink-0 text-xs font-semibold text-primary-700 bg-primary-50 rounded px-2 py-0.5"
+                                          x-text="result.unit_code"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    {{-- Daftar item yang sudah dipilih --}}
+                    <div x-show="tab.items.length > 0" class="space-y-2 mb-3">
+                        <template x-for="(row, rowIdx) in tab.items" :key="row.item_id">
+                            <div class="rounded-xl border border-gray-100 bg-white px-3 py-2.5 flex items-center gap-3 shadow-sm">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-semibold text-gray-800 truncate" x-text="row.name"></p>
+                                    <div class="flex items-center gap-2 mt-1.5">
+                                        <input type="number"
+                                               :value="row.qty"
+                                               @input="row.qty = $event.target.value"
+                                               min="0.001"
+                                               step="0.001"
+                                               placeholder="Jumlah"
+                                               class="sf-input text-sm py-1 px-2 h-auto w-28" />
+                                        <span class="text-sm text-gray-600 font-semibold" x-text="row.unit_code"></span>
+                                    </div>
+                                </div>
+                                <button type="button"
+                                        @click="removeItem(tab, rowIdx)"
+                                        class="shrink-0 text-red-400 hover:text-red-600 transition-colors p-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div x-show="tab.items.length === 0" class="text-center py-10 text-gray-400 text-sm">
+                        <svg class="w-10 h-10 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+                        </svg>
+                        Ketik nama item untuk mencari
+                    </div>
                 </div>
 
-                <div x-show="tab.items.length === 0" class="text-center py-10 text-gray-400 text-sm">
-                    <svg class="w-10 h-10 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
-                    </svg>
-                    Ketik nama item untuk mencari
-                </div>
             </div>
         </template>
 
@@ -362,17 +472,88 @@ function poForm() {
             this.tabs = Object.entries(typeLabels).map(([type, label]) => ({
                 type,
                 label,
-                items:   [],
-                search:  '',
-                results: [],
-                loading: false,
+                items:          [],
+                search:         '',
+                results:        [],
+                loading:        false,
+                // Marketplace fields (CK tab only)
+                catalog:        {},   // { kategori: [item, ...] }
+                catalogFilter:  '',
+                catalogLoading: false,
+                catalogEmpty:   false,
             }));
             this.activeTab = this.tabs.length > 0 ? this.tabs[0].type : '';
+
+            // Pre-load CK catalog on init
+            const ckTab = this.tabs.find(t => t.type === 'CENTRAL_KITCHEN');
+            if (ckTab) this.loadCatalog(ckTab);
         },
 
         onDateChange() {
             this.isPlanned = this.date > today;
         },
+
+        // ── Marketplace helpers ─────────────────────────────────────────────
+
+        async loadCatalog(tab) {
+            if (tab.type !== 'CENTRAL_KITCHEN') return;
+            tab.catalogLoading = true;
+            try {
+                const res = await fetch(`/api/items/po-catalog?po_type=CENTRAL_KITCHEN`, {
+                    credentials: 'same-origin',
+                    headers:     { Accept: 'application/json' },
+                });
+                if (res.ok) {
+                    tab.catalog = await res.json();
+                    tab.catalogEmpty = Object.keys(tab.catalog).length === 0;
+                } else {
+                    tab.catalogEmpty = true;
+                }
+            } catch {
+                tab.catalogEmpty = true;
+            }
+            tab.catalogLoading = false;
+        },
+
+        filteredCatalog(tab) {
+            const filter = tab.catalogFilter.toLowerCase().trim();
+            return Object.entries(tab.catalog).map(([kat, items]) => {
+                const filtered = filter
+                    ? items.filter(i => i.name.toLowerCase().includes(filter) || i.sku.toLowerCase().includes(filter))
+                    : items;
+                return [kat, filtered];
+            }).filter(([, items]) => items.length > 0);
+        },
+
+        toggleCatalogItem(tab, item) {
+            const idx = tab.items.findIndex(i => i.item_id === item.id);
+            if (idx >= 0) {
+                tab.items.splice(idx, 1);
+            } else {
+                tab.items.push({
+                    item_id:   item.id,
+                    name:      item.name,
+                    unit_id:   item.unit_id,
+                    unit_code: item.unit_code,
+                    qty:       '',
+                });
+            }
+        },
+
+        isSelected(tab, itemId) {
+            return tab.items.some(i => i.item_id === itemId);
+        },
+
+        getItemQty(tab, itemId) {
+            return tab.items.find(i => i.item_id === itemId)?.qty ?? '';
+        },
+
+        setItemQty(tab, itemId, val) {
+            const row = tab.items.find(i => i.item_id === itemId);
+            if (row) row.qty = val;
+        },
+
+        // ── Search (non-CK tabs) ────────────────────────────────────────────
 
         async doSearch(tab) {
             const q = tab.search.trim();
@@ -387,11 +568,7 @@ function poForm() {
                     credentials: 'same-origin',
                     headers:     { Accept: 'application/json' },
                 });
-                if (res.ok) {
-                    tab.results = await res.json();
-                } else {
-                    tab.results = [];
-                }
+                tab.results = res.ok ? await res.json() : [];
             } catch {
                 tab.results = [];
             }
@@ -403,18 +580,14 @@ function poForm() {
         },
 
         selectItem(tab, result) {
-            // Tutup dropdown dulu
             tab.results = [];
             tab.search  = '';
-
-            // Jangan tambah duplikat
             if (tab.items.find(i => i.item_id === result.id)) return;
-
             tab.items.push({
                 item_id:   result.id,
                 name:      result.name,
                 unit_id:   result.unit_id,
-                unit_code: result.unit_code,  // Otomatis dari satuan inventory master item
+                unit_code: result.unit_code,
                 qty:       '',
             });
         },
