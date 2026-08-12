@@ -8,7 +8,9 @@ use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\ItemCategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Throwable;
 
 class WiproCatalogController extends Controller
 {
@@ -42,12 +44,17 @@ class WiproCatalogController extends Controller
 
         try {
             $import = new WiproCatalogImport($tenantId);
-            $import->import(storage_path('app/' . $path));
+            $import->import(Storage::disk('local')->path($path));
             $summary = $import->summary();
-        } finally {
-            // Remove temp file after processing
-            \Illuminate\Support\Facades\Storage::disk('local')->delete($path);
+        } catch (Throwable $e) {
+            Storage::disk('local')->delete($path);
+
+            return redirect()
+                ->route('settings.wipro-catalog.index')
+                ->with('error', 'Import gagal: ' . $e->getMessage());
         }
+
+        Storage::disk('local')->delete($path);
 
         $message = "Import selesai. Baru: {$summary['inserted']}, diperbarui: {$summary['updated']}.";
 
