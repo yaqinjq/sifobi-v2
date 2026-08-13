@@ -73,6 +73,10 @@ Route::get('/offline', function () {
 Route::post('/api/wipro/dispatch-notification', [\App\Http\Controllers\Api\WiproWebhookController::class, 'dispatchNotification'])
     ->name('api.wipro.dispatch-notification');
 
+// Inbound outlet-list pull dari Wipro — auth sendiri lewat bearer token, bukan session.
+Route::get('/api/outlets', [\App\Http\Controllers\Api\WiproOutletController::class, 'index'])
+    ->name('api.wipro.outlets');
+
 Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('dashboard');
