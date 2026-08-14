@@ -48,6 +48,21 @@
                     <li>Outlet SIFOBI kini bisa disinkronkan otomatis ke sistem Wipro, mengurangi kegagalan kirim PO Central Kitchen akibat kode outlet tidak dikenali</li>
                 </ul>
             </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">PIC Bisa Edit Item &amp; Qty Sebelum PO Dikirim ke Vendor</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Selama PO masih berstatus <em>Diajukan</em> atau <em>Disetujui</em> (belum dikirim ke vendor), PIC/approver sekarang bisa menambah, mengganti, atau menghapus item, serta mengubah qty — langsung dari halaman detail PO</li>
+                    <li>Staf pembuat PO tetap tidak bisa mengedit lagi setelah mengajukan — hak edit di tahap ini khusus untuk yang berwenang menyetujui PO</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Popup Konfirmasi PO — Tombol Selalu Terlihat</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Popup konfirmasi saat membuat PO dengan banyak item kini punya scroll sendiri di dalam popup — tombol "Kirim PO" tidak lagi terdorong ke luar layar</li>
+                </ul>
+            </div>
         </div>
     </x-sf.card>
 

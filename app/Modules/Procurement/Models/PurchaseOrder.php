@@ -174,9 +174,20 @@ class PurchaseOrder extends Model
         };
     }
 
-    public function canEdit(): bool
+    /**
+     * DRAFT bisa diedit siapa saja yang berhak buat PO (dijaga oleh middleware
+     * permission:create_po di route). Setelah diajukan (SUBMITTED/APPROVED),
+     * cuma yang berhak approve_po (mis. PIC) yang masih boleh mengedit item
+     * & qty — sebelum PO dikirim ke vendor. Staf pembuat kehilangan hak edit
+     * begitu PO diajukan, supaya alur approval tetap berarti.
+     */
+    public function canEdit(?User $user = null): bool
     {
-        return $this->status === self::STATUS_DRAFT;
+        return match ($this->status) {
+            self::STATUS_DRAFT => true,
+            self::STATUS_SUBMITTED, self::STATUS_APPROVED => (bool) $user?->can('approve_po'),
+            default => false,
+        };
     }
 
     public function canSubmit(): bool

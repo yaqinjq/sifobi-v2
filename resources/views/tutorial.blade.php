@@ -158,17 +158,18 @@
                         <p class="text-xs text-gray-400 mt-0.5">Dilakukan oleh: Staff yang sama</p>
                     </div>
                     <div class="px-3 py-2 text-xs text-gray-600">
-                        <p>Klik tombol <strong>"Ajukan untuk Persetujuan"</strong> di halaman detail PO. Status berubah ke <em>Diajukan</em>. PO tidak bisa diubah setelah diajukan.</p>
+                        <p>Klik tombol <strong>"Ajukan untuk Persetujuan"</strong> di halaman detail PO. Status berubah ke <em>Diajukan</em>. Staf pembuat tidak bisa mengubah item/qty lagi setelah ini — hanya PIC/approver yang masih bisa (lihat Langkah 3).</p>
                     </div>
                 </div>
 
                 <div class="rounded-xl border border-gray-100 overflow-hidden">
                     <div class="bg-gray-50 px-3 py-2 border-b border-gray-100">
-                        <p class="font-semibold text-gray-800 text-xs">Langkah 3 — Setujui / Tolak PO</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Dilakukan oleh: Manager / Admin (butuh permission <code class="bg-white px-1 rounded">approve_po</code>)</p>
+                        <p class="font-semibold text-gray-800 text-xs">Langkah 3 — Review, Edit (opsional), lalu Setujui / Tolak PO</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Dilakukan oleh: PIC / Manager / Admin (butuh permission <code class="bg-white px-1 rounded">approve_po</code>)</p>
                     </div>
                     <div class="px-3 py-2 text-xs text-gray-600 space-y-1">
-                        <p>Buka PO → klik <strong>"Setujui"</strong> atau <strong>"Tolak"</strong> (tolak wajib isi alasan).</p>
+                        <p>Buka PO → periksa daftar item. Selama status masih <em>Diajukan</em> atau <em>Disetujui</em> (belum dikirim ke vendor), PIC masih bisa <strong>menambah/mengganti item dan mengubah qty</strong> langsung dari halaman ini sebelum PO benar-benar dikirim.</p>
+                        <p>Setelah item sesuai, klik <strong>"Setujui"</strong> atau <strong>"Tolak"</strong> (tolak wajib isi alasan).</p>
                         <p>PO yang ditolak dikembalikan ke pembuat untuk direvisi.</p>
                     </div>
                 </div>

@@ -190,7 +190,7 @@ class PurchaseOrderController extends Controller
         $items = collect();
         $units = collect();
 
-        if ($purchaseOrder->canEdit()) {
+        if ($purchaseOrder->canEdit($request->user())) {
             $items = Item::query()
                 ->where('tenant_id', $tenantId)
                 ->where('is_active', true)
@@ -226,7 +226,7 @@ class PurchaseOrderController extends Controller
             'notes'       => ['nullable', 'string', 'max:500'],
         ]);
 
-        $this->service->addItem($purchaseOrder, $tenantId, $validated);
+        $this->service->addItem($purchaseOrder, $tenantId, $validated, $request->user());
 
         return redirect()
             ->route('procurement.purchase-orders.show', $purchaseOrder)
@@ -240,7 +240,7 @@ class PurchaseOrderController extends Controller
         abort_unless((int) $purchaseOrder->tenant_id === $tenantId, 403);
         abort_unless((int) $item->purchase_order_id === (int) $purchaseOrder->id, 404);
 
-        $this->service->removeItem($purchaseOrder, $item);
+        $this->service->removeItem($purchaseOrder, $item, $request->user());
 
         return redirect()
             ->route('procurement.purchase-orders.show', $purchaseOrder)
@@ -253,7 +253,7 @@ class PurchaseOrderController extends Controller
 
         abort_unless((int) $purchaseOrder->tenant_id === $tenantId, 403);
         abort_unless((int) $item->purchase_order_id === (int) $purchaseOrder->id, 404);
-        abort_unless($purchaseOrder->canEdit(), 403);
+        abort_unless($purchaseOrder->canEdit($request->user()), 403);
 
         $validated = $request->validate([
             'qty_ordered' => ['required', 'numeric', 'min:0.001'],

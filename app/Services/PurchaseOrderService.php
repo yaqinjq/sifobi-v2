@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Procurement\Models\PurchaseOrderApprovalEvent;
 use App\Modules\Procurement\Models\PurchaseOrderItem;
@@ -85,10 +86,10 @@ class PurchaseOrderService
         });
     }
 
-    public function addItem(PurchaseOrder $po, int $tenantId, array $data): PurchaseOrderItem
+    public function addItem(PurchaseOrder $po, int $tenantId, array $data, ?User $user = null): PurchaseOrderItem
     {
-        if (! $po->canEdit()) {
-            throw ValidationException::withMessages(['status' => 'Item hanya bisa ditambah saat PO masih draft.']);
+        if (! $po->canEdit($user)) {
+            throw ValidationException::withMessages(['status' => 'Anda tidak berwenang menambah item pada PO ini di status saat ini.']);
         }
 
         return PurchaseOrderItem::query()->create([
@@ -102,10 +103,10 @@ class PurchaseOrderService
         ]);
     }
 
-    public function removeItem(PurchaseOrder $po, PurchaseOrderItem $item): void
+    public function removeItem(PurchaseOrder $po, PurchaseOrderItem $item, ?User $user = null): void
     {
-        if (! $po->canEdit()) {
-            throw ValidationException::withMessages(['status' => 'Item hanya bisa dihapus saat PO masih draft.']);
+        if (! $po->canEdit($user)) {
+            throw ValidationException::withMessages(['status' => 'Anda tidak berwenang menghapus item pada PO ini di status saat ini.']);
         }
 
         $item->delete();
