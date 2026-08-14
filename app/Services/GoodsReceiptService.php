@@ -398,6 +398,7 @@ class GoodsReceiptService
                 'unit_cost' => $unitPrice,
                 'total_value' => $totalValue,
                 'item_status' => $this->itemStatus($qtyOrdered, $qtyReceived),
+                'variance_reason' => $row['variance_reason'] ?? null,
                 'expired_date' => $row['expired_date'] ?? null,
                 'batch_code' => $row['batch_code'] ?? null,
                 'notes' => $row['notes'] ?? null,

@@ -13,6 +13,7 @@
             'expired_date' => $row['expired_date'] ?? '',
             'batch_code' => $row['batch_code'] ?? '',
             'notes' => $row['notes'] ?? '',
+            'variance_reason' => $row['variance_reason'] ?? '',
         ])->all();
     } elseif ($isEdit) {
         $rows = $receipt->items->map(fn ($item) => [
@@ -24,6 +25,7 @@
             'expired_date' => optional($item->expired_date)->format('Y-m-d'),
             'batch_code' => $item->batch_code ?? '',
             'notes' => $item->notes ?? '',
+            'variance_reason' => $item->variance_reason ?? '',
         ])->values()->all();
     } else {
         $rows = [[
@@ -35,6 +37,7 @@
             'expired_date' => '',
             'batch_code' => '',
             'notes' => '',
+            'variance_reason' => '',
         ]];
     }
 
@@ -101,6 +104,7 @@
           initialPoId: @js(old('purchase_order_id', $receipt->purchase_order_id)),
           initialShipmentId: @js(old('purchase_order_shipment_id', $receipt->purchase_order_shipment_id ?? null))
       })"
+      @submit="handleSubmit($event)"
       class="space-y-4">
     @csrf
     @if(($formMethod ?? 'POST') !== 'POST')
@@ -319,7 +323,7 @@
                         </div>
                         <div class="md:col-span-2">
                             <label class="sf-label">Qty PO</label>
-                            <input type="text" inputmode="decimal" :name="`items[${index}][qty_ordered]`" x-model="row.qty_ordered" class="sf-input text-base min-h-11">
+                            <input type="text" inputmode="decimal" :name="`items[${index}][qty_ordered]`" x-model="row.qty_ordered" readonly class="sf-input text-base min-h-11 bg-gray-50 text-gray-500 cursor-not-allowed">
                         </div>
                         <div class="md:col-span-2">
                             <label class="sf-label">Qty Terima *</label>
@@ -328,6 +332,43 @@
                         <div class="md:col-span-2">
                             <label class="sf-label">Harga</label>
                             <input type="text" inputmode="decimal" :name="`items[${index}][unit_price]`" x-model="row.unit_price" class="sf-input text-base min-h-11">
+                        </div>
+                    </div>
+
+                    {{-- Status kesesuaian qty vs PO — cuma bermakna kalau ada Qty PO --}}
+                    <div x-show="parseFloat(row.qty_ordered) > 0" class="flex items-center gap-2">
+                        <template x-if="rowVariance(row) === 0">
+                            <span class="inline-flex items-center gap-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-1">
+                                ✓ Sesuai PO
+                            </span>
+                        </template>
+                        <template x-if="rowVariance(row) < 0">
+                            <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1">
+                                ⚠ Kurang <span x-text="formatQty(Math.abs(rowVariance(row)))"></span>
+                            </span>
+                        </template>
+                        <template x-if="rowVariance(row) > 0">
+                            <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1">
+                                ⚠ Lebih <span x-text="formatQty(rowVariance(row))"></span>
+                            </span>
+                        </template>
+                    </div>
+
+                    {{-- Alasan selisih — wajib diisi kalau qty terima beda dari qty PO --}}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3" x-show="rowVariance(row) !== 0">
+                        <div>
+                            <label class="sf-label">Alasan Selisih *</label>
+                            <select :name="`items[${index}][variance_reason]`" x-model="row.variance_reason"
+                                    :required="rowVariance(row) !== 0" class="sf-input text-base min-h-11">
+                                <option value="">Pilih alasan</option>
+                                @foreach(\App\Modules\Receiving\Models\GoodsReceiptItem::VARIANCE_REASONS as $code => $label)
+                                    <option value="{{ $code }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="sf-label">Catatan Tambahan</label>
+                            <input type="text" :name="`items[${index}][notes]`" x-model="row.notes" class="sf-input text-base min-h-11" placeholder="Opsional">
                         </div>
                     </div>
 
@@ -340,7 +381,8 @@
                             <label class="sf-label">Batch Code</label>
                             <input type="text" :name="`items[${index}][batch_code]`" x-model="row.batch_code" class="sf-input text-base min-h-11">
                         </div>
-                        <div>
+                        {{-- Catatan Item dobel-fungsi sebagai catatan expiry kalau tidak ada selisih --}}
+                        <div x-show="rowVariance(row) === 0">
                             <label class="sf-label">Catatan Item</label>
                             <input type="text" :name="`items[${index}][notes]`" x-model="row.notes" class="sf-input text-base min-h-11">
                         </div>
@@ -487,12 +529,14 @@ function goodsReceiptForm(config) {
         expired_date: '',
         batch_code: '',
         notes: '',
+        variance_reason: '',
         track_expiry: false,
     });
 
     const rows = (config.rows || []).map((row) => ({
         key: `${Date.now()}-${Math.random()}`,
         track_expiry: false,
+        variance_reason: '',
         ...row,
     }));
 
@@ -509,6 +553,7 @@ function goodsReceiptForm(config) {
         rows,
         selectedShipmentId: initialShipmentId,
         currentPoShipments: initialPo ? (initialPo.shipments || []) : [],
+        currentPoItems: initialPo ? (initialPo.items || []) : [],
 
         addRow() {
             this.rows.push(blankRow());
@@ -520,10 +565,11 @@ function goodsReceiptForm(config) {
         loadPoItems(poId, poList, hiddenInput) {
             if (hiddenInput) hiddenInput.value = poId || '';
             this.selectedShipmentId = '';
-            if (!poId) { this.currentPoShipments = []; return; }
+            if (!poId) { this.currentPoShipments = []; this.currentPoItems = []; return; }
             const po = poList.find(p => String(p.id) === String(poId));
-            if (!po) { this.currentPoShipments = []; return; }
+            if (!po) { this.currentPoShipments = []; this.currentPoItems = []; return; }
             this.currentPoShipments = po.shipments || [];
+            this.currentPoItems = po.items || [];
             const pending = this.currentPoShipments.filter(s => !s.is_confirmed);
             if (pending.length === 1) {
                 this.selectedShipmentId = String(pending[0].id);
@@ -542,6 +588,7 @@ function goodsReceiptForm(config) {
                     expired_date: '',
                     batch_code: '',
                     notes: '',
+                    variance_reason: '',
                     track_expiry: item ? item.track_expiry === true : false,
                 };
             });
@@ -593,16 +640,21 @@ function goodsReceiptForm(config) {
                 const current = parseFloat(existingRow.qty_received) || 0;
                 existingRow.qty_received = String(current + 1);
             } else {
+                // Kalau item ini bagian dari PO yang sedang dipilih, isi Qty PO
+                // dari situ supaya indikator sesuai/selisih bekerja walau item
+                // ditambah lewat scan (bukan dipilih manual dari daftar PO).
+                const poItem = this.currentPoItems.find(pi => Number(pi.item_id) === Number(item.id));
                 this.rows.push({
                     key: `${Date.now()}-${Math.random()}`,
                     item_id: String(item.id),
                     unit_id: String(item.purchase_unit_id || item.inventory_unit_id || item.base_unit_id || ''),
-                    qty_ordered: '0',
+                    qty_ordered: poItem ? String(poItem.qty_ordered) : '0',
                     qty_received: '1',
                     unit_price: '0',
                     expired_date: '',
                     batch_code: '',
                     notes: '',
+                    variance_reason: '',
                     track_expiry: item.track_expiry === true,
                 });
             }
@@ -645,12 +697,36 @@ function goodsReceiptForm(config) {
         grandTotal() {
             return this.rows.reduce((sum, row) => sum + this.rowTotal(row), 0);
         },
+        // Selisih qty terima vs qty PO. 0 kalau tidak ada Qty PO (bukan konteks PO,
+        // mis. Supplier Luar / item ditambah manual tanpa terhubung PO).
+        rowVariance(row) {
+            const ordered = this.normalize(row.qty_ordered);
+            if (ordered <= 0) return 0;
+            return this.normalize(row.qty_received) - ordered;
+        },
+        formatQty(value) {
+            return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(value || 0);
+        },
         formatCurrency(value) {
             return new Intl.NumberFormat('id-ID', {
                 style: 'currency',
                 currency: 'IDR',
                 maximumFractionDigits: 0,
             }).format(value || 0);
+        },
+        // Jaga-jaga di sisi klien — validasi sebenarnya tetap di server
+        // (GoodsReceiptController::validated()). Ini cuma supaya user langsung
+        // tahu baris mana yang belum diisi alasannya, tanpa nunggu round-trip.
+        handleSubmit(event) {
+            const unresolved = this.rows
+                .map((row, index) => ({ row, index }))
+                .filter(({ row }) => this.rowVariance(row) !== 0 && !row.variance_reason);
+
+            if (unresolved.length > 0) {
+                event.preventDefault();
+                const lines = unresolved.map(({ index }) => `Baris ${index + 1}`).join(', ');
+                alert(`Isi dulu "Alasan Selisih" untuk item yang qty-nya beda dari PO: ${lines}.`);
+            }
         },
         init() {
             this.rows.forEach((row) => {

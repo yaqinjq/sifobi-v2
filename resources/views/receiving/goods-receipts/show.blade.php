@@ -110,6 +110,14 @@
                         <p class="text-gray-500">Total</p>
                         <p class="text-right font-semibold">Rp {{ number_format((float) $item->total_value, 0, ',', '.') }}</p>
                     </div>
+                    @if($item->variance_reason)
+                        <div class="mt-2 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800">
+                            <span class="font-semibold">{{ \App\Modules\Receiving\Models\GoodsReceiptItem::VARIANCE_REASONS[$item->variance_reason] ?? $item->variance_reason }}</span>
+                            @if($item->notes)
+                                <span class="block mt-0.5 text-amber-700">{{ $item->notes }}</span>
+                            @endif
+                        </div>
+                    @endif
                 </div>
             @endforeach
         </div>
@@ -142,7 +150,14 @@
                             <td class="px-4 py-3">{{ $item->unit?->abbreviation }}</td>
                             <td class="px-4 py-3 text-right">{{ $item->qty_ordered }}</td>
                             <td class="px-4 py-3 text-right font-semibold">{{ $item->qty_received }}</td>
-                            <td class="px-4 py-3 text-right font-semibold {{ $diffClass }}">{{ number_format($diff, 4, ',', '.') }}</td>
+                            <td class="px-4 py-3 text-right font-semibold {{ $diffClass }}">
+                                {{ number_format($diff, 4, ',', '.') }}
+                                @if($item->variance_reason)
+                                    <span class="block text-xs font-normal text-amber-700 mt-0.5">
+                                        {{ \App\Modules\Receiving\Models\GoodsReceiptItem::VARIANCE_REASONS[$item->variance_reason] ?? $item->variance_reason }}
+                                    </span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-right">Rp {{ number_format((float) $item->unit_price, 0, ',', '.') }}</td>
                             <td class="px-4 py-3 text-right font-semibold">Rp {{ number_format((float) $item->total_value, 0, ',', '.') }}</td>
                             <td class="px-4 py-3">{{ optional($item->expired_date)->format('d M Y') ?: '-' }}</td>

@@ -63,6 +63,18 @@
                     <li>Popup konfirmasi saat membuat PO dengan banyak item kini punya scroll sendiri di dalam popup — tombol "Kirim PO" tidak lagi terdorong ke luar layar</li>
                 </ul>
             </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Penerimaan Barang — Konfirmasi Selisih Qty Real-time</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Saat qty terima beda dari qty PO (baik diketik manual maupun hasil scan barcode), sistem langsung menandai "✓ Sesuai" atau "⚠ Selisih" per item — tidak perlu tunggu submit</li>
+                    <li>Kalau ada selisih, wajib pilih alasan (Vendor kirim kurang/lebih, Barang rusak, Salah item, Lainnya) + catatan tambahan sebelum bisa submit</li>
+                    <li>Scan barcode item yang ada di PO yang dipilih kini otomatis mengambil qty seharusnya dari PO, jadi selisihnya langsung ketahuan</li>
+                    <li>Field "Qty PO" sekarang tidak bisa diedit manual — cuma menampilkan qty asli dari PO sebagai pembanding</li>
+                    <li>Alasan selisih ditampilkan di halaman detail GR supaya PIC/approver tahu alasan kelebihan/kekurangan sebelum approve</li>
+                    <li>Berlaku untuk penerimaan yang terhubung PO (WIP/OCIA/Drygood); Supplier Luar tetap seperti sebelumnya</li>
+                </ul>
+            </div>
         </div>
     </x-sf.card>
 

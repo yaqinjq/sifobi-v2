@@ -27,10 +27,20 @@ class GoodsReceiptItem extends Model
         'unit_cost',
         'total_value',
         'item_status',
+        'variance_reason',
         'expired_date',
         'batch_code',
         'mutation_id',
         'notes',
+    ];
+
+    /** Kode alasan selisih qty_ordered vs qty_received, dipakai validasi & dropdown form. */
+    public const VARIANCE_REASONS = [
+        'KURANG_VENDOR' => 'Vendor kirim kurang dari PO',
+        'LEBIH_VENDOR' => 'Vendor kirim lebih dari PO',
+        'RUSAK' => 'Barang rusak/tidak layak',
+        'SALAH_ITEM' => 'Item tidak sesuai/salah kirim',
+        'LAINNYA' => 'Lainnya (jelaskan di catatan)',
     ];
 
     /**

@@ -8,6 +8,7 @@ use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\Unit;
 use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Receiving\Models\GoodsReceipt;
+use App\Modules\Receiving\Models\GoodsReceiptItem;
 use App\Modules\Receiving\Models\Supplier;
 use App\Services\GoodsReceiptService;
 use App\Support\Decimal;
@@ -379,14 +380,28 @@ class GoodsReceiptController extends Controller
             'items.*.expired_date' => ['nullable', 'date'],
             'items.*.batch_code' => ['nullable', 'string', 'max:100'],
             'items.*.notes' => ['nullable', 'string', 'max:1000'],
+            'items.*.variance_reason' => ['nullable', Rule::in(array_keys(GoodsReceiptItem::VARIANCE_REASONS))],
         ]);
 
+        $hasPurchaseOrder = ! empty($validated['purchase_order_id']);
+
         foreach ($validated['items'] as $index => $item) {
+            $qtyOrdered = Decimal::toFixed($item['qty_ordered'] ?? 0, 6);
             $qtyReceived = Decimal::toFixed($item['qty_received'] ?? 0, 6);
 
             if (bccomp($qtyReceived, '0.000000', 6) <= 0) {
                 throw ValidationException::withMessages([
                     "items.{$index}.qty_received" => 'Qty terima harus lebih dari 0.',
+                ]);
+            }
+
+            $hasVariance = $hasPurchaseOrder
+                && bccomp($qtyOrdered, '0.000000', 6) > 0
+                && bccomp($qtyReceived, $qtyOrdered, 6) !== 0;
+
+            if ($hasVariance && empty($item['variance_reason'])) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.variance_reason" => 'Wajib isi alasan selisih untuk item ini.',
                 ]);
             }
         }

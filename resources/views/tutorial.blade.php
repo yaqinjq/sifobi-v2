@@ -332,6 +332,9 @@
                 <div class="mt-2 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-700">
                     ⚠ Pastikan field <strong>Barcode</strong> sudah diisi di Master Data → Item sebelum menggunakan fitur ini.
                 </div>
+                <div class="mt-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-800">
+                    <strong>Konfirmasi otomatis:</strong> kalau item yang di-scan ada di PO yang sedang dipilih, sistem langsung bandingkan qty hasil scan dengan qty PO. Muncul badge <strong>"✓ Sesuai"</strong> kalau pas, atau <strong>"⚠ Kurang/Lebih"</strong> kalau beda. Kalau beda, wajib pilih alasan (Vendor kirim kurang/lebih, Barang rusak, Salah item, Lainnya) sebelum bisa submit — field "Qty PO" sendiri tidak bisa diubah manual, jadi pastikan qty yang benar-benar diterima diisi di "Qty Terima".
+                </div>
             </div>
 
             <div class="border-t border-gray-100 pt-3">
