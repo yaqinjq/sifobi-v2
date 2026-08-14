@@ -325,14 +325,14 @@
          @keydown.escape.window="showConfirm = false"
          x-cloak>
 
-        <div class="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden"
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[90vh] max-h-[90dvh] flex flex-col overflow-hidden"
              x-transition:enter="transition ease-out duration-250"
              x-transition:enter-start="opacity-0 translate-y-8"
              x-transition:enter-end="opacity-100 translate-y-0"
              @click.stop>
 
             {{-- Header --}}
-            <div class="bg-primary-700 px-6 py-5 flex items-center gap-4">
+            <div class="bg-primary-700 px-6 py-5 flex items-center gap-4 shrink-0">
                 <div class="w-11 h-11 rounded-2xl bg-white/15 flex items-center justify-center shrink-0">
                     <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
@@ -344,7 +344,8 @@
                 </div>
             </div>
 
-            <div class="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
+            {{-- Body — satu-satunya bagian yang scroll, tombol di footer selalu terlihat --}}
+            <div class="px-6 py-5 space-y-4 overflow-y-auto flex-1 min-h-0">
 
                 {{-- Info Ringkas --}}
                 <div class="rounded-2xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
@@ -425,7 +426,7 @@
             </div>
 
             {{-- Action Buttons --}}
-            <div class="px-6 pb-6 pt-2 flex gap-3">
+            <div class="px-6 pb-6 pt-2 flex gap-3 shrink-0 border-t border-gray-100">
                 <button type="button"
                         @click="showConfirm = false"
                         :disabled="submitting"
