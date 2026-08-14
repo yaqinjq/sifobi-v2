@@ -24,8 +24,7 @@ class DashboardController extends Controller
             ? DB::table($table)->where('tenant_id', $tenantId)
             : DB::table($table);
 
-        $balanceTotals = DB::table('stock_balances')
-            ->where('tenant_id', $tenantId)
+        $balanceTotals = $tenantTable('stock_balances')
             ->select(['tenant_id', 'outlet_id', 'item_id'])
             ->selectRaw('SUM(qty_on_hand) as qty_on_hand')
             ->groupBy('tenant_id', 'outlet_id', 'item_id');

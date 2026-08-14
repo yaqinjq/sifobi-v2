@@ -8,12 +8,54 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.6 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.6 &mdash; Agustus 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">🔒 Perbaikan Keamanan — Opname Lintas Departemen</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Staff kini hanya bisa melihat dan mengisi opname untuk departemennya sendiri (sebelumnya, staff dengan role tertentu bisa melihat dan menimpa hasil hitung departemen lain)</li>
+                    <li>Item yang dipakai lebih dari satu departemen (mis. Tepung Terigu dipakai Kitchen &amp; Pastry) sekarang otomatis muncul di opname setiap departemen yang memakainya</li>
+                    <li>PIC Outlet / Manager Area / Admin tetap bisa melihat opname semua departemen seperti biasa</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Menu Mobile — Penerimaan Barang &amp; Gudang</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Menu "Penerimaan Barang" di mobile (sheet "Lainnya") sekarang muncul untuk semua role yang punya akses, tidak hanya yang bisa membuat PO</li>
+                    <li>Menu baru "Gudang" (cek saldo stok) ditambahkan ke mobile — sebelumnya hanya tersedia di tampilan desktop</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Tampilan Halaman Stok (Mobile)</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Panel "Analisis Stok &amp; Saran Order" di halaman detail stok tidak lagi terpotong/tumpang tindih di layar HP sempit</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Sinkronisasi Outlet — Integrasi Wipro</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Outlet SIFOBI kini bisa disinkronkan otomatis ke sistem Wipro, mengurangi kegagalan kirim PO Central Kitchen akibat kode outlet tidak dikenali</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.5 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.5 &mdash; Agustus 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

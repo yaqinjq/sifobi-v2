@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Operations;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\ItemCategory;
 use App\Modules\Operations\Models\OpnameItem;
@@ -104,19 +105,16 @@ class OpnameController extends Controller
             ? $request->string('per_page')->toString()
             : '20';
 
-        $roleNames = $request->user()->getRoleNames();
-        $roleFilter = null;
-
-        if ($roleNames->contains('STAFF_BAR')) {
-            $roleFilter = 'BAR';
-        } elseif ($roleNames->contains('STAFF_KITCHEN')) {
-            $roleFilter = 'KITCHEN';
-        } elseif ($roleNames->contains('STAFF_GUDANG')) {
-            $roleFilter = 'GUDANG';
-        }
+        // null = tidak dibatasi departemen (mis. PIC_OUTLET/MANAGER_AREA/ADMIN
+        // yang memang harus lihat semua departemen outlet).
+        $userDepartmentId = $request->user()->department_id;
+        $departmentLabel = $userDepartmentId ? Department::find($userDepartmentId)?->name : null;
 
         $query = OpnameItem::query()
             ->where('opname_session_id', $session->id)
+            ->when($userDepartmentId, fn ($q) => $q->where(
+                fn ($dq) => $dq->where('department_id', $userDepartmentId)->orWhereNull('department_id')
+            ))
             ->with([
                 'item.inventoryUnit',
                 'item.baseUnit',
@@ -127,19 +125,6 @@ class OpnameController extends Controller
                 'department',
                 'unit',
             ]);
-
-        if ($roleFilter !== null) {
-            $query->where(function ($q) use ($roleFilter): void {
-                $q->whereHas('item.primaryDepartment', fn ($dq) => $dq->where('name', 'like', "%{$roleFilter}%"))
-                    ->orWhereHas('item.departments', fn ($dq) => $dq->where('name', 'like', "%{$roleFilter}%"))
-                    ->orWhereHas('department', fn ($dq) => $dq->where('name', 'like', "%{$roleFilter}%"))
-                    ->orWhere(function ($fallbackQuery): void {
-                        $fallbackQuery
-                            ->whereNull('department_id')
-                            ->whereHas('item', fn ($itemQuery) => $itemQuery->whereNull('primary_department_id'));
-                    });
-            });
-        }
 
         if ($search !== '') {
             $query->whereHas('item', fn ($q) => $q
@@ -160,12 +145,18 @@ class OpnameController extends Controller
             $items = $paginator->getCollection();
         }
 
+        $departmentScope = fn ($q) => $q->where(
+            fn ($dq) => $dq->where('department_id', $userDepartmentId)->orWhereNull('department_id')
+        );
+
         $total = OpnameItem::query()
             ->where('opname_session_id', $session->id)
+            ->when($userDepartmentId, $departmentScope)
             ->count();
         $counted = OpnameItem::query()
             ->where('opname_session_id', $session->id)
             ->where('is_counted', true)
+            ->when($userDepartmentId, $departmentScope)
             ->count();
 
         // Batch-load current stock balances — sum semua target (DAILY + WAREHOUSE)
@@ -248,7 +239,7 @@ class OpnameController extends Controller
             'categoryId' => $categoryId,
             'perPage' => $perPage,
             'categories' => $categories,
-            'roleFilter' => $roleFilter,
+            'roleFilter' => $departmentLabel,
             'counted' => $counted,
             'total' => $total,
             'sharedItemIds' => $sharedItemIds,
@@ -258,6 +249,15 @@ class OpnameController extends Controller
     public function updateItem(Request $request, OpnameSession $session, OpnameItem $item): JsonResponse
     {
         abort_unless((int) $item->opname_session_id === (int) $session->id, 404);
+
+        $userDepartmentId = $request->user()->department_id;
+        abort_unless(
+            is_null($userDepartmentId)
+                || is_null($item->department_id)
+                || (int) $item->department_id === (int) $userDepartmentId,
+            403,
+            'Anda tidak berwenang mengubah item departemen lain.'
+        );
 
         $validated = $request->validate([
             'qty_whole' => ['nullable', Decimal::validationRule(6)],

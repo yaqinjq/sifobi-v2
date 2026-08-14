@@ -83,7 +83,7 @@
                 <span class="text-sm font-semibold">Rekomendasi berdasarkan pola pemakaian dan event</span>
             </div>
 
-            <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div class="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-3 md:grid-cols-4">
                 <div class="rounded-xl bg-gray-50 p-3 text-center">
                     <p class="mb-1 text-xs text-gray-500">Rata-rata/hari</p>
                     <p class="text-lg font-bold text-gray-900">

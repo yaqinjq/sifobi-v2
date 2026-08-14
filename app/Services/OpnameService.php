@@ -66,6 +66,10 @@ class OpnameService
                 $systemQty = $this->systemQty($tenantId, $outletId, (int) $item->id);
                 $departments = $item->relationLoaded('departments') ? $item->departments : collect();
 
+                if ($item->primaryDepartment) {
+                    $departments = $departments->push($item->primaryDepartment)->unique('id');
+                }
+
                 // Item dipakai lebih dari satu departemen — buat baris per departemen
                 if ($departments->count() > 1) {
                     foreach ($departments as $dept) {

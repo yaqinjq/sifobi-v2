@@ -27,6 +27,7 @@
                 <li><a href="#opname" class="hover:underline">Opname Stok Harian</a></li>
                 <li><a href="#spoil" class="hover:underline">Pencatatan Spoil & Waste</a></li>
                 <li><a href="#laporan" class="hover:underline">Laporan & Monitoring</a></li>
+                <li><a href="#gudang" class="hover:underline">Cek Saldo Stok (Gudang)</a></li>
                 <li><a href="#roles" class="hover:underline">Roles & Hak Akses</a></li>
                 <li><a href="#wipro" class="hover:underline">Integrasi Wipro (Central Kitchen)</a></li>
                 <li><a href="#troubleshoot" class="hover:underline">Troubleshooting Umum</a></li>
@@ -422,11 +423,32 @@
         </div>
     </x-sf.card>
 
-    {{-- 8. ROLES --}}
-    <x-sf.card id="roles">
+    {{-- 8. GUDANG --}}
+    <x-sf.card id="gudang">
         <x-slot:header>
             <div class="flex items-center gap-3">
                 <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold text-sm shrink-0">8</span>
+                <h3 class="font-heading font-bold text-gray-900">Cek Saldo Stok (Gudang)</h3>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm text-gray-700">
+            <p class="text-xs text-gray-500">Menu <strong>Gudang</strong> menampilkan saldo stok terkini per outlet — termasuk stok harian (OUTLET_DAILY) dan stok gudang (OUTLET_WAREHOUSE) secara terpisah.</p>
+            <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
+                <li>Desktop: menu <strong>Gudang</strong> di sidebar. Mobile: buka <strong>Lainnya → Gudang</strong> di bottom navigation</li>
+                <li>Pilih outlet (jika akses lebih dari satu outlet) dan cari item lewat kolom pencarian</li>
+                <li>Klik <strong>"Riwayat"</strong> pada salah satu item untuk lihat detail: saldo per target stok, riwayat mutasi, dan rekomendasi order (rata-rata pemakaian harian &amp; estimasi sisa hari)</li>
+            </ol>
+            <div class="rounded-xl bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-800">
+                Butuh permission <code class="bg-white px-1 rounded">view_stock_balance</code>. Rekomendasi order hanya muncul untuk item yang sudah punya data pola pemakaian.
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- 9. ROLES --}}
+    <x-sf.card id="roles">
+        <x-slot:header>
+            <div class="flex items-center gap-3">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold text-sm shrink-0">9</span>
                 <h3 class="font-heading font-bold text-gray-900">Roles & Hak Akses</h3>
             </div>
         </x-slot:header>
@@ -491,11 +513,11 @@
         </div>
     </x-sf.card>
 
-    {{-- 9. WIPRO --}}
+    {{-- 10. WIPRO --}}
     <x-sf.card id="wipro">
         <x-slot:header>
             <div class="flex items-center gap-3">
-                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold text-sm shrink-0">9</span>
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold text-sm shrink-0">10</span>
                 <h3 class="font-heading font-bold text-gray-900">Integrasi Wipro (Central Kitchen)</h3>
             </div>
         </x-slot:header>
@@ -527,10 +549,20 @@
                     <li>Cek log queue worker: <code class="bg-gray-100 px-1 rounded">php artisan queue:work</code></li>
                 </ul>
             </div>
+
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2">Error "Outlet not found or inactive"</p>
+                <p class="text-xs text-gray-500 mb-2">Terjadi kalau kode outlet SIFOBI belum dikenali sistem Wipro.</p>
+                <ul class="space-y-1.5 text-xs text-gray-600 list-disc list-inside">
+                    <li>SIFOBI kini otomatis menyediakan daftar outlet lewat <code class="bg-gray-100 px-1 rounded">GET /api/outlets</code> yang bisa ditarik Wipro (menu Integrasi &rarr; FBI Integration &rarr; "Sync Outlets" di sisi Wipro)</li>
+                    <li>Outlet baru/berganti nama sebaiknya di-sync ulang dari sisi Wipro setelah dibuat/diubah di SIFOBI</li>
+                    <li>Kalau nama outlet SIFOBI dan Wipro terlalu berbeda untuk dicocokkan otomatis, mapping perlu diisi manual di halaman Outlet Mapping milik Wipro</li>
+                </ul>
+            </div>
         </div>
     </x-sf.card>
 
-    {{-- 10. TROUBLESHOOT --}}
+    {{-- 11. TROUBLESHOOT --}}
     <x-sf.card id="troubleshoot">
         <x-slot:header>
             <div class="flex items-center gap-3">
@@ -581,7 +613,7 @@
     </x-sf.card>
 
     <div class="text-center text-xs text-gray-400 pb-4">
-        SIFOBI v2.5 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
+        SIFOBI v2.6 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
         &middot; <a href="{{ route('changelog') }}" class="text-primary-600 hover:underline">Lihat Changelog</a>
     </div>
 

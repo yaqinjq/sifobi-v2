@@ -48,10 +48,15 @@
                 </div>
             </a>
 
-            @php $canPo = auth()->user()->can('create_po'); @endphp
-            @if($canPo)
+            @php
+                $canGoodsReceipt = auth()->user()->can('view_goods_receipt');
+                $canStockBalance = auth()->user()->can('view_stock_balance');
+                $canReports = auth()->user()->can('view_reports');
+            @endphp
+            @if($canGoodsReceipt || $canStockBalance || $canReports)
             <div class="border-t border-gray-100 mt-2 pt-2">
                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Operasi</p>
+                @can('view_goods_receipt')
                 <a href="{{ route('receiving.goods-receipts.index') }}"
                    class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors">
                     <div class="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
@@ -64,6 +69,21 @@
                         <p class="text-xs text-gray-400">GR & scan QR/barcode</p>
                     </div>
                 </a>
+                @endcan
+                @can('view_stock_balance')
+                <a href="{{ route('stock.balance.index') }}"
+                   class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7l9-4 9 4M3 7l9 4m-9-4v10l9 4m0-10l9-4m-9 4v10m9-14v10l-9 4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-gray-800">Gudang</p>
+                        <p class="text-xs text-gray-400">Saldo stok per outlet & gudang</p>
+                    </div>
+                </a>
+                @endcan
                 @can('view_reports')
                 <a href="{{ route('laporan.stok-menipis') }}"
                    class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors">
