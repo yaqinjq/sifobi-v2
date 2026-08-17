@@ -8,12 +8,67 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.7 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.7 &mdash; Agustus 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Modul Baru — Menu &amp; Resep (R&amp;D) + HPP</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>1 menu bisa punya banyak <em>versi</em> resep dari waktu ke waktu — tiap versi tercatat siapa yang buat, tanggal uji coba, siapa yang menyaksikan, dan siapa yang food panel (bisa pilih user sistem sekaligus tulis nama tamu/pihak luar)</li>
+                    <li>Alur persetujuan resep: Draft → Diajukan → Disetujui/Ditolak, lengkap dengan riwayat siapa approve/reject dan kapan</li>
+                    <li>Resep yang disetujui bisa diterapkan ke outlet tertentu — 1 outlet cuma pakai 1 versi resep aktif per menu di satu waktu</li>
+                    <li>HPP dihitung otomatis dari bahan baku (harga diinput manual) + biaya produksi/overhead, dibagi volume produksi</li>
+                    <li>Laporan HPP baru untuk finance/manajemen — breakdown biaya per resep yang sudah disetujui</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Kalkulator HPP</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Perhitungan HPP di form resep sekarang <em>real-time</em> — tiap ubah bahan/qty/harga langsung kelihatan hasilnya tanpa perlu submit dulu</li>
+                    <li>Menu baru <strong>Kalkulator HPP</strong> yang berdiri sendiri (terpisah dari Menu &amp; Resep) — buat coba-coba hitung HPP dulu sebelum resmi bikin resep, lengkap dengan riwayat perhitungan tersimpan</li>
+                    <li>Field "Disaksikan Oleh" dan "Food Panel Oleh" di form resep sekarang dropdown dengan pencarian langsung (live search) + centang untuk pilih, bukan daftar panjang yang harus di-scroll</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Action Hapus — Menu &amp; Resep</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Menu tanpa riwayat resep bisa dihapus permanen; menu yang sudah punya resep dinonaktifkan saja (riwayat R&amp;D dan approval tetap aman)</li>
+                    <li>Draft resep yang belum diajukan bisa dihapus — resep yang sudah diajukan/disetujui/ditolak tidak bisa dihapus (tetap jadi jejak audit)</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Export Excel dengan Rumus Hidup</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Export Laporan Mutasi Stok, Penerimaan Barang, Spoil &amp; Waste, Stok Menipis, Ringkasan Stok, dan HPP sekarang pakai rumus Excel asli (bukan angka statis) — tim finance bisa telusuri/ubah asumsi langsung di Excel</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Log Aktivitas</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Halaman baru di Pengaturan: <strong>Log Aktivitas</strong> — riwayat siapa mengubah data apa dan kapan, mencakup data master (Item, Supplier, Brand, Outlet, dll), dokumen transaksi (PO, Penerimaan Barang, Opname, Spoil, Transfer Stok, Resep), login/logout, dan perubahan role/permission user</li>
+                    <li>Bisa difilter per user, per modul, dan rentang tanggal; tiap entri bisa dibuka untuk lihat detail sebelum/sesudah per field yang berubah</li>
+                    <li>Hanya bisa diakses role level manajemen ke atas (Admin, Manager Area, Finance)</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.6 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.6 &mdash; Agustus 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
