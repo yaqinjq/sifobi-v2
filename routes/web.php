@@ -500,6 +500,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/menus/create', [MenuController::class, 'create'])->name('menus.create');
             Route::post('/menus', [MenuController::class, 'store'])->name('menus.store');
             Route::get('/menus/{menu}', [MenuController::class, 'show'])->name('menus.show');
+            Route::delete('/menus/{menu}', [MenuController::class, 'destroy'])->name('menus.destroy');
 
             Route::get('/menus/{menu}/recipes/create', [RecipeController::class, 'create'])->name('recipes.create');
             Route::post('/menus/{menu}/recipes', [RecipeController::class, 'store'])->name('recipes.store');
@@ -507,6 +508,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/recipes/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
             Route::get('/recipes/{recipe}/edit', [RecipeController::class, 'edit'])->name('recipes.edit');
             Route::put('/recipes/{recipe}', [RecipeController::class, 'update'])->name('recipes.update');
+            Route::delete('/recipes/{recipe}', [RecipeController::class, 'destroy'])->name('recipes.destroy');
             Route::post('/recipes/{recipe}/submit', [RecipeController::class, 'submit'])->name('recipes.submit');
 
             Route::post('/recipes/{recipe}/approve', [RecipeController::class, 'approve'])

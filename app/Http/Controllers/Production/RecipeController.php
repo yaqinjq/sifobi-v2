@@ -116,6 +116,22 @@ class RecipeController extends Controller
             ->with('success', 'Draft resep berhasil diperbarui.');
     }
 
+    public function destroy(Request $request, Recipe $recipe): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+
+        abort_unless((int) $recipe->tenant_id === $tenantId, 403);
+        abort_unless($recipe->canDelete(), 403);
+
+        $menu = $recipe->menu;
+
+        $recipe->delete();
+
+        return redirect()
+            ->route('production.menus.show', $menu)
+            ->with('success', 'Draft resep berhasil dihapus.');
+    }
+
     public function submit(Request $request, Recipe $recipe): RedirectResponse
     {
         $tenantId = $this->tenantId($request);

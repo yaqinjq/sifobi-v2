@@ -110,6 +110,11 @@ class Recipe extends Model
         return $this->status === self::STATUS_SUBMITTED;
     }
 
+    public function canDelete(): bool
+    {
+        return $this->status === self::STATUS_DRAFT;
+    }
+
     /**
      * Breakdown HPP: per-bahan, total bahan, total biaya lain, total, dan
      * HPP per unit (total / volume_production). Butuh relasi `ingredients`

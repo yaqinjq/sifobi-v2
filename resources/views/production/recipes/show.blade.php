@@ -152,6 +152,15 @@
             </form>
         @endif
 
+        @if($recipe->canDelete())
+            <form method="POST" action="{{ route('production.recipes.destroy', $recipe) }}"
+                  onsubmit="return confirm('Hapus draft resep versi {{ $recipe->version_number }} ini?')">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="sf-btn-secondary w-full min-h-12 text-red-600">Hapus Draft</button>
+            </form>
+        @endif
+
         @can('approve_recipes')
             @if($recipe->canApprove())
                 <button type="button" @click="approveModal = true" class="sf-btn-primary w-full min-h-12">Setujui & Terapkan ke Outlet</button>

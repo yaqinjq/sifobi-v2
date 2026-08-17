@@ -74,6 +74,27 @@ class MenuController extends Controller
         return view('production.menus.show', compact('menu'));
     }
 
+    public function destroy(Request $request, Menu $menu): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+
+        abort_unless((int) $menu->tenant_id === $tenantId, 403);
+
+        if ($menu->canHardDelete()) {
+            $menu->delete();
+
+            return redirect()
+                ->route('production.menus.index')
+                ->with('success', 'Menu berhasil dihapus.');
+        }
+
+        $menu->update(['is_active' => false]);
+
+        return redirect()
+            ->route('production.menus.index')
+            ->with('success', 'Menu dinonaktifkan (masih punya riwayat resep, tidak bisa dihapus permanen).');
+    }
+
     private function tenantId(Request $request): int
     {
         $tenantId = $request->user()?->tenant_id;

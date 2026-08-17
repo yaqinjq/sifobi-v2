@@ -40,6 +40,11 @@ class Menu extends Model
         return $this->recipes()->where('status', Recipe::STATUS_APPROVED);
     }
 
+    public function canHardDelete(): bool
+    {
+        return $this->recipes()->doesntExist();
+    }
+
     protected static function booted(): void
     {
         static::addGlobalScope(new TenantScope);
