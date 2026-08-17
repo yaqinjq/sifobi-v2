@@ -47,7 +47,16 @@ class AppSetting extends Model
 
     public static function current(): self
     {
-        $tenantId = auth()->user()?->tenant_id ?? 1;
+        return static::forTenant((int) (auth()->user()?->tenant_id ?? 1));
+    }
+
+    /**
+     * Sama seperti current(), tapi tidak bergantung pada auth() — dipakai
+     * dari konteks tanpa request/session (mis. queued job) yang perlu
+     * eksplisit tahu tenant mana, bukan menebak dari user yang sedang login.
+     */
+    public static function forTenant(int $tenantId): self
+    {
         $appName = config('app.name', 'SIFOBI');
 
         return static::query()->firstOrCreate(

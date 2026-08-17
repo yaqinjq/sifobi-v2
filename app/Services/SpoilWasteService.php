@@ -9,16 +9,20 @@ use App\Modules\Inventory\Models\UnitConversion;
 use App\Modules\Operations\Models\SpoilWaste;
 use App\Modules\Stock\Models\StockBalance;
 use App\Modules\Stock\Models\StockMutation;
+use App\Notifications\WorkflowNotification;
 use App\Support\Decimal;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class SpoilWasteService
 {
-    public function __construct(private readonly StockLedgerService $stockLedgerService)
-    {
+    public function __construct(
+        private readonly StockLedgerService $stockLedgerService,
+        private readonly NotificationRecipientResolver $recipients = new NotificationRecipientResolver(),
+    ) {
     }
 
     /**
@@ -26,7 +30,7 @@ class SpoilWasteService
      */
     public function record(array $data, int $userId): SpoilWaste
     {
-        return DB::transaction(function () use ($data, $userId): SpoilWaste {
+        $spoil = DB::transaction(function () use ($data, $userId): SpoilWaste {
             $tenantId = (int) $data['tenant_id'];
             $outletId = (int) $data['outlet_id'];
             $item = $this->itemForTenant((int) $data['item_id'], $tenantId);
@@ -105,11 +109,21 @@ class SpoilWasteService
 
             return $spoil->refresh()->load(['outlet', 'department', 'item', 'unit', 'mutation', 'duplicateReference']);
         });
+
+        $approvers = $this->recipients->usersForApproval((int) $spoil->tenant_id, 'approve_spoil_waste', $spoil->department_id, $spoil->outlet_id);
+        Notification::send($approvers, new WorkflowNotification(
+            "Spoil {$spoil->item?->name} perlu persetujuan",
+            "Catatan spoil/waste {$spoil->item?->name} di {$spoil->outlet?->name} menunggu persetujuan Anda.",
+            route('operations.spoil-wastes.show', $spoil),
+            'operations',
+        ));
+
+        return $spoil;
     }
 
     public function approve(SpoilWaste $spoil, int $userId, string $notes = ''): SpoilWaste
     {
-        return DB::transaction(function () use ($spoil, $userId, $notes): SpoilWaste {
+        $spoil = DB::transaction(function () use ($spoil, $userId, $notes): SpoilWaste {
             $spoil = SpoilWaste::query()->lockForUpdate()->findOrFail($spoil->id);
 
             if ($spoil->status !== SpoilWaste::STATUS_PENDING) {
@@ -128,11 +142,20 @@ class SpoilWasteService
 
             return $spoil->refresh();
         });
+
+        $spoil->createdBy?->notify(new WorkflowNotification(
+            "Spoil {$spoil->item?->name} disetujui",
+            "Catatan spoil/waste {$spoil->item?->name} yang Anda catat sudah disetujui.",
+            route('operations.spoil-wastes.show', $spoil),
+            'operations',
+        ));
+
+        return $spoil;
     }
 
     public function reject(SpoilWaste $spoil, int $userId, string $reason): SpoilWaste
     {
-        return DB::transaction(function () use ($spoil, $userId, $reason): SpoilWaste {
+        $spoil = DB::transaction(function () use ($spoil, $userId, $reason): SpoilWaste {
             $spoil = SpoilWaste::query()->with('mutation')->lockForUpdate()->findOrFail($spoil->id);
 
             if ($spoil->status !== SpoilWaste::STATUS_PENDING) {
@@ -161,6 +184,15 @@ class SpoilWasteService
 
             return $spoil->refresh();
         });
+
+        $spoil->createdBy?->notify(new WorkflowNotification(
+            "Spoil {$spoil->item?->name} ditolak",
+            "Catatan spoil/waste {$spoil->item?->name} yang Anda catat ditolak. Alasan: {$reason}",
+            route('operations.spoil-wastes.show', $spoil),
+            'operations',
+        ));
+
+        return $spoil;
     }
 
     /**

@@ -1,3 +1,4 @@
+@php $mobileUnreadNotif = auth()->user()->unreadNotifications()->count(); @endphp
 <nav class="fixed inset-x-0 bottom-0 z-40 bg-white border-t border-gray-100 lg:hidden"
      style="padding-bottom: env(safe-area-inset-bottom); box-shadow: var(--shadow-bottom-nav);"
      x-data="{ moreOpen: false }">
@@ -22,7 +23,25 @@
          @click.stop>
         <div class="px-4 pt-3 pb-2">
             <div class="w-10 h-1 rounded-full bg-gray-200 mx-auto mb-4"></div>
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Bantuan & Info</p>
+            <a href="{{ route('notifications.index') }}"
+               class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors">
+                <div class="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-gray-800">Notifikasi</p>
+                    <p class="text-xs text-gray-400">Persetujuan & update yang perlu Anda tahu</p>
+                </div>
+                @if($mobileUnreadNotif > 0)
+                    <span class="shrink-0 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold">
+                        {{ $mobileUnreadNotif > 99 ? '99+' : $mobileUnreadNotif }}
+                    </span>
+                @endif
+            </a>
+
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1 mt-2 border-t border-gray-100 pt-2">Bantuan & Info</p>
             <a href="{{ route('tutorial') }}"
                class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors">
                 <div class="w-9 h-9 rounded-xl bg-primary-100 flex items-center justify-center shrink-0">
@@ -202,9 +221,14 @@
                 @click="moreOpen = !moreOpen"
                 :class="moreOpen ? 'text-primary-700' : 'text-gray-400'"
                 class="relative flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors min-w-0 py-2">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
-            </svg>
+            <span class="relative">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+                @if($mobileUnreadNotif > 0)
+                    <span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                @endif
+            </span>
             <span class="text-[10px] font-medium">Lainnya</span>
             <span x-show="moreOpen" class="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-b-full bg-primary-700"></span>
         </button>

@@ -65,6 +65,27 @@ class AppServiceProvider extends ServiceProvider
             $view->with('notifBadges', $badges);
         });
 
+        View::composer('layouts.app', function ($view): void {
+            static $resolved = false;
+            static $unreadCount = 0;
+            static $recentNotifs = null;
+
+            if (! $resolved) {
+                try {
+                    $user = auth()->user();
+                    $unreadCount = $user?->unreadNotifications()->count() ?? 0;
+                    $recentNotifs = $user?->notifications()->latest()->limit(5)->get();
+                } catch (\Throwable) {
+                    $unreadCount = 0;
+                    $recentNotifs = collect();
+                }
+                $resolved = true;
+            }
+
+            $view->with('unreadNotifCount', $unreadCount);
+            $view->with('recentNotifs', $recentNotifs ?? collect());
+        });
+
         Event::listen(Login::class, [LogAuthenticationActivity::class, 'handleLogin']);
         Event::listen(Logout::class, [LogAuthenticationActivity::class, 'handleLogout']);
 

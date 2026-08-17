@@ -6,12 +6,18 @@ use App\Modules\Stock\Models\StockBalance;
 use App\Modules\Stock\Models\StockMutation;
 use App\Modules\Stock\Models\StockTransfer;
 use App\Modules\Stock\Models\StockTransferItem;
+use App\Notifications\WorkflowNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class StockTransferService
 {
+    public function __construct(
+        private readonly NotificationRecipientResolver $recipients = new NotificationRecipientResolver(),
+    ) {}
+
     public function create(array $data, int $userId): StockTransfer
     {
         return StockTransfer::query()->create(array_merge($data, [
@@ -36,7 +42,17 @@ class StockTransferService
             'submitted_at' => Carbon::now(),
         ])->save();
 
-        return $transfer->fresh();
+        $transfer = $transfer->fresh();
+
+        $approvers = $this->recipients->usersForApproval((int) $transfer->tenant_id, 'approve_stock_transfers', null, $transfer->to_outlet_id);
+        Notification::send($approvers, new WorkflowNotification(
+            "Transfer Stok #{$transfer->id} perlu persetujuan",
+            "Transfer stok dari {$transfer->fromOutlet?->name} ke {$transfer->toOutlet?->name} diajukan dan menunggu persetujuan Anda.",
+            route('operations.stock-transfers.show', $transfer),
+            'stock',
+        ));
+
+        return $transfer;
     }
 
     public function approve(StockTransfer $transfer, int $userId): StockTransfer
@@ -154,7 +170,16 @@ class StockTransferService
             ])->save();
         });
 
-        return $transfer->fresh();
+        $transfer = $transfer->fresh();
+
+        $transfer->createdBy?->notify(new WorkflowNotification(
+            "Transfer Stok #{$transfer->id} disetujui",
+            "Transfer stok yang Anda ajukan dari {$transfer->fromOutlet?->name} ke {$transfer->toOutlet?->name} sudah disetujui.",
+            route('operations.stock-transfers.show', $transfer),
+            'stock',
+        ));
+
+        return $transfer;
     }
 
     public function reject(StockTransfer $transfer, int $userId, string $reason): StockTransfer
@@ -170,7 +195,16 @@ class StockTransferService
             'rejection_reason' => $reason,
         ])->save();
 
-        return $transfer->fresh();
+        $transfer = $transfer->fresh();
+
+        $transfer->createdBy?->notify(new WorkflowNotification(
+            "Transfer Stok #{$transfer->id} ditolak",
+            "Transfer stok yang Anda ajukan ditolak. Alasan: {$reason}",
+            route('operations.stock-transfers.show', $transfer),
+            'stock',
+        ));
+
+        return $transfer;
     }
 
     public function void(StockTransfer $transfer, int $userId, string $reason): StockTransfer
@@ -203,6 +237,15 @@ class StockTransferService
             ])->save();
         });
 
-        return $transfer->fresh();
+        $transfer = $transfer->fresh();
+
+        $transfer->createdBy?->notify(new WorkflowNotification(
+            "Transfer Stok #{$transfer->id} dibatalkan",
+            "Transfer stok yang Anda ajukan dibatalkan. Alasan: {$reason}",
+            route('operations.stock-transfers.show', $transfer),
+            'stock',
+        ));
+
+        return $transfer;
     }
 }

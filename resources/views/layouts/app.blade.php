@@ -265,7 +265,7 @@
         </div>
 
         {{-- User footer --}}
-        <div class="shrink-0 border-t border-primary-700/60 p-4">
+        <div class="shrink-0 border-t border-primary-700/60 p-4" x-data="{ notifOpen: false }">
             <div class="flex items-center gap-3 mb-3">
                 <div class="h-9 w-9 rounded-full bg-primary-700 flex items-center justify-center shrink-0">
                     <span class="text-white text-sm font-semibold">
@@ -275,6 +275,37 @@
                 <div class="min-w-0 flex-1">
                     <p class="text-white text-sm font-medium truncate">{{ auth()->user()->name ?? '—' }}</p>
                     <p class="text-primary-400 text-xs truncate">{{ auth()->user()->email ?? '' }}</p>
+                </div>
+                <div class="relative shrink-0">
+                    <button type="button" @click="notifOpen = !notifOpen"
+                            class="relative flex items-center justify-center w-9 h-9 rounded-xl text-primary-300 hover:text-white hover:bg-primary-700/50 transition-colors"
+                            aria-label="Notifikasi">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                        @if($unreadNotifCount > 0)
+                            <span class="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                                {{ $unreadNotifCount > 99 ? '99+' : $unreadNotifCount }}
+                            </span>
+                        @endif
+                    </button>
+                    <div x-show="notifOpen" x-cloak @click.outside="notifOpen = false"
+                         class="absolute bottom-12 left-0 z-50 w-80 max-h-96 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                            <p class="text-sm font-semibold text-gray-900">Notifikasi</p>
+                            <a href="{{ route('notifications.index') }}" class="text-xs text-primary-600 hover:underline">Lihat Semua</a>
+                        </div>
+                        @forelse($recentNotifs as $notif)
+                            <a href="{{ route('notifications.open', $notif->id) }}"
+                               class="block px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 {{ $notif->read_at ? '' : 'bg-primary-50' }}">
+                                <p class="text-sm font-medium text-gray-900 truncate">{{ $notif->data['title'] ?? '-' }}</p>
+                                <p class="text-xs text-gray-500 truncate">{{ $notif->data['body'] ?? '' }}</p>
+                                <p class="text-[11px] text-gray-400 mt-0.5">{{ $notif->created_at->diffForHumans() }}</p>
+                            </a>
+                        @empty
+                            <div class="px-4 py-6 text-center text-sm text-gray-400">Belum ada notifikasi.</div>
+                        @endforelse
+                    </div>
                 </div>
             </div>
             <form method="POST" action="{{ route('logout') }}">

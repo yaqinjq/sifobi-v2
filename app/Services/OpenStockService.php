@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Operations\Models\OpenStock;
+use App\Notifications\WorkflowNotification;
 use App\Support\Decimal;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -177,7 +178,7 @@ class OpenStockService
      */
     public function void(OpenStock $openStock, User $user, string $reason): OpenStock
     {
-        return DB::transaction(function () use ($openStock, $user, $reason): OpenStock {
+        $openStock = DB::transaction(function () use ($openStock, $user, $reason): OpenStock {
             $openStock = OpenStock::query()
                 ->lockForUpdate()
                 ->findOrFail($openStock->id);
@@ -204,6 +205,20 @@ class OpenStockService
 
             return $openStock->refresh();
         });
+
+        // Void bisa dilakukan user lain (mis. admin), bukan cuma pembuatnya —
+        // beda dari modul lain yang berbasis approval, di sini cukup notify
+        // pembuat aslinya kalau bukan dia sendiri yang void.
+        if ((int) $openStock->created_by !== (int) $user->id) {
+            $openStock->createdBy?->notify(new WorkflowNotification(
+                "Open Stock #{$openStock->id} dibatalkan",
+                "Open Stock yang Anda posting dibatalkan oleh {$user->name}. Alasan: {$reason}",
+                route('operations.open-stocks.show', $openStock),
+                'operations',
+            ));
+        }
+
+        return $openStock;
     }
 
     /**

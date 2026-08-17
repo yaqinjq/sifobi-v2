@@ -8,16 +8,20 @@ use App\Modules\Operations\Models\OpnameItem;
 use App\Modules\Operations\Models\OpnameSession;
 use App\Modules\Stock\Models\StockBalance;
 use App\Modules\Stock\Models\StockMutation;
+use App\Notifications\WorkflowNotification;
 use App\Support\Decimal;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class OpnameService
 {
-    public function __construct(private readonly StockLedgerService $stockLedgerService)
-    {
+    public function __construct(
+        private readonly StockLedgerService $stockLedgerService,
+        private readonly NotificationRecipientResolver $recipients = new NotificationRecipientResolver(),
+    ) {
     }
 
     /**
@@ -153,7 +157,7 @@ class OpnameService
 
     public function submit(OpnameSession $session, int $userId): OpnameSession
     {
-        return DB::transaction(function () use ($session, $userId): OpnameSession {
+        $session = DB::transaction(function () use ($session, $userId): OpnameSession {
             $session = OpnameSession::query()
                 ->with('items')
                 ->lockForUpdate()
@@ -185,11 +189,21 @@ class OpnameService
 
             return $session->refresh();
         });
+
+        $approvers = $this->recipients->usersForApproval((int) $session->tenant_id, 'approve_opname', $session->department_id, $session->outlet_id);
+        Notification::send($approvers, new WorkflowNotification(
+            "Opname {$session->outlet?->name} perlu persetujuan",
+            "Opname {$session->type} outlet {$session->outlet?->name} tanggal {$session->opname_date?->format('d M Y')} diajukan dan menunggu persetujuan Anda.",
+            route('operations.opname.show', $session),
+            'operations',
+        ));
+
+        return $session;
     }
 
     public function approve(OpnameSession $session, int $userId): OpnameSession
     {
-        return DB::transaction(function () use ($session, $userId): OpnameSession {
+        $session = DB::transaction(function () use ($session, $userId): OpnameSession {
             $session = OpnameSession::query()
                 ->with(['items.item'])
                 ->lockForUpdate()
@@ -261,6 +275,15 @@ class OpnameService
 
             return $session->refresh()->load(['items.item', 'items.mutation']);
         });
+
+        $session->createdBy?->notify(new WorkflowNotification(
+            "Opname {$session->outlet?->name} disetujui",
+            "Opname {$session->type} outlet {$session->outlet?->name} tanggal {$session->opname_date?->format('d M Y')} sudah disetujui dan diposting.",
+            route('operations.opname.show', $session),
+            'operations',
+        ));
+
+        return $session;
     }
 
     public function countDailyItems(int $tenantId, int $outletId): int

@@ -8,15 +8,19 @@ use App\Modules\Inventory\Models\UnitConversion;
 use App\Modules\Receiving\Models\GoodsReceipt;
 use App\Modules\Receiving\Models\Supplier;
 use App\Modules\Stock\Models\StockMutation;
+use App\Notifications\WorkflowNotification;
 use App\Support\Decimal;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class GoodsReceiptService
 {
-    public function __construct(private readonly StockLedgerService $stockLedgerService)
-    {
+    public function __construct(
+        private readonly StockLedgerService $stockLedgerService,
+        private readonly NotificationRecipientResolver $recipients = new NotificationRecipientResolver(),
+    ) {
     }
 
     public function generateCode(int $tenantId): string
@@ -125,7 +129,7 @@ class GoodsReceiptService
 
     public function submit(GoodsReceipt $receipt, int $userId): GoodsReceipt
     {
-        return DB::transaction(function () use ($receipt, $userId): GoodsReceipt {
+        $receipt = DB::transaction(function () use ($receipt, $userId): GoodsReceipt {
             $receipt = GoodsReceipt::query()
                 ->with(['items.item'])
                 ->lockForUpdate()
@@ -147,11 +151,21 @@ class GoodsReceiptService
 
             return $receipt->refresh()->load(['outlet', 'supplier', 'items.item', 'items.unit']);
         });
+
+        $approvers = $this->recipients->usersForApproval((int) $receipt->tenant_id, 'approve_goods_receipt', null, $receipt->outlet_id);
+        Notification::send($approvers, new WorkflowNotification(
+            "Penerimaan {$receipt->code} perlu persetujuan",
+            "Penerimaan barang {$receipt->code} dari {$receipt->outlet?->name} diajukan dan menunggu persetujuan Anda.",
+            route('receiving.goods-receipts.show', $receipt),
+            'receiving',
+        ));
+
+        return $receipt;
     }
 
     public function approve(GoodsReceipt $receipt, int $userId, string $notes = ''): GoodsReceipt
     {
-        return DB::transaction(function () use ($receipt, $userId, $notes): GoodsReceipt {
+        $receipt = DB::transaction(function () use ($receipt, $userId, $notes): GoodsReceipt {
             $receipt = GoodsReceipt::query()
                 ->with(['items.item'])
                 ->lockForUpdate()
@@ -177,11 +191,20 @@ class GoodsReceiptService
 
             return $receipt->refresh()->load(['outlet', 'supplier', 'items.item', 'items.unit', 'items.mutation']);
         });
+
+        $receipt->createdBy?->notify(new WorkflowNotification(
+            "Penerimaan {$receipt->code} disetujui",
+            "Penerimaan barang {$receipt->code} yang Anda buat sudah disetujui.",
+            route('receiving.goods-receipts.show', $receipt),
+            'receiving',
+        ));
+
+        return $receipt;
     }
 
     public function reject(GoodsReceipt $receipt, int $userId, string $reason): GoodsReceipt
     {
-        return DB::transaction(function () use ($receipt, $userId, $reason): GoodsReceipt {
+        $receipt = DB::transaction(function () use ($receipt, $userId, $reason): GoodsReceipt {
             $receipt = GoodsReceipt::query()->lockForUpdate()->findOrFail($receipt->id);
 
             if ($receipt->status !== GoodsReceipt::STATUS_SUBMITTED) {
@@ -200,6 +223,15 @@ class GoodsReceiptService
 
             return $receipt->refresh()->load(['outlet', 'supplier', 'items.item', 'items.unit']);
         });
+
+        $receipt->createdBy?->notify(new WorkflowNotification(
+            "Penerimaan {$receipt->code} ditolak",
+            "Penerimaan barang {$receipt->code} yang Anda buat ditolak. Alasan: {$reason}",
+            route('receiving.goods-receipts.show', $receipt),
+            'receiving',
+        ));
+
+        return $receipt;
     }
 
     public function postToLedger(GoodsReceipt $receipt, int $userId): void

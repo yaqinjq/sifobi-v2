@@ -6,11 +6,17 @@ use App\Modules\Production\Models\Recipe;
 use App\Modules\Production\Models\RecipeApprovalEvent;
 use App\Modules\Production\Models\RecipeOtherCost;
 use App\Modules\Production\Models\RecipeOutlet;
+use App\Notifications\WorkflowNotification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class RecipeService
 {
+    public function __construct(
+        private readonly NotificationRecipientResolver $recipients = new NotificationRecipientResolver(),
+    ) {}
+
     /**
      * @param  array<string, mixed>  $data  tenant_id, menu_id, test_date, witnessed_by_user_ids,
      *                                       witnessed_by_names, food_panel_user_ids, food_panel_names,
@@ -81,7 +87,7 @@ class RecipeService
 
     public function submit(Recipe $recipe, int $userId): Recipe
     {
-        return DB::transaction(function () use ($recipe, $userId): Recipe {
+        $recipe = DB::transaction(function () use ($recipe, $userId): Recipe {
             $recipe = Recipe::query()->lockForUpdate()->findOrFail($recipe->id);
 
             if (! $recipe->canSubmit()) {
@@ -100,6 +106,17 @@ class RecipeService
 
             return $recipe->refresh();
         });
+
+        // Resep tidak terikat department/outlet — approver-nya tenant-wide.
+        $approvers = $this->recipients->usersForApproval((int) $recipe->tenant_id, 'approve_recipes');
+        Notification::send($approvers, new WorkflowNotification(
+            "Resep {$recipe->menu?->name} v{$recipe->version_number} perlu persetujuan",
+            "Resep {$recipe->menu?->name} versi {$recipe->version_number} diajukan dan menunggu persetujuan Anda.",
+            route('production.recipes.show', $recipe),
+            'production',
+        ));
+
+        return $recipe;
     }
 
     /**
@@ -107,7 +124,7 @@ class RecipeService
      */
     public function approve(Recipe $recipe, int $userId, array $outletIds): Recipe
     {
-        return DB::transaction(function () use ($recipe, $userId, $outletIds): Recipe {
+        $recipe = DB::transaction(function () use ($recipe, $userId, $outletIds): Recipe {
             $recipe = Recipe::query()->lockForUpdate()->findOrFail($recipe->id);
 
             if (! $recipe->canApprove()) {
@@ -147,11 +164,20 @@ class RecipeService
 
             return $recipe->refresh();
         });
+
+        $recipe->createdBy?->notify(new WorkflowNotification(
+            "Resep {$recipe->menu?->name} v{$recipe->version_number} disetujui",
+            "Resep {$recipe->menu?->name} versi {$recipe->version_number} yang Anda ajukan sudah disetujui.",
+            route('production.recipes.show', $recipe),
+            'production',
+        ));
+
+        return $recipe;
     }
 
     public function reject(Recipe $recipe, int $userId, string $reason): Recipe
     {
-        return DB::transaction(function () use ($recipe, $userId, $reason): Recipe {
+        $recipe = DB::transaction(function () use ($recipe, $userId, $reason): Recipe {
             $recipe = Recipe::query()->lockForUpdate()->findOrFail($recipe->id);
 
             if (! $recipe->canReject()) {
@@ -169,6 +195,15 @@ class RecipeService
 
             return $recipe->refresh();
         });
+
+        $recipe->createdBy?->notify(new WorkflowNotification(
+            "Resep {$recipe->menu?->name} v{$recipe->version_number} ditolak",
+            "Resep {$recipe->menu?->name} versi {$recipe->version_number} ditolak. Alasan: {$reason}",
+            route('production.recipes.show', $recipe),
+            'production',
+        ));
+
+        return $recipe;
     }
 
     /**

@@ -108,6 +108,10 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/tutorial', fn () => view('tutorial'))->name('tutorial');
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/{id}/open', [\App\Http\Controllers\NotificationController::class, 'open'])->name('notifications.open');
+    Route::post('/notifications/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
+
     Route::get('/admin/core', CoreHealthController::class)->middleware('permission:manage_core')->name('admin.core');
 
     Route::prefix('settings')

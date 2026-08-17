@@ -6,8 +6,10 @@ use App\Models\User;
 use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Procurement\Models\PurchaseOrderApprovalEvent;
 use App\Modules\Procurement\Models\PurchaseOrderItem;
+use App\Notifications\WorkflowNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -16,6 +18,7 @@ class PurchaseOrderService
     public function __construct(
         private readonly WiproIntegrationService $wipro = new WiproIntegrationService(),
         private readonly OciaIntegrationService $ocia = new OciaIntegrationService(),
+        private readonly NotificationRecipientResolver $recipients = new NotificationRecipientResolver(),
     ) {}
 
     /**
@@ -114,7 +117,7 @@ class PurchaseOrderService
 
     public function submit(PurchaseOrder $po, int $userId): PurchaseOrder
     {
-        return DB::transaction(function () use ($po, $userId): PurchaseOrder {
+        $po = DB::transaction(function () use ($po, $userId): PurchaseOrder {
             $po = PurchaseOrder::query()->lockForUpdate()->findOrFail($po->id);
 
             if (! $po->canSubmit()) {
@@ -137,11 +140,21 @@ class PurchaseOrderService
 
             return $po->refresh();
         });
+
+        $approvers = $this->recipients->usersForApproval((int) $po->tenant_id, 'approve_po', $po->department_id, $po->outlet_id);
+        Notification::send($approvers, new WorkflowNotification(
+            "PO {$po->po_number} perlu persetujuan",
+            "PO {$po->po_number} dari {$po->outlet?->name} diajukan dan menunggu persetujuan Anda.",
+            route('procurement.purchase-orders.show', $po),
+            'procurement',
+        ));
+
+        return $po;
     }
 
     public function approve(PurchaseOrder $po, int $userId): PurchaseOrder
     {
-        return DB::transaction(function () use ($po, $userId): PurchaseOrder {
+        $po = DB::transaction(function () use ($po, $userId): PurchaseOrder {
             $po = PurchaseOrder::query()->lockForUpdate()->findOrFail($po->id);
 
             if (! $po->canApprove()) {
@@ -160,11 +173,20 @@ class PurchaseOrderService
 
             return $po->refresh();
         });
+
+        $po->requestedBy?->notify(new WorkflowNotification(
+            "PO {$po->po_number} disetujui",
+            "PO {$po->po_number} yang Anda ajukan sudah disetujui.",
+            route('procurement.purchase-orders.show', $po),
+            'procurement',
+        ));
+
+        return $po;
     }
 
     public function reject(PurchaseOrder $po, int $userId, string $notes): PurchaseOrder
     {
-        return DB::transaction(function () use ($po, $userId, $notes): PurchaseOrder {
+        $po = DB::transaction(function () use ($po, $userId, $notes): PurchaseOrder {
             $po = PurchaseOrder::query()->lockForUpdate()->findOrFail($po->id);
 
             if (! $po->canReject()) {
@@ -184,6 +206,15 @@ class PurchaseOrderService
 
             return $po->refresh();
         });
+
+        $po->requestedBy?->notify(new WorkflowNotification(
+            "PO {$po->po_number} ditolak",
+            "PO {$po->po_number} yang Anda ajukan ditolak. Alasan: {$notes}",
+            route('procurement.purchase-orders.show', $po),
+            'procurement',
+        ));
+
+        return $po;
     }
 
     public function send(PurchaseOrder $po, int $userId): PurchaseOrder
