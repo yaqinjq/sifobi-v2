@@ -7,9 +7,13 @@ use App\Modules\Procurement\Models\PurchaseOrder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class Department extends Model
 {
+    use LogsActivity;
+
     protected $guarded = [];
 
     public function primaryItems(): HasMany
@@ -31,6 +35,15 @@ class Department extends Model
     public function allowedPoTypes(): array
     {
         return $this->allowed_po_types ?? array_keys(PurchaseOrder::TYPE_LABELS_ACTIVE);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('master-data')
+            ->logUnguarded()
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
     }
 
     protected function casts(): array

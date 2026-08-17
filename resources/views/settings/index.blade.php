@@ -195,5 +195,19 @@
             </a>
         </div>
     @endcan
+
+    @can('view_audit_log')
+        <p class="sh-section-label">Keamanan & Kepatuhan</p>
+        <div class="sh-group">
+            <a href="{{ route('settings.audit-log.index') }}" class="sh-item">
+                <div class="sh-icon sh-icon-purple"><i class="ti ti-history" aria-hidden="true"></i></div>
+                <div class="sh-text">
+                    <p class="sh-name">Log aktivitas</p>
+                    <p class="sh-desc">Riwayat perubahan data, login, dan perubahan role/permission</p>
+                </div>
+                <i class="ti ti-chevron-right sh-arrow" aria-hidden="true"></i>
+            </a>
+        </div>
+    @endcan
 </div>
 @endsection

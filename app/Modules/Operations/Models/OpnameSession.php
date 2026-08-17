@@ -10,9 +10,14 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class OpnameSession extends Model
 {
+    use LogsActivity;
+
+
     public const TYPE_DAILY = 'DAILY';
     public const TYPE_MONTHLY = 'MONTHLY';
 
@@ -48,6 +53,15 @@ class OpnameSession extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new TenantScope);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('operations')
+            ->logOnly(['status', 'outlet_id', 'department_id', 'type', 'opname_date', 'business_date', 'shift'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
     }
 
     /**

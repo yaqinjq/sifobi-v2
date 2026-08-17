@@ -4,9 +4,22 @@ namespace App\Modules\Stock\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use LogicException;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class StockMutation extends Model
 {
+    use LogsActivity;
+
+    /**
+     * Ledger ini immutable (lihat guard updating/deleting di booted() di bawah) —
+     * activity log hanya boleh mencatat event 'created', tidak pernah
+     * 'updated'/'deleted' karena keduanya memang tidak pernah terjadi.
+     *
+     * @var list<string>
+     */
+    protected static $recordEvents = ['created'];
+
     public const TYPE_OPEN_STOCK = 'OPEN_STOCK';
     public const TYPE_GOODS_RECEIVE = 'GOODS_RECEIVE';
     public const TYPE_PO_RECEIVE = 'PO_RECEIVE';
@@ -31,6 +44,13 @@ class StockMutation extends Model
         static::deleting(function (): void {
             throw new LogicException('Stock mutations are immutable. Create a reversal mutation instead.');
         });
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('stock')
+            ->logOnly(['mutation_type', 'stock_target', 'item_id', 'outlet_id', 'qty_change', 'balance_after', 'reference_type', 'reference_id']);
     }
 
     protected function casts(): array

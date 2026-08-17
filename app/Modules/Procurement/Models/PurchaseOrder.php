@@ -12,9 +12,12 @@ use App\Modules\Receiving\Models\Supplier;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class PurchaseOrder extends Model
 {
+    use LogsActivity;
 
     protected $guarded = [];
 
@@ -54,6 +57,15 @@ class PurchaseOrder extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new TenantScope());
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('procurement')
+            ->logOnly(['status', 'po_type', 'supplier_id', 'outlet_id', 'department_id', 'needed_at', 'planned_submit_at'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
     }
 
     protected function casts(): array

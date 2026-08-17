@@ -6,9 +6,13 @@ use App\Models\Scopes\TenantScope;
 use App\Modules\Core\Models\Outlet;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class ItemStockConfig extends Model
 {
+    use LogsActivity;
+
     protected $fillable = [
         'tenant_id',
         'item_id',
@@ -23,6 +27,15 @@ class ItemStockConfig extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new TenantScope);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('master-data')
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
     }
 
     public function item(): BelongsTo

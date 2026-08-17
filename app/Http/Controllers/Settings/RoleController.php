@@ -40,6 +40,12 @@ class RoleController extends Controller
 
         $role = Role::create(['name' => $data['name'], 'guard_name' => 'web']);
 
+        activity('user')
+            ->causedBy(request()->user())
+            ->performedOn($role)
+            ->event('role_created')
+            ->log("Role {$role->name} dibuat");
+
         return redirect()
             ->route('settings.roles.edit', $role)
             ->with('success', "Role {$role->name} berhasil dibuat. Atur permission-nya di bawah.");
@@ -62,9 +68,24 @@ class RoleController extends Controller
             'permissions.*' => ['string', Rule::exists('permissions', 'name')->where('guard_name', 'web')],
         ]);
 
-        $role->syncPermissions($request->input('permissions', []));
+        $oldPermissions = $role->permissions->pluck('name')->toArray();
+        $newPermissions = $request->input('permissions', []);
+
+        $role->syncPermissions($newPermissions);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $added = array_values(array_diff($newPermissions, $oldPermissions));
+        $removed = array_values(array_diff($oldPermissions, $newPermissions));
+
+        if ($added || $removed) {
+            activity('user')
+                ->causedBy($request->user())
+                ->performedOn($role)
+                ->withProperties(['added' => $added, 'removed' => $removed])
+                ->event('permissions_changed')
+                ->log("Permission role {$role->name} diubah");
+        }
 
         return back()->with('success', "Permission role {$role->name} berhasil disimpan.");
     }
@@ -80,6 +101,12 @@ class RoleController extends Controller
 
         $name = $role->name;
         $role->delete();
+
+        activity('user')
+            ->causedBy(request()->user())
+            ->withProperties(['role' => $name])
+            ->event('role_deleted')
+            ->log("Role {$name} dihapus");
 
         return redirect()
             ->route('settings.roles.index')
@@ -152,6 +179,9 @@ class RoleController extends Controller
             ],
             'Manajemen User & Role' => [
                 'manage_users' => 'Kelola User & Role',
+            ],
+            'Log Aktivitas & Kepatuhan' => [
+                'view_audit_log' => 'Lihat Log Aktivitas',
             ],
             'Admin / Core' => [
                 'manage_core' => 'Akses Core System',

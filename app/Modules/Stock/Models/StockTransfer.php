@@ -7,9 +7,13 @@ use App\Modules\Core\Models\Outlet;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class StockTransfer extends Model
 {
+    use LogsActivity;
+
     public const STATUS_DRAFT     = 'DRAFT';
     public const STATUS_SUBMITTED = 'SUBMITTED';
     public const STATUS_APPROVED  = 'APPROVED';
@@ -21,6 +25,15 @@ class StockTransfer extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new TenantScope);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('stock')
+            ->logOnly(['status', 'from_outlet_id', 'to_outlet_id', 'transfer_date'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
     }
 
     public function fromOutlet(): BelongsTo

@@ -78,6 +78,13 @@ class UserController extends Controller
             ]);
 
             $user->assignRole($data['role']);
+            activity('user')
+                ->causedBy($request->user())
+                ->performedOn($user)
+                ->withProperties(['role' => $data['role']])
+                ->event('role_assigned')
+                ->log("Role {$data['role']} diberikan ke user {$user->name}");
+
             $this->syncExtraPermissions($user, $request->input('extra_permissions', []));
         });
 
@@ -122,8 +129,20 @@ class UserController extends Controller
                 $payload['password'] = $data['password'];
             }
 
+            $oldRoles = $user->getRoleNames()->toArray();
+
             $user->update($payload);
             $user->syncRoles([$data['role']]);
+
+            if ($oldRoles !== [$data['role']]) {
+                activity('user')
+                    ->causedBy($request->user())
+                    ->performedOn($user)
+                    ->withProperties(['old_roles' => $oldRoles, 'new_role' => $data['role']])
+                    ->event('role_changed')
+                    ->log("Role user {$user->name} diubah dari ".(implode(', ', $oldRoles) ?: '-')." ke {$data['role']}");
+            }
+
             $this->syncExtraPermissions($user, $request->input('extra_permissions', []));
         });
 
@@ -209,6 +228,9 @@ class UserController extends Controller
         $toGrant = array_intersect($grantedNames, $allowed);
         $toRevoke = array_diff($allowed, $toGrant);
 
+        $actuallyGranted = array_values(array_filter($toGrant, fn ($perm) => ! $user->hasDirectPermission($perm)));
+        $actuallyRevoked = array_values(array_filter($toRevoke, fn ($perm) => $user->hasDirectPermission($perm)));
+
         if ($toGrant) {
             $user->givePermissionTo($toGrant);
         }
@@ -217,6 +239,15 @@ class UserController extends Controller
             if ($user->hasDirectPermission($perm)) {
                 $user->revokePermissionTo($perm);
             }
+        }
+
+        if ($actuallyGranted || $actuallyRevoked) {
+            activity('user')
+                ->causedBy(request()->user())
+                ->performedOn($user)
+                ->withProperties(['granted' => $actuallyGranted, 'revoked' => $actuallyRevoked])
+                ->event('permissions_changed')
+                ->log("Permission tambahan user {$user->name} diubah");
         }
     }
 

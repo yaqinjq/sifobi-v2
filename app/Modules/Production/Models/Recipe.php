@@ -9,9 +9,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class Recipe extends Model
 {
+    use LogsActivity;
+
     protected $guarded = [];
 
     const STATUS_DRAFT     = 'DRAFT';
@@ -160,6 +164,15 @@ class Recipe extends Model
             'volume_production' => $volume,
             'hpp_per_unit'      => $hppPerUnit,
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('production')
+            ->logOnly(['status', 'menu_id', 'version_number', 'test_date', 'volume_production', 'approved_by', 'rejected_reason'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
     }
 
     public static function nextVersionNumber(int $menuId): int

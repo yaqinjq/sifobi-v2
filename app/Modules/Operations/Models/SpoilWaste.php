@@ -12,9 +12,13 @@ use App\Modules\Stock\Models\StockMutation;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class SpoilWaste extends Model
 {
+    use LogsActivity;
+
     public const STATUS_PENDING = 'PENDING';
     public const STATUS_APPROVED = 'APPROVED';
     public const STATUS_REJECTED = 'REJECTED';
@@ -63,6 +67,15 @@ class SpoilWaste extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new TenantScope);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('operations')
+            ->logOnly(['status', 'approval_status', 'outlet_id', 'department_id', 'item_id', 'qty', 'reason_category', 'reason_detail', 'approval_notes'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
     }
 
     /**

@@ -21,6 +21,7 @@ use App\Http\Controllers\Procurement\PurchaseOrderController;
 use App\Http\Controllers\Production\MenuController;
 use App\Http\Controllers\Production\RecipeController;
 use App\Http\Controllers\Settings\AppSettingController;
+use App\Http\Controllers\Settings\AuditLogController;
 use App\Http\Controllers\Settings\RoleController;
 use App\Http\Controllers\Settings\BrandController;
 use App\Http\Controllers\Settings\CalendarEventController;
@@ -150,6 +151,11 @@ Route::middleware('auth')->group(function (): void {
                 Route::get('roles/{role}/edit', [RoleController::class, 'edit'])->name('roles.edit');
                 Route::put('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
                 Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+            });
+
+            Route::middleware('permission:view_audit_log')->group(function (): void {
+                Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
+                Route::get('audit-log/{auditLog}', [AuditLogController::class, 'show'])->name('audit-log.show');
             });
 
             Route::middleware('permission:manage_brands_outlets')->group(function (): void {

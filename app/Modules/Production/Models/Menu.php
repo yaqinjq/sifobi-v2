@@ -7,9 +7,13 @@ use App\Modules\Core\Models\Brand;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class Menu extends Model
 {
+    use LogsActivity;
+
     protected $fillable = [
         'tenant_id',
         'brand_id',
@@ -43,6 +47,15 @@ class Menu extends Model
     public function canHardDelete(): bool
     {
         return $this->recipes()->doesntExist();
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('production')
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
     }
 
     protected static function booted(): void

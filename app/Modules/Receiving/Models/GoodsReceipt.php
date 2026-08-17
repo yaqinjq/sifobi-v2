@@ -12,10 +12,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class GoodsReceipt extends Model
 {
     use SoftDeletes;
+    use LogsActivity;
 
     public const SOURCE_OCIA_PO = 'OCIA_PO';
     public const SOURCE_WIP_CENTRAL_KITCHEN = 'WIP_CENTRAL_KITCHEN';
@@ -74,6 +77,15 @@ class GoodsReceipt extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new TenantScope);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('receiving')
+            ->logOnly(['status', 'review_status', 'outlet_id', 'supplier_id', 'purchase_order_id', 'source', 'receipt_date', 'received_at'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
     }
 
     /**
