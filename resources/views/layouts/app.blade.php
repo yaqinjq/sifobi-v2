@@ -72,6 +72,7 @@
                 ['route' => 'receiving.goods-receipts.index','label' => 'Penerimaan Barang','pattern' => 'receiving.goods-receipts.*',   'permission' => 'view_goods_receipt', 'icon' => 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0119 9.414V19a2 2 0 01-2 2z',                 'badge_key' => 'receiving_pending'],
                 ['route' => 'operations.stock-transfers.index', 'label' => 'Transfer Stok',  'pattern' => 'operations.stock-transfers.*', 'permission' => 'create_stock_transfers', 'icon' => 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',                                                         'badge_key' => 'transfer_pending'],
                 ['route' => 'procurement.purchase-orders.index', 'label' => 'Purchase Order', 'pattern' => 'procurement.purchase-orders.*', 'permission' => 'create_po', 'icon' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01', 'badge_key' => 'po_pending_approval'],
+                ['route' => 'production.menus.index',       'label' => 'Menu & Resep',      'pattern' => 'production.*',                 'permission' => 'manage_recipes',     'icon' => 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s4.332.477 5.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', 'badge_key' => null],
             ];
             @endphp
 

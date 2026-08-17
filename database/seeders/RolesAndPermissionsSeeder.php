@@ -54,6 +54,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'create_stock_transfers',
             'approve_stock_transfers',
             'view_all_po',
+            'manage_recipes',
+            'approve_recipes',
         ];
 
         foreach ($permissions as $permission) {
@@ -85,6 +87,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 'export_master_data',
                 'import_master_data',
                 'approve_stock_transfers',
+                'manage_recipes',
+                'approve_recipes',
             ],
             'FINANCE_STAFF' => [
                 'view_dashboard',
@@ -125,6 +129,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view_stock_balance',
                 'export_master_data',
                 'approve_stock_transfers',
+                'manage_recipes',
+                'approve_recipes',
             ],
             'PIC_OUTLET' => [
                 'view_dashboard',
@@ -148,6 +154,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view_reports',
                 'view_stock_balance',
                 'export_master_data',
+                'manage_recipes',
+                'approve_recipes',
                 'create_stock_transfers',
                 'approve_stock_transfers',
             ],

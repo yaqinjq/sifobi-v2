@@ -3,7 +3,11 @@
 @section('title', 'Ringkasan Stok Semua Outlet')
 
 @section('content')
-<x-sf.page-header title="Ringkasan Stok Semua Outlet" subtitle="Nilai stok per outlet dan kategori" />
+<x-sf.page-header title="Ringkasan Stok Semua Outlet" subtitle="Nilai stok per outlet dan kategori">
+    <x-slot:actions>
+        <a href="{{ route('laporan.stok-summary.export', request()->query()) }}" class="sf-btn-secondary min-h-11 px-3 text-xs">Export</a>
+    </x-slot:actions>
+</x-sf.page-header>
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-7xl mx-auto w-full space-y-4">
     <x-sf.card>

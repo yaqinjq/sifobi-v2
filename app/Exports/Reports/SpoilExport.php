@@ -13,6 +13,8 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class SpoilExport implements FromArray, ShouldAutoSize, WithEvents
 {
+    private int $dataRowCount = 0;
+
     /**
      * @param  array<string, mixed>  $filters
      */
@@ -25,6 +27,7 @@ class SpoilExport implements FromArray, ShouldAutoSize, WithEvents
     public function array(): array
     {
         $rows = $this->rows();
+        $this->dataRowCount = $rows->count();
 
         return array_merge([
             ['Laporan Spoil & Waste', 'Export: '.now()->format('d M Y H:i')],
@@ -61,6 +64,14 @@ class SpoilExport implements FromArray, ShouldAutoSize, WithEvents
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1B4332']],
                 ]);
                 $sheet->getStyle("A{$highestRow}:{$highestColumn}{$highestRow}")->getFont()->setBold(true);
+
+                // Baris TOTAL: Qty Base (H) = SUM rumus, bukan angka statis.
+                if ($this->dataRowCount > 0) {
+                    $firstDataRow = 3;
+                    $lastDataRow = 2 + $this->dataRowCount;
+
+                    $sheet->setCellValue("H{$highestRow}", "=SUM(H{$firstDataRow}:H{$lastDataRow})");
+                }
             },
         ];
     }

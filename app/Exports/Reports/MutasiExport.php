@@ -13,6 +13,8 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class MutasiExport implements FromArray, ShouldAutoSize, WithEvents
 {
+    private int $dataRowCount = 0;
+
     /**
      * @param  array<string, mixed>  $filters
      */
@@ -25,6 +27,7 @@ class MutasiExport implements FromArray, ShouldAutoSize, WithEvents
     public function array(): array
     {
         $rows = $this->rows();
+        $this->dataRowCount = $rows->count();
         $totalIn = $rows->where('qty_change', '>', 0)->sum('qty_change');
         $totalOut = $rows->where('qty_change', '<', 0)->sum('qty_change');
 
@@ -62,6 +65,14 @@ class MutasiExport implements FromArray, ShouldAutoSize, WithEvents
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1B4332']],
                 ]);
                 $sheet->getStyle("A{$highestRow}:{$highestColumn}{$highestRow}")->getFont()->setBold(true);
+
+                // Baris TOTAL: Qty Change (G) = SUM rumus, bukan angka statis.
+                if ($this->dataRowCount > 0) {
+                    $firstDataRow = 3;
+                    $lastDataRow = 2 + $this->dataRowCount;
+
+                    $sheet->setCellValue("G{$highestRow}", "=SUM(G{$firstDataRow}:G{$lastDataRow})");
+                }
             },
         ];
     }

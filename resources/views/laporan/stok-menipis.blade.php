@@ -4,7 +4,11 @@
 
 @section('content')
 <x-sf.page-header title="Stok Menipis" subtitle="Item dengan saldo di bawah minimum stok"
-    back="{{ route('laporan.index') }}" />
+    back="{{ route('laporan.index') }}">
+    <x-slot:actions>
+        <a href="{{ route('laporan.stok-menipis.export', request()->query()) }}" class="sf-btn-secondary min-h-11 px-3 text-xs">Export</a>
+    </x-slot:actions>
+</x-sf.page-header>
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-5xl mx-auto w-full space-y-4">
 

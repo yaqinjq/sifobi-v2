@@ -18,6 +18,8 @@ use App\Http\Controllers\Operations\SpoilWasteController;
 use App\Http\Controllers\Receiving\GoodsReceiptController;
 use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Procurement\PurchaseOrderController;
+use App\Http\Controllers\Production\MenuController;
+use App\Http\Controllers\Production\RecipeController;
 use App\Http\Controllers\Settings\AppSettingController;
 use App\Http\Controllers\Settings\RoleController;
 use App\Http\Controllers\Settings\BrandController;
@@ -315,6 +317,10 @@ Route::middleware('auth')->group(function (): void {
             Route::get('mutasi/export', [ReportController::class, 'exportMutasi'])->name('mutasi.export');
             Route::get('spoil/export', [ReportController::class, 'exportSpoil'])->name('spoil.export');
             Route::get('penerimaan/export', [ReportController::class, 'exportPenerimaan'])->name('penerimaan.export');
+            Route::get('hpp', [\App\Http\Controllers\Reports\HppReportController::class, 'index'])->name('hpp');
+            Route::get('hpp/export', [\App\Http\Controllers\Reports\HppReportController::class, 'export'])->name('hpp.export');
+            Route::get('stok-summary/export', [ReportController::class, 'exportStokSummary'])->name('stok-summary.export');
+            Route::get('stok-menipis/export', [ReportController::class, 'exportStokMenipis'])->name('stok-menipis.export');
         });
 
     Route::prefix('operations')->name('operations.')->group(function (): void {
@@ -483,5 +489,32 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/{purchaseOrder}/resend', [PurchaseOrderController::class, 'resend'])
                 ->middleware('permission:approve_po')
                 ->name('resend');
+        });
+
+    // ── Menu & Resep (R&D + HPP) ─────────────────────────────────────────
+    Route::prefix('production')
+        ->name('production.')
+        ->middleware('permission:manage_recipes')
+        ->group(function (): void {
+            Route::get('/menus', [MenuController::class, 'index'])->name('menus.index');
+            Route::get('/menus/create', [MenuController::class, 'create'])->name('menus.create');
+            Route::post('/menus', [MenuController::class, 'store'])->name('menus.store');
+            Route::get('/menus/{menu}', [MenuController::class, 'show'])->name('menus.show');
+
+            Route::get('/menus/{menu}/recipes/create', [RecipeController::class, 'create'])->name('recipes.create');
+            Route::post('/menus/{menu}/recipes', [RecipeController::class, 'store'])->name('recipes.store');
+
+            Route::get('/recipes/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
+            Route::get('/recipes/{recipe}/edit', [RecipeController::class, 'edit'])->name('recipes.edit');
+            Route::put('/recipes/{recipe}', [RecipeController::class, 'update'])->name('recipes.update');
+            Route::post('/recipes/{recipe}/submit', [RecipeController::class, 'submit'])->name('recipes.submit');
+
+            Route::post('/recipes/{recipe}/approve', [RecipeController::class, 'approve'])
+                ->middleware('permission:approve_recipes')
+                ->name('recipes.approve');
+
+            Route::post('/recipes/{recipe}/reject', [RecipeController::class, 'reject'])
+                ->middleware('permission:approve_recipes')
+                ->name('recipes.reject');
         });
 });

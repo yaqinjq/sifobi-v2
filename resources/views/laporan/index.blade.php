@@ -34,6 +34,10 @@
                 Cek Stok Menipis
             </a>
         </x-sf.card>
+
+        <x-sf.card title="HPP" subtitle="Breakdown biaya resep yang sudah disetujui (R&D)">
+            <a href="{{ route('laporan.hpp') }}" class="sf-btn-primary min-h-11 w-full mt-2">Buka</a>
+        </x-sf.card>
     </div>
 </div>
 @endsection

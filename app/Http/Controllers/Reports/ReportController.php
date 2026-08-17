@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Reports;
 use App\Exports\Reports\MutasiExport;
 use App\Exports\Reports\PenerimaanExport;
 use App\Exports\Reports\SpoilExport;
+use App\Exports\Reports\StokMenipisExport;
+use App\Exports\Reports\StokSummaryExport;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
@@ -304,6 +306,31 @@ class ReportController extends Controller
         $filters = $this->validateReceivingFilters($request, $tenantId);
 
         return Excel::download(new PenerimaanExport($tenantId, $filters), 'LaporanPenerimaanBarang.xlsx');
+    }
+
+    public function exportStokSummary(Request $request): BinaryFileResponse
+    {
+        abort_unless($request->user()->can('view_all_reports'), 403);
+
+        $tenantId = $this->tenantId($request);
+        $filters = $request->validate([
+            'brand_id'    => ['nullable', 'integer'],
+            'outlet_id'   => ['nullable', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'category_id' => ['nullable', 'integer', Rule::exists('item_categories', 'id')->where('tenant_id', $tenantId)],
+        ]);
+
+        return Excel::download(new StokSummaryExport($tenantId, $filters), 'RingkasanStokSemuaOutlet.xlsx');
+    }
+
+    public function exportStokMenipis(Request $request): BinaryFileResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $filters = $request->validate([
+            'outlet_id'   => ['nullable', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'category_id' => ['nullable', 'integer', Rule::exists('item_categories', 'id')->where('tenant_id', $tenantId)],
+        ]);
+
+        return Excel::download(new StokMenipisExport($tenantId, $filters), 'LaporanStokMenipis.xlsx');
     }
 
     /**

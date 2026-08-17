@@ -13,6 +13,8 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class PenerimaanExport implements FromArray, ShouldAutoSize, WithEvents
 {
+    private int $dataRowCount = 0;
+
     /**
      * @param  array<string, mixed>  $filters
      */
@@ -25,6 +27,7 @@ class PenerimaanExport implements FromArray, ShouldAutoSize, WithEvents
     public function array(): array
     {
         $rows = $this->rows();
+        $this->dataRowCount = $rows->count();
 
         return array_merge([
             ['Laporan Penerimaan Barang', 'Export: '.now()->format('d M Y H:i')],
@@ -62,6 +65,20 @@ class PenerimaanExport implements FromArray, ShouldAutoSize, WithEvents
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1B4332']],
                 ]);
                 $sheet->getStyle("A{$highestRow}:{$highestColumn}{$highestRow}")->getFont()->setBold(true);
+
+                // Kolom Total (K) = Qty (H) x Harga (J) per baris, dan baris
+                // TOTAL di bawah = SUM — dijadikan rumus hidup, bukan angka
+                // statis, supaya finance bisa telusuri/ubah asumsi harga.
+                if ($this->dataRowCount > 0) {
+                    $firstDataRow = 3;
+                    $lastDataRow = 2 + $this->dataRowCount;
+
+                    for ($r = $firstDataRow; $r <= $lastDataRow; $r++) {
+                        $sheet->setCellValue("K{$r}", "=H{$r}*J{$r}");
+                    }
+
+                    $sheet->setCellValue("K{$highestRow}", "=SUM(K{$firstDataRow}:K{$lastDataRow})");
+                }
             },
         ];
     }
