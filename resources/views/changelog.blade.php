@@ -8,12 +8,34 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.8 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.8 &mdash; 17 Agustus 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Notifikasi — In-App &amp; Email</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Bell icon baru (sidebar desktop) dan menu "Notifikasi" (sheet "Lainnya" di mobile, lengkap dengan badge jumlah belum dibaca) — muncul otomatis begitu ada yang perlu Anda tindaklanjuti atau hasil dari yang Anda ajukan sudah ada keputusan</li>
+                    <li>Mencakup 7 alur: Purchase Order, Resep, Penerimaan Barang, Transfer Stok, Opname, Spoil/Waste, dan Open Stock</li>
+                    <li>PIC/approver dapat notifikasi begitu ada dokumen yang perlu disetujui (otomatis sesuai outlet/departemen yang jadi tanggung jawabnya); pembuat dokumen dapat notifikasi begitu hasilnya disetujui atau ditolak</li>
+                    <li>Email otomatis terkirim juga (selain notifikasi di dalam aplikasi) kalau SMTP tenant sudah diisi di Pengaturan — kalau belum, cukup notifikasi in-app saja tanpa error</li>
+                    <li>Halaman "Semua Notifikasi" dengan tombol tandai sudah dibaca (satu per satu atau sekaligus semua)</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.7 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
-                <h3 class="font-heading font-bold text-gray-900">v2.7 &mdash; Agustus 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
+                <h3 class="font-heading font-bold text-gray-900">v2.7 &mdash; 17 Agustus 2026</h3>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
@@ -68,7 +90,7 @@
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
-                <h3 class="font-heading font-bold text-gray-900">v2.6 &mdash; Agustus 2026</h3>
+                <h3 class="font-heading font-bold text-gray-900">v2.6 &mdash; 14 Agustus 2026</h3>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
@@ -137,7 +159,7 @@
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
-                <h3 class="font-heading font-bold text-gray-900">v2.5 &mdash; Agustus 2026</h3>
+                <h3 class="font-heading font-bold text-gray-900">v2.5 &mdash; 4 Agustus 2026</h3>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
@@ -185,7 +207,7 @@
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
-                <h3 class="font-heading font-bold text-gray-900">v2.4 &mdash; Agustus 2026</h3>
+                <h3 class="font-heading font-bold text-gray-900">v2.4 &mdash; 4 Agustus 2026</h3>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
@@ -234,7 +256,7 @@
     {{-- v2.3 --}}
     <x-sf.card>
         <x-slot:header>
-            <h3 class="font-heading font-bold text-gray-900">v2.3 &mdash; Agustus 2026</h3>
+            <h3 class="font-heading font-bold text-gray-900">v2.3 &mdash; 3 Agustus 2026</h3>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
             <div>
@@ -266,7 +288,7 @@
     {{-- v2.2 --}}
     <x-sf.card>
         <x-slot:header>
-            <h3 class="font-heading font-bold text-gray-900">v2.2 &mdash; Juli 2026</h3>
+            <h3 class="font-heading font-bold text-gray-900">v2.2 &mdash; 30 Juli 2026</h3>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
             <div>
@@ -292,7 +314,7 @@
     {{-- v2.1 --}}
     <x-sf.card>
         <x-slot:header>
-            <h3 class="font-heading font-bold text-gray-900">v2.1 &mdash; Juli 2026</h3>
+            <h3 class="font-heading font-bold text-gray-900">v2.1 &mdash; 29 Juli 2026</h3>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
             <div>
@@ -318,7 +340,7 @@
     {{-- v2.0 --}}
     <x-sf.card>
         <x-slot:header>
-            <h3 class="font-heading font-bold text-gray-900">v2.0 &mdash; Juni 2026</h3>
+            <h3 class="font-heading font-bold text-gray-900">v2.0 &mdash; 28 Juni 2026</h3>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
             <div>
