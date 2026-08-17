@@ -55,14 +55,18 @@
                         </x-sf.form-group>
                     </div>
 
+                    @php
+                        $userOptions = $users->map(fn ($u) => ['value' => $u->id, 'label' => $u->name])->values();
+                    @endphp
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <x-sf.form-group label="Disaksikan Oleh (user sistem)" for="witnessed_by_user_ids">
-                            <select id="witnessed_by_user_ids" name="witnessed_by_user_ids[]" multiple class="sf-input text-base h-28">
-                                @foreach($users as $user)
-                                    <option value="{{ $user->id }}" @selected(in_array($user->id, old('witnessed_by_user_ids', $recipe?->witnessed_by_user_ids ?? [])))>{{ $user->name }}</option>
-                                @endforeach
-                            </select>
-                            <p class="text-xs text-gray-400 mt-1">Ctrl/Cmd+klik untuk pilih lebih dari satu</p>
+                            <x-sf.multi-select
+                                name="witnessed_by_user_ids[]"
+                                :options="$userOptions"
+                                :selected="old('witnessed_by_user_ids', $recipe?->witnessed_by_user_ids ?? [])"
+                                placeholder="Cari nama..."
+                            />
                         </x-sf.form-group>
 
                         <x-sf.form-group label="Disaksikan Oleh (nama bebas, pisahkan koma)" for="witnessed_by_names">
@@ -72,11 +76,12 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <x-sf.form-group label="Food Panel Oleh (user sistem)" for="food_panel_user_ids">
-                            <select id="food_panel_user_ids" name="food_panel_user_ids[]" multiple class="sf-input text-base h-28">
-                                @foreach($users as $user)
-                                    <option value="{{ $user->id }}" @selected(in_array($user->id, old('food_panel_user_ids', $recipe?->food_panel_user_ids ?? [])))>{{ $user->name }}</option>
-                                @endforeach
-                            </select>
+                            <x-sf.multi-select
+                                name="food_panel_user_ids[]"
+                                :options="$userOptions"
+                                :selected="old('food_panel_user_ids', $recipe?->food_panel_user_ids ?? [])"
+                                placeholder="Cari nama..."
+                            />
                         </x-sf.form-group>
 
                         <x-sf.form-group label="Food Panel Oleh (nama bebas, pisahkan koma)" for="food_panel_names">

@@ -10,7 +10,11 @@
 />
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-5xl mx-auto w-full space-y-5">
-    <div class="flex justify-end">
+    <div class="flex flex-wrap justify-end gap-2">
+        <a href="{{ route('production.hpp-calculator.index') }}" class="sf-btn-secondary inline-flex min-h-11 items-center gap-2">
+            <i class="ti ti-calculator text-base" aria-hidden="true"></i>
+            <span>Coba Kalkulator HPP Dulu</span>
+        </a>
         <a href="{{ route('production.menus.create') }}" class="sf-btn-primary inline-flex min-h-11 items-center gap-2">
             <i class="ti ti-plus text-base" aria-hidden="true"></i>
             <span>Tambah Menu</span>

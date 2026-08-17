@@ -516,5 +516,11 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/recipes/{recipe}/reject', [RecipeController::class, 'reject'])
                 ->middleware('permission:approve_recipes')
                 ->name('recipes.reject');
+
+            // ── Kalkulator HPP berdiri sendiri — coba-coba sebelum resmi jadi resep ──
+            Route::get('/hpp-calculator', [\App\Http\Controllers\Production\HppCalculatorController::class, 'index'])->name('hpp-calculator.index');
+            Route::post('/hpp-calculator', [\App\Http\Controllers\Production\HppCalculatorController::class, 'store'])->name('hpp-calculator.store');
+            Route::get('/hpp-calculator/{hppCalculation}', [\App\Http\Controllers\Production\HppCalculatorController::class, 'show'])->name('hpp-calculator.show');
+            Route::delete('/hpp-calculator/{hppCalculation}', [\App\Http\Controllers\Production\HppCalculatorController::class, 'destroy'])->name('hpp-calculator.destroy');
         });
 });
