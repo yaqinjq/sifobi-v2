@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\Unit;
+use App\Modules\Inventory\Models\UnitConversion;
 use App\Modules\Production\Models\Menu;
 use App\Modules\Production\Models\Recipe;
 use App\Services\RecipeService;
@@ -221,15 +222,33 @@ class RecipeController extends Controller
      */
     private function itemsForPicker(int $tenantId)
     {
+        $conversions = UnitConversion::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->get(['item_id', 'from_unit_id', 'to_unit_id', 'factor'])
+            ->groupBy('item_id');
+
         return Item::query()
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'canonical_sku'])
+            ->get(['id', 'name', 'canonical_sku', 'base_unit_id', 'inventory_unit_id', 'inventory_ratio', 'purchase_unit_id', 'purchase_ratio'])
             ->map(fn (Item $item) => [
-                'id'   => $item->id,
-                'name' => $item->name,
-                'sku'  => $item->canonical_sku,
+                'id'                => $item->id,
+                'name'              => $item->name,
+                'sku'               => $item->canonical_sku,
+                'base_unit_id'      => $item->base_unit_id,
+                'inventory_unit_id' => $item->inventory_unit_id,
+                'inventory_ratio'   => (float) ($item->inventory_ratio ?? 1),
+                'purchase_unit_id'  => $item->purchase_unit_id,
+                'purchase_ratio'    => (float) ($item->purchase_ratio ?? 1),
+                // Konversi kustom (di luar base/inventory/purchase) untuk item ini —
+                // dipakai kalkulator HPP real-time di form supaya hasilnya sama
+                // persis dengan perhitungan server (RecipeIngredient::toBaseQty()).
+                'conversions' => ($conversions->get($item->id) ?? collect())->map(fn ($c) => [
+                    'from_unit_id' => $c->from_unit_id,
+                    'to_unit_id'   => $c->to_unit_id,
+                    'factor'       => (float) $c->factor,
+                ])->values(),
             ]);
     }
 
