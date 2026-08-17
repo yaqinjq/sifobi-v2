@@ -40,6 +40,25 @@ detect_php() {
 PHP=$(detect_php)
 ARTISAN="$PHP artisan"
 
+# ── Deteksi Composer ─────────────────────────────────────────────────────────
+detect_composer() {
+    local bin
+    bin=$(command -v composer 2>/dev/null || true)
+    if [ -z "$bin" ]; then
+        for candidate in /usr/local/bin/composer /usr/local/bin/composer.phar composer.phar; do
+            if [ -x "$candidate" ] || [ -f "$candidate" ]; then
+                bin="$candidate"
+                break
+            fi
+        done
+    fi
+    [ -n "$bin" ] || fail "Composer tidak ditemukan."
+    echo "$bin"
+}
+
+COMPOSER_BIN=$(detect_composer)
+COMPOSER="$PHP $COMPOSER_BIN"
+
 # ── Header ───────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}╔══════════════════════════════════════════╗${RESET}"
@@ -47,6 +66,7 @@ echo -e "${BOLD}║       SIFOBI — Deploy Script             ║${RESET}"
 echo -e "${BOLD}╚══════════════════════════════════════════╝${RESET}"
 echo ""
 info "PHP      : $PHP  ($($PHP -r 'echo PHP_VERSION;'))"
+info "Composer : $COMPOSER_BIN"
 info "Direktori: $(pwd)"
 info "Waktu    : $(date '+%Y-%m-%d %H:%M:%S')"
 
@@ -91,8 +111,8 @@ step "2/6" "Composer"
 COMPOSER_CHANGED=$(git diff --name-only "${BEFORE}..${AFTER}" 2>/dev/null | grep -c "composer" || true)
 
 if [ "$COMPOSER_CHANGED" -gt 0 ] || [ "$BEFORE" = "unknown" ]; then
-    info "composer.json/lock berubah — jalankan install..."
-    composer install --no-interaction --no-dev --optimize-autoloader
+    info "composer.json/lock berubah — jalankan install (pakai $PHP)..."
+    $COMPOSER install --no-interaction --no-dev --optimize-autoloader
     ok "Composer selesai."
 else
     ok "composer.lock tidak berubah — skip."
