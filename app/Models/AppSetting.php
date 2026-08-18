@@ -47,7 +47,18 @@ class AppSetting extends Model
 
     public static function current(): self
     {
-        return static::forTenant((int) (auth()->user()?->tenant_id ?? 1));
+        if (auth()->guard()->hasUser()) {
+            return static::forTenant((int) auth()->user()->tenant_id);
+        }
+
+        // Belum login — kalau host request cocok domain/subdomain tenant
+        // tertentu (lihat ResolveTenantFromDomain), tampilkan branding
+        // tenant itu di halaman login, bukan selalu tenant id=1.
+        if (app()->bound('resolvedTenant')) {
+            return static::forTenant((int) app('resolvedTenant')->id);
+        }
+
+        return static::forTenant(1);
     }
 
     /**

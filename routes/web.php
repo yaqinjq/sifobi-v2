@@ -45,6 +45,28 @@ use Illuminate\Support\Facades\Route;
 Route::get('/manifest.json', function () {
     $setting = \App\Models\AppSetting::current();
     $name    = $setting?->app_name ?? config('app.name', 'SIFOBI');
+    $color   = $setting?->primary_color ?: '#1B4332';
+
+    $icons = [
+        ['src' => '/icons/icon-192.png',         'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
+        ['src' => '/icons/icon-512.png',         'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
+        ['src' => '/icons/icon-maskable-512.png','sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
+    ];
+
+    if ($setting?->logo_path) {
+        $logoMime = match (strtolower(pathinfo($setting->logo_path, PATHINFO_EXTENSION))) {
+            'svg' => 'image/svg+xml',
+            'jpg', 'jpeg' => 'image/jpeg',
+            default => 'image/png',
+        };
+
+        array_unshift($icons, [
+            'src' => \Illuminate\Support\Facades\Storage::url($setting->logo_path),
+            'sizes' => 'any',
+            'type' => $logoMime,
+            'purpose' => 'any',
+        ]);
+    }
 
     return response()->json([
         'name'             => $name,
@@ -54,15 +76,11 @@ Route::get('/manifest.json', function () {
         'scope'            => '/',
         'display'          => 'standalone',
         'orientation'      => 'portrait-primary',
-        'background_color' => '#1B4332',
-        'theme_color'      => '#1B4332',
+        'background_color' => $color,
+        'theme_color'      => $color,
         'lang'             => 'id',
         'categories'       => ['productivity', 'business'],
-        'icons'            => [
-            ['src' => '/icons/icon-192.png',         'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
-            ['src' => '/icons/icon-512.png',         'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
-            ['src' => '/icons/icon-maskable-512.png','sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
-        ],
+        'icons'            => $icons,
         'screenshots'      => [],
     ])->header('Content-Type', 'application/manifest+json')
       ->header('Cache-Control', 'public, max-age=3600');
@@ -113,6 +131,14 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/notifications/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
 
     Route::get('/admin/core', CoreHealthController::class)->middleware('permission:manage_core')->name('admin.core');
+
+    Route::prefix('admin/tenants')
+        ->name('admin.tenants.')
+        ->middleware('permission:manage_core')
+        ->group(function (): void {
+            Route::get('/', [\App\Http\Controllers\Admin\TenantController::class, 'index'])->name('index');
+            Route::put('/{tenant}', [\App\Http\Controllers\Admin\TenantController::class, 'update'])->name('update');
+        });
 
     Route::prefix('settings')
         ->name('settings.')

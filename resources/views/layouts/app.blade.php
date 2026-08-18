@@ -6,7 +6,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#1B4332">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="manifest" href="/manifest.json">
 
@@ -16,7 +15,11 @@
         $appLogo = $appSetting?->logo_path ? \Illuminate\Support\Facades\Storage::url($appSetting->logo_path) : null;
         $appFavicon = $appSetting?->favicon_path ? \Illuminate\Support\Facades\Storage::url($appSetting->favicon_path) : null;
         $appInitials = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $appName) ?: 'SF', 0, 2));
+        $appPrimaryColor = $appSetting?->primary_color ?: '#1B4332';
+        $appColorScale = $appPrimaryColor !== '#1B4332' ? \App\Support\ColorScale::fromHex($appPrimaryColor) : null;
     @endphp
+
+    <meta name="theme-color" content="{{ $appPrimaryColor }}">
 
     <title>@yield('title', $appName) - {{ $appName }}</title>
 
@@ -35,6 +38,19 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    @if($appColorScale)
+        {{-- Override warna primer per tenant — HARUS setelah @vite supaya menang di cascade
+             (Tailwind v4 mendefinisikan --color-primary-* di :root lewat @theme). --}}
+        <style>
+            :root {
+                @foreach($appColorScale as $step => $hex)
+                    --color-primary-{{ $step }}: {{ $hex }};
+                @endforeach
+            }
+        </style>
+    @endif
+
     @stack('styles')
 </head>
 <body class="h-full bg-gray-50 font-sans antialiased">

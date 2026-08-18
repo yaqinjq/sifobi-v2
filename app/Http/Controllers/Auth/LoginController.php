@@ -26,6 +26,15 @@ class LoginController extends Controller
             'password' => ['required'],
         ]);
 
+        // Kalau request datang dari domain/subdomain tenant tertentu (lihat
+        // ResolveTenantFromDomain), batasi login cuma untuk user tenant itu —
+        // supaya user tenant lain (meski tahu password-nya) tidak bisa masuk
+        // lewat domain tenant yang salah. Domain utama (MKO) tidak terpengaruh
+        // sama sekali karena middleware tidak resolve apa pun di domain itu.
+        if (app()->bound('resolvedTenant')) {
+            $credentials['tenant_id'] = app('resolvedTenant')->id;
+        }
+
         if (!Auth::attempt($credentials, $request->boolean('remember'))) {
             return back()
                 ->withErrors(['email' => 'Email atau password salah.'])

@@ -209,5 +209,19 @@
             </a>
         </div>
     @endcan
+
+    @can('manage_core')
+        <p class="sh-section-label">Admin / Core</p>
+        <div class="sh-group">
+            <a href="{{ route('admin.tenants.index') }}" class="sh-item">
+                <div class="sh-icon sh-icon-gray"><i class="ti ti-world" aria-hidden="true"></i></div>
+                <div class="sh-text">
+                    <p class="sh-name">Domain tenant</p>
+                    <p class="sh-desc">Atur subdomain / domain custom per tenant</p>
+                </div>
+                <i class="ti ti-chevron-right sh-arrow" aria-hidden="true"></i>
+            </a>
+        </div>
+    @endcan
 </div>
 @endsection

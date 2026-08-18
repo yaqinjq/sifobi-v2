@@ -19,7 +19,8 @@
               class="space-y-5"
               x-data="{
                   logoPreview: @js($setting->logo_path ? \Illuminate\Support\Facades\Storage::url($setting->logo_path) : ''),
-                  faviconPreview: @js($setting->favicon_path ? \Illuminate\Support\Facades\Storage::url($setting->favicon_path) : '')
+                  faviconPreview: @js($setting->favicon_path ? \Illuminate\Support\Facades\Storage::url($setting->favicon_path) : ''),
+                  primaryColor: @js(old('primary_color', $setting->primary_color) ?: '#1B4332')
               }">
             @csrf
 
@@ -88,13 +89,19 @@
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <x-sf.form-group label="Warna Utama" for="primary_color">
-                    <input type="text"
-                           name="primary_color"
-                           id="primary_color"
-                           value="{{ old('primary_color', $setting->primary_color) }}"
-                           class="sf-input text-base"
-                           placeholder="#1B4332"
-                           maxlength="20">
+                    <div class="flex items-center gap-2">
+                        <input type="color"
+                               x-model="primaryColor"
+                               class="w-11 h-11 rounded-xl border border-gray-200 shrink-0 cursor-pointer p-0.5"
+                               aria-label="Pilih warna utama">
+                        <input type="text"
+                               name="primary_color"
+                               id="primary_color"
+                               x-model="primaryColor"
+                               class="sf-input text-base"
+                               placeholder="#1B4332"
+                               maxlength="20">
+                    </div>
                 </x-sf.form-group>
 
                 <x-sf.form-group label="Email Kontak" for="contact_email">

@@ -54,6 +54,11 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Domain utama aplikasi (tanpa skema/path) — dipakai untuk resolusi
+    // subdomain tenant, mis. "klien.{base_domain}". Default diturunkan dari
+    // APP_URL kalau APP_BASE_DOMAIN tidak diisi eksplisit di .env.
+    'base_domain' => env('APP_BASE_DOMAIN') ?: parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST),
+
     'landing_mode' => env('LANDING_PAGE_MODE', 'saas'),
 
     /*
