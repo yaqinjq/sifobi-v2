@@ -120,7 +120,7 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/reset-password', [ResetPasswordController::class, 'store'])->name('password.update');
 });
 
-Route::middleware('auth')->group(function (): void {
+Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->group(function (): void {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/changelog', fn () => view('changelog'))->name('changelog');
     Route::get('/tutorial', fn () => view('tutorial'))->name('tutorial');
@@ -134,9 +134,11 @@ Route::middleware('auth')->group(function (): void {
 
     Route::prefix('admin/tenants')
         ->name('admin.tenants.')
-        ->middleware('permission:manage_core')
+        ->middleware('permission:manage_tenants')
         ->group(function (): void {
             Route::get('/', [\App\Http\Controllers\Admin\TenantController::class, 'index'])->name('index');
+            Route::get('/create', [\App\Http\Controllers\Admin\TenantController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\Admin\TenantController::class, 'store'])->name('store');
             Route::put('/{tenant}', [\App\Http\Controllers\Admin\TenantController::class, 'update'])->name('update');
         });
 

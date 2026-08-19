@@ -210,7 +210,7 @@
         </div>
     @endcan
 
-    @can('manage_core')
+    @can('manage_tenants')
         <p class="sh-section-label">Admin / Core</p>
         <div class="sh-group">
             <a href="{{ route('admin.tenants.index') }}" class="sh-item">

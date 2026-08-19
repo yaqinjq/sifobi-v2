@@ -3,7 +3,13 @@
 @section('title', 'Domain Tenant')
 
 @section('content')
-<x-sf.page-header title="Domain Tenant" subtitle="Subdomain & domain custom per tenant" back="{{ route('settings.index') }}" />
+<x-sf.page-header title="Domain Tenant" subtitle="Subdomain & domain custom per tenant" back="{{ route('settings.index') }}">
+    <x-slot:actions>
+        <a href="{{ route('admin.tenants.create') }}" class="sf-btn-primary text-sm min-h-9">
+            Tambah Tenant Baru
+        </a>
+    </x-slot:actions>
+</x-sf.page-header>
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-4xl mx-auto w-full space-y-5">
     @if(session('success'))

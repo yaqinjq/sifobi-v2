@@ -16,8 +16,11 @@ class RoleController extends Controller
 {
     public function index(): View
     {
+        $teamId = app(PermissionRegistrar::class)->getPermissionsTeamId();
+
         $roles = Role::with('permissions')
             ->withCount(['users'])
+            ->where('team_id', $teamId)
             ->orderBy('name')
             ->get();
 
@@ -29,16 +32,18 @@ class RoleController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $teamId = app(PermissionRegistrar::class)->getPermissionsTeamId();
+
         $data = $request->validate([
             'name' => [
                 'required', 'string', 'max:60', 'regex:/^[A-Z0-9_]+$/',
-                Rule::unique('roles', 'name')->where('guard_name', 'web'),
+                Rule::unique('roles', 'name')->where('guard_name', 'web')->where('team_id', $teamId),
             ],
         ], [
             'name.regex' => 'Nama role hanya boleh huruf kapital, angka, dan underscore (contoh: STAFF_PASTRY).',
         ]);
 
-        $role = Role::create(['name' => $data['name'], 'guard_name' => 'web']);
+        $role = Role::create(['name' => $data['name'], 'guard_name' => 'web', 'team_id' => $teamId]);
 
         activity('user')
             ->causedBy(request()->user())
@@ -53,6 +58,8 @@ class RoleController extends Controller
 
     public function edit(Role $role): View
     {
+        $this->authorizeRole($role);
+
         $role->load('permissions');
 
         return view('settings.roles.edit', [
@@ -63,6 +70,8 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role): RedirectResponse
     {
+        $this->authorizeRole($role);
+
         $request->validate([
             'permissions'   => ['nullable', 'array'],
             'permissions.*' => ['string', Rule::exists('permissions', 'name')->where('guard_name', 'web')],
@@ -90,8 +99,25 @@ class RoleController extends Controller
         return back()->with('success', "Permission role {$role->name} berhasil disimpan.");
     }
 
+    /**
+     * Role:: route-model binding TIDAK otomatis di-scope per tenant (beda
+     * dari model lain di app ini yang pakai TenantScope) — Spatie tidak
+     * mendaftarkan global scope apapun di model Role-nya sendiri, cuma
+     * relasi lewat user (hasRole/can) yang otomatis ikut team_id. Jadi
+     * wajib dicek manual di sini, supaya tenant lain tidak bisa
+     * lihat/ubah/hapus role tenant lain lewat tebak-tebak ID di URL.
+     */
+    private function authorizeRole(Role $role): void
+    {
+        $teamId = app(PermissionRegistrar::class)->getPermissionsTeamId();
+
+        abort_unless((int) $role->team_id === (int) $teamId, 404);
+    }
+
     public function destroy(Role $role): RedirectResponse
     {
+        $this->authorizeRole($role);
+
         $userCount = User::role($role->name)->count();
 
         if ($userCount > 0) {

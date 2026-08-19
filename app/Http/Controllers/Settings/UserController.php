@@ -13,6 +13,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class UserController extends Controller
 {
@@ -275,7 +276,11 @@ class UserController extends Controller
      */
     private function roles()
     {
-        return Role::query()->orderBy('name')->get();
+        // Role:: tidak otomatis di-scope per tenant (lihat catatan yang
+        // sama di RoleController::authorizeRole) — wajib filter manual.
+        $teamId = app(PermissionRegistrar::class)->getPermissionsTeamId();
+
+        return Role::query()->where('team_id', $teamId)->orderBy('name')->get();
     }
 
     /**
