@@ -102,8 +102,13 @@
                     <span>E: is_active</span>
                     <span>F: kategori</span>
                     <span>G: CK</span>
-                    <span>H: outlet</span>
+                    <span>H: konversi</span>
                 </div>
+                <p class="text-xs text-blue-600">
+                    Kolom H (konversi satuan) diisi format bebas <strong>"1 PACK = 2 KG"</strong> — dipakai supaya
+                    outlet order pakai satuan PACK tapi tetap lihat perkiraan beratnya dalam KG saat pilih item.
+                    Kalau kolom ini kosong, item tetap bisa diimpor tapi belum tampil keterangan konversinya.
+                </p>
                 <p class="text-xs text-blue-600">Import akan menambahkan item baru dan memperbarui item yang sudah ada berdasarkan SKU.</p>
             </div>
 

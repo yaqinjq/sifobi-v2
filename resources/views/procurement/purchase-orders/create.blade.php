@@ -139,7 +139,8 @@
                                             <div class="flex items-center gap-2">
                                                 <div class="flex-1 min-w-0">
                                                     <p class="text-sm font-medium text-gray-800 leading-tight" x-text="item.name"></p>
-                                                    <p class="text-[11px] text-gray-400 mt-0.5" x-text="item.sku + ' · ' + item.unit_code"></p>
+                                                    <p class="text-[11px] text-gray-400 mt-0.5"
+                                                       x-text="item.sku + ' · ' + (item.conversion_hint || item.unit_code)"></p>
                                                 </div>
                                                 {{-- Toggle add/remove --}}
                                                 <button type="button"
