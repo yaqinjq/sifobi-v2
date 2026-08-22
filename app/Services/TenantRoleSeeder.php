@@ -66,6 +66,10 @@ class TenantRoleSeeder
             'manage_recipes',
             'approve_recipes',
             'view_audit_log',
+            'operate_pos',
+            'manage_pos_layout',
+            'view_pos_reports',
+            'void_pos_order',
         ];
     }
 
@@ -144,6 +148,9 @@ class TenantRoleSeeder
                 'manage_recipes',
                 'approve_recipes',
                 'view_audit_log',
+                'manage_pos_layout',
+                'view_pos_reports',
+                'void_pos_order',
             ],
             'PIC_OUTLET' => [
                 'view_dashboard',
@@ -171,6 +178,10 @@ class TenantRoleSeeder
                 'approve_recipes',
                 'create_stock_transfers',
                 'approve_stock_transfers',
+                'operate_pos',
+                'manage_pos_layout',
+                'view_pos_reports',
+                'void_pos_order',
             ],
             'STAFF_BAR' => [
                 'view_dashboard',
@@ -185,6 +196,7 @@ class TenantRoleSeeder
                 'input_receiving',
                 'input_spoil_waste',
                 'create_po',
+                'operate_pos',
             ],
             'STAFF_KITCHEN' => [
                 'view_dashboard',
@@ -199,6 +211,7 @@ class TenantRoleSeeder
                 'input_receiving',
                 'input_spoil_waste',
                 'create_po',
+                'operate_pos',
             ],
             'STAFF_SERVICE' => [
                 'view_dashboard',
@@ -212,6 +225,7 @@ class TenantRoleSeeder
                 'input_receiving',
                 'input_spoil_waste',
                 'export_master_data',
+                'operate_pos',
             ],
             'STAFF_GUDANG' => [
                 'view_dashboard',
@@ -254,6 +268,21 @@ class TenantRoleSeeder
             ]);
 
             $role->syncPermissions($rolePermissionNames);
+        }
+
+        // manage_tenants sengaja tidak ada di rolePermissions() (lihat docblock
+        // class ini) tapi syncPermissions() di atas tetap menghapusnya dari
+        // SUPER_ADMIN tenant 1 kalau sudah pernah diberikan lewat migration
+        // terpisah — jadi harus di-restore lagi di sini, bukan cuma diingatkan
+        // lewat komentar (sudah kejadian ke-strip 2x gara-gara itu).
+        if ($tenantId === 1) {
+            $superAdmin = Role::firstOrCreate([
+                'team_id' => 1,
+                'name' => 'SUPER_ADMIN',
+                'guard_name' => 'web',
+            ]);
+            $manageTenants = Permission::firstOrCreate(['name' => 'manage_tenants', 'guard_name' => 'web']);
+            $superAdmin->givePermissionTo($manageTenants);
         }
 
         $registrar->forgetCachedPermissions();

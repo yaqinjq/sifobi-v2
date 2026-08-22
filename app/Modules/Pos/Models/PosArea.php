@@ -1,60 +1,47 @@
 <?php
 
-namespace App\Modules\Production\Models;
+namespace App\Modules\Pos\Models;
 
 use App\Models\Scopes\TenantScope;
-use App\Modules\Core\Models\Brand;
+use App\Modules\Core\Models\Outlet;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
-class Menu extends Model
+class PosArea extends Model
 {
     use LogsActivity;
 
     protected $fillable = [
         'tenant_id',
-        'brand_id',
-        'code',
+        'outlet_id',
         'name',
-        'selling_price',
-        'is_active',
+        'sort_order',
     ];
 
     protected function casts(): array
     {
         return [
-            'selling_price' => 'decimal:4',
-            'is_active' => 'boolean',
+            'sort_order' => 'integer',
         ];
     }
 
-    public function brand(): BelongsTo
+    public function outlet(): BelongsTo
     {
-        return $this->belongsTo(Brand::class);
+        return $this->belongsTo(Outlet::class);
     }
 
-    public function recipes(): HasMany
+    public function tables(): HasMany
     {
-        return $this->hasMany(Recipe::class)->orderByDesc('version_number');
-    }
-
-    public function approvedRecipes(): HasMany
-    {
-        return $this->recipes()->where('status', Recipe::STATUS_APPROVED);
-    }
-
-    public function canHardDelete(): bool
-    {
-        return $this->recipes()->doesntExist();
+        return $this->hasMany(PosTable::class)->orderBy('code');
     }
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->useLogName('production')
+            ->useLogName('pos')
             ->logFillable()
             ->logOnlyDirty()
             ->dontLogEmptyChanges();

@@ -563,4 +563,44 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::get('/hpp-calculator/{hppCalculation}', [\App\Http\Controllers\Production\HppCalculatorController::class, 'show'])->name('hpp-calculator.show');
             Route::delete('/hpp-calculator/{hppCalculation}', [\App\Http\Controllers\Production\HppCalculatorController::class, 'destroy'])->name('hpp-calculator.destroy');
         });
+
+    // ── POS + Layout Tempat Usaha ────────────────────────────────────────
+    Route::prefix('pos')
+        ->name('pos.')
+        ->group(function (): void {
+            Route::middleware('permission:operate_pos|manage_pos_layout|view_pos_reports')->group(function (): void {
+                Route::get('layout', [\App\Http\Controllers\Pos\PosAreaController::class, 'index'])->name('layout.index');
+            });
+
+            Route::middleware('permission:manage_pos_layout')->group(function (): void {
+                Route::post('areas', [\App\Http\Controllers\Pos\PosAreaController::class, 'store'])->name('areas.store');
+                Route::put('areas/{area}', [\App\Http\Controllers\Pos\PosAreaController::class, 'update'])->name('areas.update');
+                Route::delete('areas/{area}', [\App\Http\Controllers\Pos\PosAreaController::class, 'destroy'])->name('areas.destroy');
+
+                Route::post('tables', [\App\Http\Controllers\Pos\PosTableController::class, 'store'])->name('tables.store');
+                Route::put('tables/{table}', [\App\Http\Controllers\Pos\PosTableController::class, 'update'])->name('tables.update');
+                Route::delete('tables/{table}', [\App\Http\Controllers\Pos\PosTableController::class, 'destroy'])->name('tables.destroy');
+                Route::patch('tables/{table}/position', [\App\Http\Controllers\Pos\PosTableController::class, 'updatePosition'])->name('tables.position');
+            });
+
+            Route::middleware('permission:operate_pos')->group(function (): void {
+                Route::get('orders', [\App\Http\Controllers\Pos\PosOrderController::class, 'index'])->name('orders.index');
+                Route::get('orders/create', [\App\Http\Controllers\Pos\PosOrderController::class, 'create'])->name('orders.create');
+                Route::post('orders', [\App\Http\Controllers\Pos\PosOrderController::class, 'store'])->name('orders.store');
+                Route::get('orders/{order}', [\App\Http\Controllers\Pos\PosOrderController::class, 'show'])->name('orders.show');
+                Route::post('orders/{order}/items', [\App\Http\Controllers\Pos\PosOrderController::class, 'addItem'])->name('orders.items.store');
+                Route::delete('orders/{order}/items/{item}', [\App\Http\Controllers\Pos\PosOrderController::class, 'removeItem'])->name('orders.items.destroy');
+                Route::post('orders/{order}/checkout', [\App\Http\Controllers\Pos\PosOrderController::class, 'checkout'])->name('orders.checkout');
+                Route::post('orders/{order}/pay', [\App\Http\Controllers\Pos\PosOrderController::class, 'pay'])->name('orders.pay');
+                Route::get('orders/{order}/receipt', [\App\Http\Controllers\Pos\PosOrderController::class, 'receipt'])->name('orders.receipt');
+            });
+
+            Route::post('orders/{order}/void', [\App\Http\Controllers\Pos\PosOrderController::class, 'void'])
+                ->middleware('permission:void_pos_order')
+                ->name('orders.void');
+
+            Route::middleware('permission:view_pos_reports')->group(function (): void {
+                Route::get('reports', [\App\Http\Controllers\Pos\PosReportController::class, 'index'])->name('reports.index');
+            });
+        });
 });

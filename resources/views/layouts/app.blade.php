@@ -79,6 +79,12 @@
         {{-- Navigation --}}
         <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
             @php
+            $posLandingRoute = match(true) {
+                auth()->user()->can('operate_pos') => 'pos.orders.index',
+                auth()->user()->can('manage_pos_layout') => 'pos.layout.index',
+                auth()->user()->can('view_pos_reports') => 'pos.reports.index',
+                default => 'pos.orders.index',
+            };
             $sidebarNav = [
                 ['route' => 'dashboard',                    'label' => 'Dashboard',         'pattern' => 'dashboard',                    'icon' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',                                                                         'badge_key' => null],
                 ['route' => 'operations.open-stocks.index', 'label' => 'Open Stock',        'pattern' => 'operations.open-stocks.*',     'permission' => 'input_open_stock',   'icon' => 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',                                                                               'badge_key' => 'open_stock_pending'],
@@ -90,11 +96,13 @@
                 ['route' => 'procurement.purchase-orders.index', 'label' => 'Purchase Order', 'pattern' => 'procurement.purchase-orders.*', 'permission' => 'create_po', 'icon' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01', 'badge_key' => 'po_pending_approval'],
                 ['route' => 'production.menus.index',       'label' => 'Menu & Resep',      'pattern' => ['production.menus.*', 'production.recipes.*'], 'permission' => 'manage_recipes', 'icon' => 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s4.332.477 5.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', 'badge_key' => null],
                 ['route' => 'production.hpp-calculator.index', 'label' => 'Kalkulator HPP',  'pattern' => 'production.hpp-calculator.*',  'permission' => 'manage_recipes',     'icon' => 'M9 7h6m-6 4h6m-6 4h4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z', 'badge_key' => null],
+                ['route' => $posLandingRoute,                'label' => 'POS',               'pattern' => ['pos.orders.*', 'pos.layout.*', 'pos.reports.*'], 'permission_any' => ['operate_pos', 'manage_pos_layout', 'view_pos_reports'], 'icon' => 'M3 10h18M7 15h1m4 0h1m-9 4h16a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', 'badge_key' => null],
             ];
             @endphp
 
             @foreach($sidebarNav as $item)
             @continue(isset($item['permission']) && ! auth()->user()->can($item['permission']))
+            @continue(isset($item['permission_any']) && ! auth()->user()->hasAnyPermission($item['permission_any']))
             @php $active = request()->routeIs($item['pattern']); @endphp
             <a href="{{ route($item['route']) }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
