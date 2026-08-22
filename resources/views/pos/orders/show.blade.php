@@ -123,6 +123,15 @@
     </x-sf.card>
 
     @if($order->status === \App\Modules\Pos\Models\PosOrder::STATUS_OPEN && $order->items->isNotEmpty())
+        @unless($hasOpenShift)
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
+                <i class="ti ti-alert-triangle text-base shrink-0" aria-hidden="true"></i>
+                <span>Belum ada shift kasir yang dibuka untuk outlet ini — buka shift dulu sebelum menerima pembayaran.
+                    <a href="{{ route('pos.shifts.index', ['outlet_id' => $order->outlet_id]) }}" class="underline font-semibold">Buka shift</a>
+                </span>
+            </div>
+        @endunless
+
         <x-sf.card title="Pembayaran">
             <p class="text-sm text-gray-600 mb-3">Sisa tagihan: <span class="font-semibold text-gray-900">Rp {{ number_format((float) $remainingDue, 0, ',', '.') }}</span></p>
 

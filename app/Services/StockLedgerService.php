@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Modules\Operations\Models\OpenStock;
 use App\Modules\Operations\Models\OpnameItem;
 use App\Modules\Operations\Models\SpoilWaste;
+use App\Modules\Pos\Models\PosOrder;
 use App\Modules\Receiving\Models\GoodsReceipt;
 use App\Modules\Stock\Models\StockBalance;
 use App\Modules\Stock\Models\StockMutation;
@@ -27,6 +28,7 @@ class StockLedgerService
         StockMutation::TYPE_DAILY_OPNAME_ADJ,
         StockMutation::TYPE_MONTHLY_OPNAME_ADJ,
         StockMutation::TYPE_VOID_REVERSAL,
+        StockMutation::TYPE_POS_SALE,
     ];
 
     /**
@@ -160,6 +162,20 @@ class StockLedgerService
             'mutation_type' => StockMutation::TYPE_SPOIL_WASTE,
             'qty_change' => $qty === null ? null : $this->asNegativeQuantity($qty),
             'reference_type' => $payload['reference_type'] ?? SpoilWaste::class,
+        ]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function posSale(array $payload): StockMutation
+    {
+        $qty = $payload['qty'] ?? $payload['qty_change'] ?? null;
+
+        return $this->move(array_merge($payload, [
+            'mutation_type' => StockMutation::TYPE_POS_SALE,
+            'qty_change' => $qty === null ? null : $this->asNegativeQuantity($qty),
+            'reference_type' => $payload['reference_type'] ?? PosOrder::class,
         ]));
     }
 
@@ -319,6 +335,12 @@ class StockLedgerService
         if ($payload['mutation_type'] === StockMutation::TYPE_SPOIL_WASTE && $comparison >= 0) {
             throw ValidationException::withMessages([
                 'qty_change' => 'SPOIL_WASTE must decrease stock.',
+            ]);
+        }
+
+        if ($payload['mutation_type'] === StockMutation::TYPE_POS_SALE && $comparison >= 0) {
+            throw ValidationException::withMessages([
+                'qty_change' => 'POS_SALE must decrease stock.',
             ]);
         }
     }

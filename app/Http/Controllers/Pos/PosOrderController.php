@@ -10,6 +10,7 @@ use App\Modules\Pos\Models\PosPayment;
 use App\Modules\Pos\Models\PosTable;
 use App\Modules\Production\Models\Menu;
 use App\Services\PosOrderService;
+use App\Services\PosShiftService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,10 @@ use Illuminate\View\View;
 
 class PosOrderController extends Controller
 {
-    public function __construct(private readonly PosOrderService $service) {}
+    public function __construct(
+        private readonly PosOrderService $service,
+        private readonly PosShiftService $shiftService,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -37,7 +41,9 @@ class PosOrderController extends Controller
             ->latest('opened_at')
             ->get();
 
-        return view('pos.orders.index', compact('orders', 'outlets', 'outletId'));
+        $hasOpenShift = (bool) $this->shiftService->findOpenShift($tenantId, $outletId);
+
+        return view('pos.orders.index', compact('orders', 'outlets', 'outletId', 'hasOpenShift'));
     }
 
     public function create(Request $request): View
@@ -94,8 +100,9 @@ class PosOrderController extends Controller
             ->get(['id', 'name', 'code', 'selling_price']);
 
         $remainingDue = bcsub((string) $order->total_amount, $order->amountPaid(), 4);
+        $hasOpenShift = (bool) $this->shiftService->findOpenShift((int) $order->tenant_id, (int) $order->outlet_id);
 
-        return view('pos.orders.show', compact('order', 'menus', 'remainingDue'));
+        return view('pos.orders.show', compact('order', 'menus', 'remainingDue', 'hasOpenShift'));
     }
 
     public function addItem(Request $request, PosOrder $order): RedirectResponse

@@ -35,6 +35,11 @@ class PosPayment extends Model
         return $this->belongsTo(PosOrder::class, 'pos_order_id');
     }
 
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(PosShift::class, 'pos_shift_id');
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

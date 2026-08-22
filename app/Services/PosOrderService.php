@@ -8,6 +8,8 @@ use App\Modules\Pos\Models\PosOrderItem;
 use App\Modules\Pos\Models\PosPayment;
 use App\Modules\Pos\Models\PosTable;
 use App\Modules\Production\Models\Menu;
+use App\Modules\Production\Models\RecipeOutlet;
+use App\Modules\Stock\Models\StockMutation;
 use App\Support\Decimal;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +17,11 @@ use Illuminate\Validation\ValidationException;
 
 class PosOrderService
 {
+    public function __construct(
+        private readonly StockLedgerService $stockLedgerService,
+        private readonly PosShiftService $shiftService,
+    ) {}
+
     /**
      * @param  array{outlet_id: int, order_type: string, pos_table_id?: int|null, notes?: string|null}  $data
      */
@@ -142,11 +149,28 @@ class PosOrderService
                 throw ValidationException::withMessages(['status' => 'Order ini sudah lunas/dibatalkan.']);
             }
 
+            $shift = $this->shiftService->findOpenShift((int) $order->tenant_id, (int) $order->outlet_id);
+
+            if (! $shift) {
+                throw ValidationException::withMessages(['shift' => 'Belum ada shift kasir yang dibuka untuk outlet ini.']);
+            }
+
+            // Tender bisa lebih besar dari sisa tagihan (mis. bayar tunai
+            // Rp100rb untuk tagihan Rp60rb, kembalian Rp40rb). Yang dicatat
+            // di ledger pembayaran & yang masuk hitungan kas shift HARUS
+            // cuma bagian yang benar-benar melunasi tagihan, bukan tender
+            // kotornya -- kalau tidak, rekonsiliasi kas shift jadi salah
+            // hitung (menganggap uang kembalian ikut masuk laci).
+            $tendered = Decimal::toFixed($data['amount'], 4);
+            $remainingDue = bcsub((string) $order->total_amount, $order->amountPaid(), 4);
+            $amountApplied = bccomp($tendered, $remainingDue, 4) > 0 ? $remainingDue : $tendered;
+
             PosPayment::query()->create([
                 'tenant_id'     => $order->tenant_id,
                 'pos_order_id'  => $order->id,
+                'pos_shift_id'  => $shift->id,
                 'method'        => $data['method'],
-                'amount'        => Decimal::toFixed($data['amount'], 4),
+                'amount'        => $amountApplied,
                 'reference_no'  => $data['reference_no'] ?? null,
                 'created_by'    => $userId,
                 'paid_at'       => now(),
@@ -155,6 +179,8 @@ class PosOrderService
             $totalPaid = $order->fresh()->amountPaid();
 
             if (bccomp($totalPaid, (string) $order->total_amount, 4) >= 0) {
+                $this->deductStockForOrder($order, $userId);
+
                 $order->update(['status' => PosOrder::STATUS_PAID, 'closed_at' => now()]);
 
                 if ($order->pos_table_id) {
@@ -187,6 +213,63 @@ class PosOrderService
 
             return $order->refresh();
         });
+    }
+
+    /**
+     * Kurangi stok bahan baku per item order lewat resep yang sedang aktif
+     * (di-assign) untuk menu itu di outlet ini. Kalau menu tidak punya
+     * resep aktif di outlet tsb, item itu dilewati begitu saja (bukan
+     * error) -- POS harus tetap bisa dipakai walau belum semua menu punya
+     * resep siap. Kalau stok bahan tidak cukup, StockLedgerService::move()
+     * akan throw ValidationException dan seluruh transaksi (termasuk
+     * PosPayment yang baru dibuat) ikut rollback oleh caller.
+     */
+    private function deductStockForOrder(PosOrder $order, int $userId): void
+    {
+        $order->loadMissing('items');
+
+        foreach ($order->items as $item) {
+            $recipeOutlet = RecipeOutlet::query()
+                ->where('outlet_id', $order->outlet_id)
+                ->whereHas('recipe', fn ($q) => $q->where('menu_id', $item->menu_id))
+                ->with('recipe.ingredients.item')
+                ->first();
+
+            if (! $recipeOutlet) {
+                continue;
+            }
+
+            foreach ($recipeOutlet->recipe->ingredients as $ingredient) {
+                if (! $ingredient->item) {
+                    continue;
+                }
+
+                $qtyBase = bcmul($ingredient->recipeQtyBase(), (string) $item->qty, 6);
+
+                if (bccomp($qtyBase, '0', 6) <= 0) {
+                    continue;
+                }
+
+                $this->stockLedgerService->posSale([
+                    'tenant_id' => $order->tenant_id,
+                    'outlet_id' => $order->outlet_id,
+                    'item_id' => $ingredient->item->id,
+                    'unit_id' => $ingredient->item->base_unit_id,
+                    'stock_target' => StockMutation::TARGET_OUTLET_DAILY,
+                    'qty_change' => $qtyBase,
+                    'reference_type' => PosOrder::class,
+                    'reference_id' => $order->id,
+                    'performed_by' => $userId,
+                    'performed_at' => now(),
+                    'notes' => "Penjualan POS #{$order->order_number} - {$item->item_name}",
+                    'metadata' => [
+                        'pos_order_item_id' => $item->id,
+                        'menu_id' => $item->menu_id,
+                        'recipe_id' => $recipeOutlet->recipe->id,
+                    ],
+                ]);
+            }
+        }
     }
 
     private function generateOrderNumber(int $tenantId, int $outletId): string

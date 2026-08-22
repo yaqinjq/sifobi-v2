@@ -70,6 +70,7 @@ class TenantRoleSeeder
             'manage_pos_layout',
             'view_pos_reports',
             'void_pos_order',
+            'approve_pos_shift',
         ];
     }
 
@@ -105,6 +106,10 @@ class TenantRoleSeeder
                 'manage_recipes',
                 'approve_recipes',
                 'view_audit_log',
+                'manage_pos_layout',
+                'view_pos_reports',
+                'void_pos_order',
+                'approve_pos_shift',
             ],
             'FINANCE_STAFF' => [
                 'view_dashboard',
@@ -151,6 +156,7 @@ class TenantRoleSeeder
                 'manage_pos_layout',
                 'view_pos_reports',
                 'void_pos_order',
+                'approve_pos_shift',
             ],
             'PIC_OUTLET' => [
                 'view_dashboard',
@@ -182,6 +188,7 @@ class TenantRoleSeeder
                 'manage_pos_layout',
                 'view_pos_reports',
                 'void_pos_order',
+                'approve_pos_shift',
             ],
             'STAFF_BAR' => [
                 'view_dashboard',

@@ -602,5 +602,16 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::middleware('permission:view_pos_reports')->group(function (): void {
                 Route::get('reports', [\App\Http\Controllers\Pos\PosReportController::class, 'index'])->name('reports.index');
             });
+
+            Route::middleware('permission:operate_pos')->group(function (): void {
+                Route::get('shifts', [\App\Http\Controllers\Pos\PosShiftController::class, 'index'])->name('shifts.index');
+                Route::post('shifts', [\App\Http\Controllers\Pos\PosShiftController::class, 'store'])->name('shifts.store');
+                Route::get('shifts/{shift}', [\App\Http\Controllers\Pos\PosShiftController::class, 'show'])->name('shifts.show');
+                Route::post('shifts/{shift}/close', [\App\Http\Controllers\Pos\PosShiftController::class, 'close'])->name('shifts.close');
+            });
+
+            Route::post('shifts/{shift}/reconcile', [\App\Http\Controllers\Pos\PosShiftController::class, 'reconcile'])
+                ->middleware('permission:approve_pos_shift')
+                ->name('shifts.reconcile');
         });
 });

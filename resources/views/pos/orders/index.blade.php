@@ -26,12 +26,23 @@
                     <span>Atur Denah</span>
                 </a>
             @endcan
+            <a href="{{ route('pos.shifts.index', ['outlet_id' => $outletId]) }}" class="sf-btn-secondary inline-flex min-h-11 items-center gap-2">
+                <i class="ti ti-cash text-base" aria-hidden="true"></i>
+                <span>Shift Kasir</span>
+            </a>
             <a href="{{ route('pos.orders.create', ['outlet_id' => $outletId]) }}" class="sf-btn-primary inline-flex min-h-11 items-center gap-2">
                 <i class="ti ti-plus text-base" aria-hidden="true"></i>
                 <span>Order Baru</span>
             </a>
         </div>
     </div>
+
+    @unless($hasOpenShift)
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
+            <i class="ti ti-alert-triangle text-base shrink-0" aria-hidden="true"></i>
+            <span>Belum ada shift kasir yang dibuka untuk outlet ini — pembayaran tidak bisa diproses sampai shift dibuka.</span>
+        </div>
+    @endunless
 
     <x-sf.card title="Order Berjalan">
         @if($orders->isEmpty())
