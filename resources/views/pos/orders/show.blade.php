@@ -6,6 +6,7 @@
     $canEdit = $order->canAddItem();
     $canCheckout = $order->canCheckout();
     $canVoid = $order->canVoid();
+    $canSplitOrMerge = $order->canSplitOrMerge();
 @endphp
 
 @section('content')
@@ -38,22 +39,49 @@
         @else
             <div class="divide-y divide-gray-50">
                 @foreach($order->items as $item)
-                    <div class="flex items-center justify-between gap-3 py-3">
-                        <div class="min-w-0">
-                            <p class="font-semibold text-gray-900 truncate">{{ $item->item_name }}</p>
-                            <p class="text-xs text-gray-500">{{ (float) $item->qty }} x Rp {{ number_format((float) $item->unit_price, 0, ',', '.') }}</p>
-                        </div>
-                        <div class="flex items-center gap-3 shrink-0">
-                            <span class="text-sm font-semibold text-gray-900">Rp {{ number_format((float) $item->subtotal, 0, ',', '.') }}</span>
-                            @if($canEdit)
-                                <form method="POST" action="{{ route('pos.orders.items.destroy', [$order, $item]) }}" onsubmit="return confirm('Hapus item ini?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="text-red-500 hover:text-red-700">
-                                        <i class="ti ti-trash text-lg" aria-hidden="true"></i>
+                    <div class="py-3" @if($canEdit && $canSplitOrMerge && $otherOpenOrders->isNotEmpty()) x-data="{ splitOpen: false }" @endif>
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="font-semibold text-gray-900 truncate">{{ $item->item_name }}</p>
+                                <p class="text-xs text-gray-500">{{ (float) $item->qty }} x Rp {{ number_format((float) $item->unit_price, 0, ',', '.') }}</p>
+                            </div>
+                            <div class="flex items-center gap-3 shrink-0">
+                                <span class="text-sm font-semibold text-gray-900">Rp {{ number_format((float) $item->subtotal, 0, ',', '.') }}</span>
+                                @if($canEdit && $canSplitOrMerge && $otherOpenOrders->isNotEmpty())
+                                    <button type="button" @click="splitOpen = !splitOpen" class="text-gray-400 hover:text-primary-700">
+                                        <i class="ti ti-arrows-split text-lg" aria-hidden="true"></i>
                                     </button>
-                                </form>
-                            @endif
+                                @endif
+                                @if($canEdit)
+                                    <form method="POST" action="{{ route('pos.orders.items.destroy', [$order, $item]) }}" onsubmit="return confirm('Hapus item ini?')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="text-red-500 hover:text-red-700">
+                                            <i class="ti ti-trash text-lg" aria-hidden="true"></i>
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
                         </div>
+
+                        @if($canEdit && $canSplitOrMerge && $otherOpenOrders->isNotEmpty())
+                            <form x-show="splitOpen" x-cloak method="POST" action="{{ route('pos.orders.items.split', [$order, $item]) }}"
+                                  class="flex flex-wrap items-end gap-2 mt-2 pl-1">
+                                @csrf
+                                <div class="w-20">
+                                    <label class="text-xs text-gray-500">Qty pindah</label>
+                                    <input type="number" name="qty" value="{{ (float) $item->qty }}" min="0.01" max="{{ (float) $item->qty }}" step="0.01" class="sf-input text-sm" required>
+                                </div>
+                                <div class="flex-1 min-w-[8rem]">
+                                    <label class="text-xs text-gray-500">Pindah ke order</label>
+                                    <select name="target_order_id" class="sf-input text-sm" required>
+                                        @foreach($otherOpenOrders as $other)
+                                            <option value="{{ $other->id }}">{{ $other->order_number }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <button type="submit" class="sf-btn-secondary min-h-11 px-3 text-sm">Split</button>
+                            </form>
+                        @endif
                     </div>
                 @endforeach
             </div>
@@ -77,6 +105,24 @@
             </form>
         @endif
     </x-sf.card>
+
+    @if($canSplitOrMerge && $otherOpenOrders->isNotEmpty())
+        <x-sf.card title="Gabung dari Order Lain">
+            <form method="POST" action="{{ route('pos.orders.merge', $order) }}"
+                  onsubmit="return confirm('Semua item dari order yang dipilih akan dipindah ke order ini, lalu order tsb dibatalkan (digabung). Lanjutkan?')"
+                  class="flex flex-wrap items-end gap-2">
+                @csrf
+                <div class="flex-1 min-w-[10rem]">
+                    <select name="source_order_id" class="sf-input text-sm" required>
+                        @foreach($otherOpenOrders as $other)
+                            <option value="{{ $other->id }}">{{ $other->order_number }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <button type="submit" class="sf-btn-secondary min-h-11 px-4">Gabung ke Sini</button>
+            </form>
+        </x-sf.card>
+    @endif
 
     <x-sf.card title="Total">
         <div class="space-y-1.5 text-sm">

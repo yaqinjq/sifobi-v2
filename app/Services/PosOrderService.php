@@ -192,6 +192,130 @@ class PosOrderService
         });
     }
 
+    /**
+     * Pindahkan sebagian atau seluruh qty 1 baris item ke order lain yang
+     * sudah OPEN di outlet yang sama. Kedua order harus belum ada
+     * pembayaran sama sekali (lihat PosOrder::canSplitOrMerge()) supaya
+     * tidak perlu rekonsiliasi uang yang sudah terlanjur dibayar.
+     *
+     * @return array{source: PosOrder, target: PosOrder}
+     */
+    public function splitItem(PosOrderItem $item, PosOrder $targetOrder, string $qty): array
+    {
+        return DB::transaction(function () use ($item, $targetOrder, $qty): array {
+            $sourceId = (int) $item->pos_order_id;
+            $targetId = (int) $targetOrder->id;
+
+            if ($sourceId === $targetId) {
+                throw ValidationException::withMessages(['target_order_id' => 'Order tujuan harus berbeda dari order asal.']);
+            }
+
+            [$firstId, $secondId] = $sourceId < $targetId ? [$sourceId, $targetId] : [$targetId, $sourceId];
+            $locked = PosOrder::query()->whereIn('id', [$firstId, $secondId])->lockForUpdate()->get()->keyBy('id');
+
+            $source = $locked->get($sourceId);
+            $target = $locked->get($targetId);
+            $item = PosOrderItem::query()->lockForUpdate()->findOrFail($item->id);
+
+            if ((int) $source->outlet_id !== (int) $target->outlet_id) {
+                throw ValidationException::withMessages(['target_order_id' => 'Order tujuan harus di outlet yang sama.']);
+            }
+
+            if (! $source->canSplitOrMerge() || ! $target->canSplitOrMerge()) {
+                throw ValidationException::withMessages(['status' => 'Order asal/tujuan sudah tidak bisa di-split (sudah lunas/ada pembayaran).']);
+            }
+
+            $qty = Decimal::toFixed($qty, 4);
+
+            if (bccomp($qty, '0', 4) <= 0 || bccomp($qty, (string) $item->qty, 4) > 0) {
+                throw ValidationException::withMessages(['qty' => 'Jumlah yang dipindah harus antara 0 dan qty baris ini.']);
+            }
+
+            if (bccomp($qty, (string) $item->qty, 4) === 0) {
+                $item->update([
+                    'pos_order_id' => $target->id,
+                    'sort_order' => $target->items()->count(),
+                ]);
+            } else {
+                $item->update([
+                    'qty' => bcsub((string) $item->qty, $qty, 4),
+                    'subtotal' => bcmul((string) $item->unit_price, bcsub((string) $item->qty, $qty, 4), 4),
+                ]);
+
+                $target->items()->create([
+                    'tenant_id' => $target->tenant_id,
+                    'menu_id' => $item->menu_id,
+                    'item_name' => $item->item_name,
+                    'unit_price' => $item->unit_price,
+                    'qty' => $qty,
+                    'subtotal' => bcmul((string) $item->unit_price, $qty, 4),
+                    'notes' => $item->notes,
+                    'sort_order' => $target->items()->count(),
+                ]);
+            }
+
+            $source->refresh();
+            $source->recalculateTotals();
+            $source->save();
+
+            $target->refresh();
+            $target->recalculateTotals();
+            $target->save();
+
+            return [
+                'source' => $source->refresh()->load('items.menu'),
+                'target' => $target->refresh()->load('items.menu'),
+            ];
+        });
+    }
+
+    /**
+     * Tarik semua item dari order sumber (OPEN, belum ada pembayaran) ke
+     * order tujuan, lalu order sumber otomatis di-void (meja sumber balik
+     * AVAILABLE kalau dine-in) -- pola status akhirnya sama seperti void(),
+     * cuma catatannya beda supaya jelas ini hasil gabung, bukan pembatalan.
+     */
+    public function mergeOrders(PosOrder $target, PosOrder $source): PosOrder
+    {
+        return DB::transaction(function () use ($target, $source): PosOrder {
+            if ((int) $target->id === (int) $source->id) {
+                throw ValidationException::withMessages(['source_order_id' => 'Order sumber harus berbeda dari order tujuan.']);
+            }
+
+            [$firstId, $secondId] = $target->id < $source->id ? [$target->id, $source->id] : [$source->id, $target->id];
+            $locked = PosOrder::query()->whereIn('id', [$firstId, $secondId])->lockForUpdate()->get()->keyBy('id');
+
+            $target = $locked->get((int) $target->id);
+            $source = $locked->get((int) $source->id);
+
+            if ((int) $target->outlet_id !== (int) $source->outlet_id) {
+                throw ValidationException::withMessages(['source_order_id' => 'Order sumber harus di outlet yang sama.']);
+            }
+
+            if (! $target->canSplitOrMerge() || ! $source->canSplitOrMerge()) {
+                throw ValidationException::withMessages(['status' => 'Order sumber/tujuan sudah tidak bisa digabung (sudah lunas/ada pembayaran).']);
+            }
+
+            $source->items()->update(['pos_order_id' => $target->id]);
+
+            $target->refresh();
+            $target->recalculateTotals();
+            $target->save();
+
+            $source->update([
+                'status' => PosOrder::STATUS_VOID,
+                'notes' => trim($source->notes."\n[Digabung] ke #{$target->order_number}"),
+                'closed_at' => now(),
+            ]);
+
+            if ($source->pos_table_id) {
+                PosTable::query()->where('id', $source->pos_table_id)->update(['status' => PosTable::STATUS_AVAILABLE]);
+            }
+
+            return $target->refresh()->load(['items.menu', 'payments']);
+        });
+    }
+
     public function void(PosOrder $order, string $reason = ''): PosOrder
     {
         return DB::transaction(function () use ($order, $reason): PosOrder {

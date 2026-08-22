@@ -590,6 +590,8 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                 Route::get('orders/{order}', [\App\Http\Controllers\Pos\PosOrderController::class, 'show'])->name('orders.show');
                 Route::post('orders/{order}/items', [\App\Http\Controllers\Pos\PosOrderController::class, 'addItem'])->name('orders.items.store');
                 Route::delete('orders/{order}/items/{item}', [\App\Http\Controllers\Pos\PosOrderController::class, 'removeItem'])->name('orders.items.destroy');
+                Route::post('orders/{order}/items/{item}/split', [\App\Http\Controllers\Pos\PosOrderController::class, 'splitItem'])->name('orders.items.split');
+                Route::post('orders/{order}/merge', [\App\Http\Controllers\Pos\PosOrderController::class, 'mergeFrom'])->name('orders.merge');
                 Route::post('orders/{order}/checkout', [\App\Http\Controllers\Pos\PosOrderController::class, 'checkout'])->name('orders.checkout');
                 Route::post('orders/{order}/pay', [\App\Http\Controllers\Pos\PosOrderController::class, 'pay'])->name('orders.pay');
                 Route::get('orders/{order}/receipt', [\App\Http\Controllers\Pos\PosOrderController::class, 'receipt'])->name('orders.receipt');

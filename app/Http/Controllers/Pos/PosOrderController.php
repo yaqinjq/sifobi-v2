@@ -102,7 +102,14 @@ class PosOrderController extends Controller
         $remainingDue = bcsub((string) $order->total_amount, $order->amountPaid(), 4);
         $hasOpenShift = (bool) $this->shiftService->findOpenShift((int) $order->tenant_id, (int) $order->outlet_id);
 
-        return view('pos.orders.show', compact('order', 'menus', 'remainingDue', 'hasOpenShift'));
+        $otherOpenOrders = PosOrder::query()
+            ->where('tenant_id', $order->tenant_id)
+            ->where('outlet_id', $order->outlet_id)
+            ->where('status', PosOrder::STATUS_OPEN)
+            ->where('id', '!=', $order->id)
+            ->get(['id', 'order_number']);
+
+        return view('pos.orders.show', compact('order', 'menus', 'remainingDue', 'hasOpenShift', 'otherOpenOrders'));
     }
 
     public function addItem(Request $request, PosOrder $order): RedirectResponse
@@ -136,6 +143,54 @@ class PosOrderController extends Controller
         }
 
         return redirect()->route('pos.orders.show', $order)->with('success', 'Item dihapus.');
+    }
+
+    public function splitItem(Request $request, PosOrder $order, PosOrderItem $item): RedirectResponse
+    {
+        abort_unless((int) $order->tenant_id === $this->tenantId($request), 403);
+        abort_unless((int) $item->pos_order_id === (int) $order->id, 404);
+
+        $validated = $request->validate([
+            'qty'             => ['required', 'numeric', 'min:0.01'],
+            'target_order_id' => ['required', 'integer', Rule::exists('pos_orders', 'id')->where('tenant_id', $order->tenant_id)],
+        ]);
+
+        $targetOrder = PosOrder::query()->findOrFail($validated['target_order_id']);
+
+        try {
+            $result = $this->service->splitItem($item, $targetOrder, (string) $validated['qty']);
+        } catch (ValidationException $exception) {
+            return back()->withErrors($exception->errors());
+        }
+
+        return redirect()
+            ->route('pos.orders.show', $order)
+            ->with('success', "Item berhasil dipindah ke order #{$result['target']->order_number}.");
+    }
+
+    public function mergeFrom(Request $request, PosOrder $order): RedirectResponse
+    {
+        abort_unless((int) $order->tenant_id === $this->tenantId($request), 403);
+
+        $validated = $request->validate([
+            'source_order_id' => [
+                'required',
+                'integer',
+                Rule::exists('pos_orders', 'id')->where('tenant_id', $order->tenant_id),
+            ],
+        ]);
+
+        $sourceOrder = PosOrder::query()->findOrFail($validated['source_order_id']);
+
+        try {
+            $this->service->mergeOrders($order, $sourceOrder);
+        } catch (ValidationException $exception) {
+            return back()->withErrors($exception->errors());
+        }
+
+        return redirect()
+            ->route('pos.orders.show', $order)
+            ->with('success', "Order #{$sourceOrder->order_number} berhasil digabung ke order ini.");
     }
 
     public function checkout(Request $request, PosOrder $order): RedirectResponse

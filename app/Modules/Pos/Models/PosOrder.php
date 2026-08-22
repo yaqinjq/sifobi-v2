@@ -83,6 +83,11 @@ class PosOrder extends Model
         return $this->status === self::STATUS_OPEN;
     }
 
+    public function canSplitOrMerge(): bool
+    {
+        return $this->status === self::STATUS_OPEN && $this->payments()->doesntExist();
+    }
+
     public function statusLabel(): string
     {
         return self::STATUS_LABELS[$this->status] ?? $this->status;
