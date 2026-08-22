@@ -68,38 +68,83 @@
                     </div>
                 @endif
 
-                <div class="flex flex-wrap gap-3">
-                    @foreach($area->tables as $table)
-                        @php $activeOrder = $table->orders->first(); @endphp
-                        @if($activeOrder)
-                            <a href="{{ route('pos.orders.show', $activeOrder) }}"
-                               class="flex flex-col items-center justify-center border-2 {{ $table->statusBadgeClass() }} {{ $shapeClass[$table->shape] ?? $shapeClass['SQUARE'] }} text-xs font-semibold">
-                                <span>{{ $table->code }}</span>
-                                <span class="text-[10px] font-normal">{{ $table->statusLabel() }}</span>
-                            </a>
-                        @elseif($table->status === \App\Modules\Pos\Models\PosTable::STATUS_AVAILABLE)
-                            <a href="{{ route('pos.orders.create', ['outlet_id' => $outlet->id, 'table_id' => $table->id]) }}"
-                               class="flex flex-col items-center justify-center border-2 {{ $table->statusBadgeClass() }} {{ $shapeClass[$table->shape] ?? $shapeClass['SQUARE'] }} text-xs font-semibold hover:opacity-80">
-                                <span>{{ $table->code }}</span>
-                                <span class="text-[10px] font-normal">{{ $table->statusLabel() }}</span>
-                            </a>
-                        @else
-                            <div class="flex flex-col items-center justify-center border-2 {{ $table->statusBadgeClass() }} {{ $shapeClass[$table->shape] ?? $shapeClass['SQUARE'] }} text-xs font-semibold opacity-70">
+                @if($canManage)
+                    <p class="text-xs text-gray-400 mb-2">Geser meja untuk atur posisi di denah.</p>
+                    <div class="relative h-96 bg-gray-50 rounded-2xl border border-dashed border-gray-300 overflow-hidden mb-3"
+                         x-data="{
+                            dragging: null,
+                            startDrag(e, tableId) {
+                                const el = e.currentTarget;
+                                this.dragging = { tableId, el, offsetX: e.clientX - el.offsetLeft, offsetY: e.clientY - el.offsetTop };
+                                const onMove = (ev) => {
+                                    if (!this.dragging) return;
+                                    const x = Math.max(0, ev.clientX - this.dragging.offsetX);
+                                    const y = Math.max(0, ev.clientY - this.dragging.offsetY);
+                                    this.dragging.el.style.left = x + 'px';
+                                    this.dragging.el.style.top = y + 'px';
+                                };
+                                const onUp = () => {
+                                    if (!this.dragging) return;
+                                    const posX = parseInt(this.dragging.el.style.left, 10) || 0;
+                                    const posY = parseInt(this.dragging.el.style.top, 10) || 0;
+                                    fetch(`/pos/tables/${this.dragging.tableId}/position`, {
+                                        method: 'PATCH',
+                                        headers: {
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                                            'Content-Type': 'application/json',
+                                            'Accept': 'application/json',
+                                        },
+                                        body: JSON.stringify({ pos_x: posX, pos_y: posY }),
+                                    });
+                                    this.dragging = null;
+                                    window.removeEventListener('mousemove', onMove);
+                                    window.removeEventListener('mouseup', onUp);
+                                };
+                                window.addEventListener('mousemove', onMove);
+                                window.addEventListener('mouseup', onUp);
+                            }
+                         }">
+                        @foreach($area->tables as $table)
+                            <div class="absolute cursor-move select-none flex flex-col items-center justify-center border-2 {{ $table->statusBadgeClass() }} {{ $shapeClass[$table->shape] ?? $shapeClass['SQUARE'] }} text-xs font-semibold"
+                                 style="left: {{ $table->pos_x }}px; top: {{ $table->pos_y }}px;"
+                                 @mousedown="startDrag($event, {{ $table->id }})">
                                 <span>{{ $table->code }}</span>
                                 <span class="text-[10px] font-normal">{{ $table->statusLabel() }}</span>
                             </div>
-                        @endif
-                    @endforeach
+                        @endforeach
+                    </div>
 
-                    @if($canManage)
-                        <button type="button"
-                                onclick="document.getElementById('add-table-{{ $area->id }}').classList.toggle('hidden')"
-                                class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 text-gray-400 hover:text-gray-600 hover:border-gray-400 rounded-lg w-20 h-20 text-xs">
-                            <i class="ti ti-plus text-lg" aria-hidden="true"></i>
-                            <span>Meja</span>
-                        </button>
-                    @endif
-                </div>
+                    <button type="button"
+                            onclick="document.getElementById('add-table-{{ $area->id }}').classList.toggle('hidden')"
+                            class="sf-btn-secondary inline-flex items-center gap-2 px-4">
+                        <i class="ti ti-plus text-base" aria-hidden="true"></i>
+                        <span>Tambah Meja</span>
+                    </button>
+                @else
+                    <div class="flex flex-wrap gap-3">
+                        @foreach($area->tables as $table)
+                            @php $activeOrder = $table->orders->first(); @endphp
+                            @if($activeOrder)
+                                <a href="{{ route('pos.orders.show', $activeOrder) }}"
+                                   class="flex flex-col items-center justify-center border-2 {{ $table->statusBadgeClass() }} {{ $shapeClass[$table->shape] ?? $shapeClass['SQUARE'] }} text-xs font-semibold">
+                                    <span>{{ $table->code }}</span>
+                                    <span class="text-[10px] font-normal">{{ $table->statusLabel() }}</span>
+                                </a>
+                            @elseif($table->status === \App\Modules\Pos\Models\PosTable::STATUS_AVAILABLE)
+                                <a href="{{ route('pos.orders.create', ['outlet_id' => $outlet->id, 'table_id' => $table->id]) }}"
+                                   class="flex flex-col items-center justify-center border-2 {{ $table->statusBadgeClass() }} {{ $shapeClass[$table->shape] ?? $shapeClass['SQUARE'] }} text-xs font-semibold hover:opacity-80">
+                                    <span>{{ $table->code }}</span>
+                                    <span class="text-[10px] font-normal">{{ $table->statusLabel() }}</span>
+                                </a>
+                            @else
+                                <div class="flex flex-col items-center justify-center border-2 {{ $table->statusBadgeClass() }} {{ $shapeClass[$table->shape] ?? $shapeClass['SQUARE'] }} text-xs font-semibold opacity-70">
+                                    <span>{{ $table->code }}</span>
+                                    <span class="text-[10px] font-normal">{{ $table->statusLabel() }}</span>
+                                </div>
+                            @endif
+                        @endforeach
+                    </div>
+                @endif
 
                 @if($canManage)
                     <div id="add-table-{{ $area->id }}" class="hidden mt-3 pt-3 border-t border-gray-100">
