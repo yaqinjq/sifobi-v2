@@ -76,17 +76,66 @@ class PosOrderService
             $menu = Menu::query()->findOrFail($data['menu_id']);
             $qty = Decimal::toFixed($data['qty'] ?? 1, 4);
             $unitPrice = Decimal::toFixed($menu->selling_price ?? 0, 4);
+            $notes = $data['notes'] ?? null;
 
-            $order->items()->create([
-                'tenant_id'  => $order->tenant_id,
-                'menu_id'    => $menu->id,
-                'item_name'  => $menu->name,
-                'unit_price' => $unitPrice,
-                'qty'        => $qty,
-                'subtotal'   => bcmul($unitPrice, $qty, 4),
-                'notes'      => $data['notes'] ?? null,
-                'sort_order' => $order->items()->count(),
-            ]);
+            // Tap menu yang sama berkali-kali harus nambah qty di baris yang
+            // sama (pola semua mesin kasir modern), BUKAN bikin baris baru
+            // terus-terusan. Cuma digabung kalau baris lama masih PENDING --
+            // kalau sudah ditandai READY di dapur, qty tambahan itu order
+            // baru (ronde ulang), harus baris baru sendiri.
+            $existing = $notes ? null : $order->items()
+                ->where('menu_id', $menu->id)
+                ->where('status', PosOrderItem::STATUS_PENDING)
+                ->whereNull('notes')
+                ->latest('id')
+                ->first();
+
+            if ($existing) {
+                $newQty = bcadd((string) $existing->qty, $qty, 4);
+                $existing->update([
+                    'qty' => $newQty,
+                    'subtotal' => bcmul($unitPrice, $newQty, 4),
+                ]);
+            } else {
+                $order->items()->create([
+                    'tenant_id'  => $order->tenant_id,
+                    'menu_id'    => $menu->id,
+                    'item_name'  => $menu->name,
+                    'unit_price' => $unitPrice,
+                    'qty'        => $qty,
+                    'subtotal'   => bcmul($unitPrice, $qty, 4),
+                    'notes'      => $notes,
+                    'sort_order' => $order->items()->count(),
+                ]);
+            }
+
+            $order->refresh();
+            $order->recalculateTotals();
+            $order->save();
+
+            return $order->refresh()->load('items.menu');
+        });
+    }
+
+    public function updateItemQty(PosOrder $order, PosOrderItem $item, string $qty): PosOrder
+    {
+        return DB::transaction(function () use ($order, $item, $qty): PosOrder {
+            $order = PosOrder::query()->lockForUpdate()->findOrFail($order->id);
+
+            if (! $order->canAddItem()) {
+                throw ValidationException::withMessages(['status' => 'Order ini sudah tidak bisa diubah.']);
+            }
+
+            $qty = Decimal::toFixed($qty, 4);
+
+            if (bccomp($qty, '0', 4) <= 0) {
+                $item->delete();
+            } else {
+                $item->update([
+                    'qty' => $qty,
+                    'subtotal' => bcmul((string) $item->unit_price, $qty, 4),
+                ]);
+            }
 
             $order->refresh();
             $order->recalculateTotals();

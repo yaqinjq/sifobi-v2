@@ -43,7 +43,24 @@
                         <div class="flex items-center justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="font-semibold text-gray-900 truncate">{{ $item->item_name }}</p>
-                                <p class="text-xs text-gray-500">{{ (float) $item->qty }} x Rp {{ number_format((float) $item->unit_price, 0, ',', '.') }}</p>
+                                @if($canEdit)
+                                    <div class="flex items-center gap-1.5 mt-1">
+                                        <form method="POST" action="{{ route('pos.orders.items.update', [$order, $item]) }}">
+                                            @csrf @method('PATCH')
+                                            <input type="hidden" name="qty" value="{{ bcsub((string) $item->qty, '1', 4) }}">
+                                            <button type="submit" class="w-6 h-6 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center leading-none">−</button>
+                                        </form>
+                                        <span class="text-sm font-medium text-gray-700 w-6 text-center">{{ (float) $item->qty }}</span>
+                                        <form method="POST" action="{{ route('pos.orders.items.update', [$order, $item]) }}">
+                                            @csrf @method('PATCH')
+                                            <input type="hidden" name="qty" value="{{ bcadd((string) $item->qty, '1', 4) }}">
+                                            <button type="submit" class="w-6 h-6 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center leading-none">+</button>
+                                        </form>
+                                        <span class="text-xs text-gray-400 ml-1">x Rp {{ number_format((float) $item->unit_price, 0, ',', '.') }}</span>
+                                    </div>
+                                @else
+                                    <p class="text-xs text-gray-500">{{ (float) $item->qty }} x Rp {{ number_format((float) $item->unit_price, 0, ',', '.') }}</p>
+                                @endif
                             </div>
                             <div class="flex items-center gap-3 shrink-0">
                                 <span class="text-sm font-semibold text-gray-900">Rp {{ number_format((float) $item->subtotal, 0, ',', '.') }}</span>
@@ -88,21 +105,43 @@
         @endif
 
         @if($canEdit)
-            <form method="POST" action="{{ route('pos.orders.items.store', $order) }}" class="flex flex-wrap items-end gap-2 mt-4 pt-4 border-t border-gray-100">
-                @csrf
-                <div class="flex-1 min-w-[10rem]">
-                    <select name="menu_id" class="sf-input text-sm" required>
-                        <option value="">Pilih menu</option>
-                        @foreach($menus as $menu)
-                            <option value="{{ $menu->id }}">{{ $menu->name }} — Rp {{ number_format((float) $menu->selling_price, 0, ',', '.') }}</option>
-                        @endforeach
-                    </select>
+            <div class="mt-4 pt-4 border-t border-gray-100"
+                 x-data="{
+                    search: '',
+                    menus: @js($menus->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'price' => (float) $m->selling_price])),
+                    get filtered() {
+                        const q = this.search.trim().toLowerCase();
+                        return q === '' ? this.menus : this.menus.filter(m => m.name.toLowerCase().includes(q));
+                    }
+                 }">
+                <div class="relative mb-3">
+                    <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+                        </svg>
+                    </div>
+                    <input type="text" x-model="search" placeholder="Cari menu..." class="sf-input pl-9 text-sm w-full" autocomplete="off" spellcheck="false">
                 </div>
-                <div class="w-20">
-                    <input type="number" name="qty" value="1" min="0.01" step="0.01" class="sf-input text-sm" required>
-                </div>
-                <button type="submit" class="sf-btn-primary min-h-11 px-4">Tambah</button>
-            </form>
+
+                @if($menus->isEmpty())
+                    <p class="text-sm text-gray-400 py-6 text-center">Belum ada menu tersedia. Tambah menu dulu di modul Menu &amp; Resep.</p>
+                @else
+                    <p class="text-sm text-gray-400 py-6 text-center" x-show="filtered.length === 0" x-cloak>Menu tidak ditemukan.</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <template x-for="menu in filtered" :key="menu.id">
+                            <form method="POST" action="{{ route('pos.orders.items.store', $order) }}">
+                                @csrf
+                                <input type="hidden" name="menu_id" :value="menu.id">
+                                <input type="hidden" name="qty" value="1">
+                                <button type="submit" class="w-full h-full rounded-xl border border-gray-200 hover:border-primary-400 hover:bg-primary-50 px-3 py-3 text-left transition-colors">
+                                    <p class="text-sm font-semibold text-gray-900 truncate" x-text="menu.name"></p>
+                                    <p class="text-xs text-gray-500 mt-0.5" x-text="'Rp ' + menu.price.toLocaleString('id-ID')"></p>
+                                </button>
+                            </form>
+                        </template>
+                    </div>
+                @endif
+            </div>
         @endif
     </x-sf.card>
 

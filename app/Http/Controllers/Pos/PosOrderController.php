@@ -131,6 +131,24 @@ class PosOrderController extends Controller
         return redirect()->route('pos.orders.show', $order)->with('success', 'Item ditambahkan.');
     }
 
+    public function updateItemQty(Request $request, PosOrder $order, PosOrderItem $item): RedirectResponse
+    {
+        abort_unless((int) $order->tenant_id === $this->tenantId($request), 403);
+        abort_unless((int) $item->pos_order_id === (int) $order->id, 404);
+
+        $validated = $request->validate([
+            'qty' => ['required', 'numeric'],
+        ]);
+
+        try {
+            $this->service->updateItemQty($order, $item, (string) $validated['qty']);
+        } catch (ValidationException $exception) {
+            return back()->withErrors($exception->errors());
+        }
+
+        return redirect()->route('pos.orders.show', $order);
+    }
+
     public function removeItem(Request $request, PosOrder $order, PosOrderItem $item): RedirectResponse
     {
         abort_unless((int) $order->tenant_id === $this->tenantId($request), 403);
