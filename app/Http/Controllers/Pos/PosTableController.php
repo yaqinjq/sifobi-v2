@@ -8,7 +8,9 @@ use App\Modules\Pos\Models\PosTable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class PosTableController extends Controller
 {
@@ -88,6 +90,15 @@ class PosTableController extends Controller
         $table->update($validated);
 
         return response()->json(['ok' => true]);
+    }
+
+    public function qr(Request $request, PosTable $table): View
+    {
+        abort_unless((int) $table->tenant_id === $this->tenantId($request), 403);
+
+        $signedUrl = URL::signedRoute('public.pos.show', ['table' => $table->id]);
+
+        return view('pos.tables.qr', compact('table', 'signedUrl'));
     }
 
     private function tenantId(Request $request): int

@@ -114,12 +114,24 @@
                         @endforeach
                     </div>
 
-                    <button type="button"
-                            onclick="document.getElementById('add-table-{{ $area->id }}').classList.toggle('hidden')"
-                            class="sf-btn-secondary inline-flex items-center gap-2 px-4">
-                        <i class="ti ti-plus text-base" aria-hidden="true"></i>
-                        <span>Tambah Meja</span>
-                    </button>
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <button type="button"
+                                onclick="document.getElementById('add-table-{{ $area->id }}').classList.toggle('hidden')"
+                                class="sf-btn-secondary inline-flex items-center gap-2 px-4">
+                            <i class="ti ti-plus text-base" aria-hidden="true"></i>
+                            <span>Tambah Meja</span>
+                        </button>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                        @foreach($area->tables as $table)
+                            <a href="{{ route('pos.tables.qr', $table) }}" target="_blank"
+                               class="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary-700 border border-gray-200 rounded-lg px-2.5 py-1.5">
+                                <i class="ti ti-qrcode text-sm" aria-hidden="true"></i>
+                                <span>QR {{ $table->code }}</span>
+                            </a>
+                        @endforeach
+                    </div>
                 @else
                     <div class="flex flex-wrap gap-3">
                         @foreach($area->tables as $table)

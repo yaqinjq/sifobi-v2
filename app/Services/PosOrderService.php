@@ -25,7 +25,7 @@ class PosOrderService
     /**
      * @param  array{outlet_id: int, order_type: string, pos_table_id?: int|null, notes?: string|null}  $data
      */
-    public function openOrder(array $data, int $tenantId, int $userId): PosOrder
+    public function openOrder(array $data, int $tenantId, ?int $userId = null): PosOrder
     {
         return DB::transaction(function () use ($data, $tenantId, $userId): PosOrder {
             $outletId = (int) $data['outlet_id'];

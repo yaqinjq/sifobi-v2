@@ -98,6 +98,18 @@ Route::post('/api/wipro/dispatch-notification', [\App\Http\Controllers\Api\Wipro
 Route::get('/api/outlets', [\App\Http\Controllers\Api\WiproOutletController::class, 'index'])
     ->name('api.wipro.outlets');
 
+// QR self-order per meja — publik, tanpa login. Dilindungi Laravel Signed
+// Route (URL tidak bisa diutak-atik ID mejanya, signature langsung invalid)
+// + rate limit bawaan supaya tidak disalahgunakan untuk spam.
+Route::prefix('order/table/{table}')
+    ->middleware(['signed', 'throttle:30,1'])
+    ->name('public.pos.')
+    ->group(function (): void {
+        Route::get('/', [\App\Http\Controllers\PublicOrderController::class, 'show'])->name('show');
+        Route::post('items', [\App\Http\Controllers\PublicOrderController::class, 'addItem'])->name('items.store');
+        Route::delete('items/{item}', [\App\Http\Controllers\PublicOrderController::class, 'removeItem'])->name('items.destroy');
+    });
+
 Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('dashboard');
@@ -581,6 +593,7 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                 Route::put('tables/{table}', [\App\Http\Controllers\Pos\PosTableController::class, 'update'])->name('tables.update');
                 Route::delete('tables/{table}', [\App\Http\Controllers\Pos\PosTableController::class, 'destroy'])->name('tables.destroy');
                 Route::patch('tables/{table}/position', [\App\Http\Controllers\Pos\PosTableController::class, 'updatePosition'])->name('tables.position');
+                Route::get('tables/{table}/qr', [\App\Http\Controllers\Pos\PosTableController::class, 'qr'])->name('tables.qr');
             });
 
             Route::middleware('permission:operate_pos')->group(function (): void {
