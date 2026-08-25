@@ -623,6 +623,7 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
 
             Route::middleware('permission:view_pos_reports')->group(function (): void {
                 Route::get('reports', [\App\Http\Controllers\Pos\PosReportController::class, 'index'])->name('reports.index');
+                Route::get('reports/export', [\App\Http\Controllers\Pos\PosReportController::class, 'export'])->name('reports.export');
             });
 
             Route::middleware('permission:operate_pos')->group(function (): void {
