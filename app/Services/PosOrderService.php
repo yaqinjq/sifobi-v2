@@ -20,6 +20,7 @@ class PosOrderService
     public function __construct(
         private readonly StockLedgerService $stockLedgerService,
         private readonly PosShiftService $shiftService,
+        private readonly LoyaltyService $loyaltyService,
     ) {}
 
     /**
@@ -235,6 +236,8 @@ class PosOrderService
                 if ($order->pos_table_id) {
                     PosTable::query()->where('id', $order->pos_table_id)->update(['status' => PosTable::STATUS_AVAILABLE]);
                 }
+
+                $this->loyaltyService->awardPoints($order);
             }
 
             return $order->refresh()->load(['items.menu', 'payments']);

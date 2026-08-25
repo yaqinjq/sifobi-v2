@@ -108,6 +108,7 @@ Route::prefix('order/table/{table}')
         Route::get('/', [\App\Http\Controllers\PublicOrderController::class, 'show'])->name('show');
         Route::post('items', [\App\Http\Controllers\PublicOrderController::class, 'addItem'])->name('items.store');
         Route::delete('items/{item}', [\App\Http\Controllers\PublicOrderController::class, 'removeItem'])->name('items.destroy');
+        Route::post('member', [\App\Http\Controllers\PublicOrderController::class, 'attachMember'])->name('member.store');
     });
 
 Route::get('/', function () {
@@ -174,6 +175,9 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                 ->only(['index', 'store', 'update', 'destroy'])
                 ->parameters(['menu-categories' => 'menuCategory'])
                 ->names('menu-categories');
+            Route::resource('members', \App\Http\Controllers\Settings\MemberController::class)
+                ->only(['index', 'show'])
+                ->names('members');
             Route::get('default-conversions', [DefaultConversionController::class, 'index'])->name('default-conversions.index');
             Route::post('default-conversions', [DefaultConversionController::class, 'store'])->name('default-conversions.store');
             Route::delete('default-conversions/{id}', [DefaultConversionController::class, 'destroy'])->name('default-conversions.destroy');
@@ -612,6 +616,8 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                 Route::delete('orders/{order}/items/{item}', [\App\Http\Controllers\Pos\PosOrderController::class, 'removeItem'])->name('orders.items.destroy');
                 Route::post('orders/{order}/items/{item}/split', [\App\Http\Controllers\Pos\PosOrderController::class, 'splitItem'])->name('orders.items.split');
                 Route::post('orders/{order}/merge', [\App\Http\Controllers\Pos\PosOrderController::class, 'mergeFrom'])->name('orders.merge');
+                Route::post('orders/{order}/member', [\App\Http\Controllers\Pos\PosOrderController::class, 'attachMember'])->name('orders.member.store');
+                Route::post('orders/{order}/redeem-points', [\App\Http\Controllers\Pos\PosOrderController::class, 'redeemPoints'])->name('orders.redeem-points');
                 Route::post('orders/{order}/checkout', [\App\Http\Controllers\Pos\PosOrderController::class, 'checkout'])->name('orders.checkout');
                 Route::post('orders/{order}/pay', [\App\Http\Controllers\Pos\PosOrderController::class, 'pay'])->name('orders.pay');
                 Route::get('orders/{order}/receipt', [\App\Http\Controllers\Pos\PosOrderController::class, 'receipt'])->name('orders.receipt');

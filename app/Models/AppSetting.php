@@ -28,7 +28,17 @@ class AppSetting extends Model
         'smtp_encryption',
         'smtp_from_address',
         'smtp_from_name',
+        'loyalty_points_per_amount',
+        'loyalty_point_value',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'loyalty_points_per_amount' => 'decimal:4',
+            'loyalty_point_value' => 'decimal:4',
+        ];
+    }
 
     protected static function booted(): void
     {

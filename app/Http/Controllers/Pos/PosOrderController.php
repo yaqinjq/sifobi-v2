@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pos;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Pos\Models\PosOrder;
 use App\Modules\Pos\Models\PosOrderItem;
@@ -10,6 +11,7 @@ use App\Modules\Pos\Models\PosPayment;
 use App\Modules\Pos\Models\PosTable;
 use App\Modules\Production\Models\Menu;
 use App\Modules\Production\Models\MenuCategory;
+use App\Services\LoyaltyService;
 use App\Services\PosOrderService;
 use App\Services\PosShiftService;
 use Illuminate\Http\JsonResponse;
@@ -24,6 +26,7 @@ class PosOrderController extends Controller
     public function __construct(
         private readonly PosOrderService $service,
         private readonly PosShiftService $shiftService,
+        private readonly LoyaltyService $loyaltyService,
     ) {}
 
     public function index(Request $request): View
@@ -91,7 +94,7 @@ class PosOrderController extends Controller
     {
         abort_unless((int) $order->tenant_id === $this->tenantId($request), 403);
 
-        $order->load(['items.menu', 'table', 'payments']);
+        $order->load(['items.menu', 'table', 'payments', 'member']);
 
         $menus = Menu::query()
             ->where('tenant_id', $order->tenant_id)
@@ -118,7 +121,47 @@ class PosOrderController extends Controller
             ->where('id', '!=', $order->id)
             ->get(['id', 'order_number']);
 
-        return view('pos.orders.show', compact('order', 'menus', 'menuCategories', 'remainingDue', 'hasOpenShift', 'otherOpenOrders'));
+        $canRedeemPoints = (bool) AppSetting::current()->loyalty_point_value;
+
+        return view('pos.orders.show', compact('order', 'menus', 'menuCategories', 'remainingDue', 'hasOpenShift', 'otherOpenOrders', 'canRedeemPoints'));
+    }
+
+    public function attachMember(Request $request, PosOrder $order): RedirectResponse
+    {
+        abort_unless((int) $order->tenant_id === $this->tenantId($request), 403);
+
+        $validated = $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+            'name'  => ['nullable', 'string', 'max:150'],
+        ]);
+
+        try {
+            $member = $this->loyaltyService->findOrCreateMember($order->tenant_id, $validated['phone'], $validated['name'] ?? null);
+        } catch (ValidationException $exception) {
+            return back()->withErrors($exception->errors())->withInput();
+        }
+
+        $order->update(['member_id' => $member->id]);
+
+        return redirect()->route('pos.orders.show', $order)->with('success', "Member {$member->name} berhasil ditautkan ke order ini.");
+    }
+
+    public function redeemPoints(Request $request, PosOrder $order): RedirectResponse
+    {
+        abort_unless((int) $order->tenant_id === $this->tenantId($request), 403);
+        abort_unless($order->member_id, 404);
+
+        $validated = $request->validate([
+            'points' => ['required', 'numeric', 'min:0.01'],
+        ]);
+
+        try {
+            $this->loyaltyService->redeemPoints($order, $order->member, (string) $validated['points']);
+        } catch (ValidationException $exception) {
+            return back()->withErrors($exception->errors());
+        }
+
+        return redirect()->route('pos.orders.show', $order)->with('success', 'Poin berhasil ditukar jadi potongan harga.');
     }
 
     public function addItem(Request $request, PosOrder $order): RedirectResponse

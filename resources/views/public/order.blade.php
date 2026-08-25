@@ -56,6 +56,25 @@
         @endif
     </x-sf.card>
 
+    <x-sf.card title="Member">
+        @if($order->member)
+            <div class="flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="font-semibold text-gray-900 truncate">Halo, {{ $order->member->name }}!</p>
+                    <p class="text-xs text-gray-500">{{ $order->member->phone }}</p>
+                </div>
+                <span class="text-sm font-semibold text-primary-700 shrink-0">{{ number_format((float) $order->member->points_balance, 0, ',', '.') }} poin</span>
+            </div>
+        @else
+            <form method="POST" action="{{ $memberUrl }}" class="space-y-2">
+                @csrf
+                <input type="text" name="phone" value="{{ old('phone') }}" placeholder="No. HP" class="sf-input text-sm w-full" required>
+                <input type="text" name="name" value="{{ old('name') }}" placeholder="Nama (kalau belum jadi member)" class="sf-input text-sm w-full">
+                <button type="submit" class="sf-btn-secondary w-full min-h-11 text-sm">Jadi Member / Masuk</button>
+            </form>
+        @endif
+    </x-sf.card>
+
     <p class="text-xs text-gray-400 text-center px-4">
         Pesanan Anda akan diproses oleh staff. Pembayaran dilakukan di kasir.
     </p>

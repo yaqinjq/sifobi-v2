@@ -37,6 +37,8 @@ class AppSettingController extends Controller
             'smtp_encryption'  => ['nullable', 'string', 'in:tls,ssl,starttls,'],
             'smtp_from_address'=> ['nullable', 'email', 'max:150'],
             'smtp_from_name'   => ['nullable', 'string', 'max:100'],
+            'loyalty_points_per_amount' => ['nullable', 'numeric', 'min:0'],
+            'loyalty_point_value'       => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $setting = AppSetting::current();
@@ -47,6 +49,7 @@ class AppSettingController extends Controller
                 'app_name', 'app_tagline', 'primary_color', 'contact_email', 'contact_phone',
                 'smtp_host', 'smtp_port', 'smtp_username', 'smtp_encryption',
                 'smtp_from_address', 'smtp_from_name',
+                'loyalty_points_per_amount', 'loyalty_point_value',
             ])
             ->all();
 

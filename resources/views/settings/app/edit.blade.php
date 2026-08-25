@@ -125,6 +125,38 @@
                 </x-sf.form-group>
             </div>
 
+            {{-- Membership & Loyalty --}}
+            <div class="border-t border-gray-100 pt-5 space-y-4">
+                <div>
+                    <p class="text-sm font-semibold text-gray-800">Membership & Loyalty</p>
+                    <p class="text-xs text-gray-500 mt-0.5">Kosongkan kalau belum mau aktifkan program poin member di POS.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <x-sf.form-group label="Belanja Rp berapa = 1 poin" for="loyalty_points_per_amount">
+                        <input type="number"
+                               name="loyalty_points_per_amount"
+                               id="loyalty_points_per_amount"
+                               value="{{ old('loyalty_points_per_amount', $setting->loyalty_points_per_amount !== null ? (float) $setting->loyalty_points_per_amount : null) }}"
+                               class="sf-input text-base"
+                               placeholder="Contoh: 10000"
+                               min="0" step="1">
+                        <p class="text-xs text-gray-500 mt-1">Member dapat 1 poin tiap kelipatan segini dari total belanja saat order lunas.</p>
+                    </x-sf.form-group>
+
+                    <x-sf.form-group label="Nilai 1 poin saat ditukar (Rp)" for="loyalty_point_value">
+                        <input type="number"
+                               name="loyalty_point_value"
+                               id="loyalty_point_value"
+                               value="{{ old('loyalty_point_value', $setting->loyalty_point_value !== null ? (float) $setting->loyalty_point_value : null) }}"
+                               class="sf-input text-base"
+                               placeholder="Contoh: 100"
+                               min="0" step="1">
+                        <p class="text-xs text-gray-500 mt-1">Dipakai kasir saat member tukar poin jadi potongan harga.</p>
+                    </x-sf.form-group>
+                </div>
+            </div>
+
             {{-- SMTP Setting --}}
             <div class="border-t border-gray-100 pt-5 space-y-4">
                 <div>

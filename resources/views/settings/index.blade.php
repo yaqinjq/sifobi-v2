@@ -91,6 +91,14 @@
                 </div>
                 <i class="ti ti-chevron-right sh-arrow" aria-hidden="true"></i>
             </a>
+            <a href="{{ route('settings.members.index') }}" class="sh-item">
+                <div class="sh-icon sh-icon-amber"><i class="ti ti-users" aria-hidden="true"></i></div>
+                <div class="sh-text">
+                    <p class="sh-name">Member & Loyalty</p>
+                    <p class="sh-desc">Daftar member dan saldo poin dari POS</p>
+                </div>
+                <i class="ti ti-chevron-right sh-arrow" aria-hidden="true"></i>
+            </a>
             <a href="{{ route('settings.departments.index') }}" class="sh-item">
                 <div class="sh-icon sh-icon-gray"><i class="ti ti-building" aria-hidden="true"></i></div>
                 <div class="sh-text">

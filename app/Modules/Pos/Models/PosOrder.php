@@ -4,6 +4,7 @@ namespace App\Modules\Pos\Models;
 
 use App\Models\Scopes\TenantScope;
 use App\Models\User;
+use App\Modules\Core\Models\Member;
 use App\Modules\Core\Models\Outlet;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,6 +52,11 @@ class PosOrder extends Model
     public function table(): BelongsTo
     {
         return $this->belongsTo(PosTable::class, 'pos_table_id');
+    }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(Member::class);
     }
 
     public function items(): HasMany

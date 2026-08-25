@@ -193,6 +193,44 @@
                 @endif
             </x-sf.card>
 
+            <x-sf.card title="Member">
+                @if($order->member)
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="font-semibold text-gray-900 truncate">{{ $order->member->name }}</p>
+                            <p class="text-xs text-gray-500">{{ $order->member->phone }}</p>
+                        </div>
+                        <span class="text-sm font-semibold text-primary-700 shrink-0">{{ number_format((float) $order->member->points_balance, 0, ',', '.') }} poin</span>
+                    </div>
+
+                    @if($canEdit && $canRedeemPoints && (float) $order->member->points_balance > 0)
+                        <form method="POST" action="{{ route('pos.orders.redeem-points', $order) }}" class="flex flex-wrap items-end gap-2 mt-3 pt-3 border-t border-gray-100">
+                            @csrf
+                            <div class="flex-1 min-w-[8rem]">
+                                <label class="text-xs text-gray-500">Tukar Poin</label>
+                                <input type="number" name="points" min="0.01" max="{{ (float) $order->member->points_balance }}" step="1" class="sf-input text-sm" required>
+                            </div>
+                            <button type="submit" class="sf-btn-secondary min-h-11 px-4 text-sm">Tukar</button>
+                        </form>
+                    @endif
+                @elseif($canEdit)
+                    <form method="POST" action="{{ route('pos.orders.member.store', $order) }}" class="flex flex-wrap items-end gap-2">
+                        @csrf
+                        <div class="flex-1 min-w-[8rem]">
+                            <label class="text-xs text-gray-500">No. HP</label>
+                            <input type="text" name="phone" value="{{ old('phone') }}" class="sf-input text-sm" required>
+                        </div>
+                        <div class="flex-1 min-w-[8rem]">
+                            <label class="text-xs text-gray-500">Nama (kalau member baru)</label>
+                            <input type="text" name="name" value="{{ old('name') }}" class="sf-input text-sm">
+                        </div>
+                        <button type="submit" class="sf-btn-secondary min-h-11 px-4 text-sm">Cari/Daftar</button>
+                    </form>
+                @else
+                    <p class="text-sm text-gray-400 text-center py-2">Order ini tidak pakai member.</p>
+                @endif
+            </x-sf.card>
+
             @if($canSplitOrMerge && $otherOpenOrders->isNotEmpty())
                 <x-sf.card title="Gabung dari Order Lain">
                     <form method="POST" action="{{ route('pos.orders.merge', $order) }}"

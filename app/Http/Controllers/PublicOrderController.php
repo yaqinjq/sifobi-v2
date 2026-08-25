@@ -6,6 +6,7 @@ use App\Modules\Pos\Models\PosOrder;
 use App\Modules\Pos\Models\PosOrderItem;
 use App\Modules\Pos\Models\PosTable;
 use App\Modules\Production\Models\Menu;
+use App\Services\LoyaltyService;
 use App\Services\PosOrderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,10 @@ use Illuminate\View\View;
 
 class PublicOrderController extends Controller
 {
-    public function __construct(private readonly PosOrderService $service) {}
+    public function __construct(
+        private readonly PosOrderService $service,
+        private readonly LoyaltyService $loyaltyService,
+    ) {}
 
     public function show(PosTable $table): View
     {
@@ -38,7 +42,7 @@ class PublicOrderController extends Controller
             }
         }
 
-        $order->load('items.menu');
+        $order->load(['items.menu', 'member']);
 
         $menus = Menu::query()
             ->where('tenant_id', $table->tenant_id)
@@ -48,8 +52,31 @@ class PublicOrderController extends Controller
             ->get(['id', 'name', 'code', 'selling_price']);
 
         $addItemUrl = URL::signedRoute('public.pos.items.store', ['table' => $table->id]);
+        $memberUrl = URL::signedRoute('public.pos.member.store', ['table' => $table->id]);
 
-        return view('public.order', compact('table', 'order', 'menus', 'addItemUrl'));
+        return view('public.order', compact('table', 'order', 'menus', 'addItemUrl', 'memberUrl'));
+    }
+
+    public function attachMember(Request $request, PosTable $table): RedirectResponse
+    {
+        $order = $table->activeOrder();
+
+        abort_unless($order, 404);
+
+        $validated = $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+            'name'  => ['nullable', 'string', 'max:150'],
+        ]);
+
+        try {
+            $member = $this->loyaltyService->findOrCreateMember($table->tenant_id, $validated['phone'], $validated['name'] ?? null);
+        } catch (ValidationException $exception) {
+            return back()->withErrors($exception->errors())->withInput();
+        }
+
+        $order->update(['member_id' => $member->id]);
+
+        return $this->backToShow($table, "Halo {$member->name}, Anda tercatat sebagai member!");
     }
 
     public function addItem(Request $request, PosTable $table): RedirectResponse
