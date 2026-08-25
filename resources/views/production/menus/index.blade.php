@@ -30,9 +30,21 @@
             <div class="divide-y divide-gray-50">
                 @foreach($menus as $menu)
                     <a href="{{ route('production.menus.show', $menu) }}" class="flex items-center justify-between gap-3 px-3 py-3 hover:bg-gray-50 transition-colors">
-                        <div class="min-w-0">
-                            <p class="font-semibold text-gray-900 truncate">{{ $menu->name }}</p>
-                            <p class="text-xs text-gray-500">{{ $menu->brand?->name ?? '-' }} @if($menu->code) &middot; {{ $menu->code }} @endif</p>
+                        <div class="flex items-center gap-3 min-w-0">
+                            @if($menu->photoUrl())
+                                <img src="{{ $menu->photoUrl() }}" alt="{{ $menu->name }}" class="w-10 h-10 rounded-xl object-cover shrink-0">
+                            @else
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold shrink-0 {{ $menu->category?->placeholderClass() ?? 'ph-gray' }}">
+                                    {{ strtoupper(substr($menu->name, 0, 1)) }}
+                                </div>
+                            @endif
+                            <div class="min-w-0">
+                                <p class="font-semibold text-gray-900 truncate">{{ $menu->name }}</p>
+                                <p class="text-xs text-gray-500 truncate">
+                                    {{ $menu->brand?->name ?? '-' }} @if($menu->code) &middot; {{ $menu->code }} @endif
+                                    @if($menu->category) &middot; {{ $menu->category->name }} @endif
+                                </p>
+                            </div>
                         </div>
                         <span class="text-xs text-gray-400 shrink-0">{{ $menu->recipes_count }} versi resep</span>
                     </a>

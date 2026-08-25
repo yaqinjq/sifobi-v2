@@ -7,6 +7,7 @@ use App\Modules\Core\Models\Brand;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -17,8 +18,10 @@ class Menu extends Model
     protected $fillable = [
         'tenant_id',
         'brand_id',
+        'menu_category_id',
         'code',
         'name',
+        'photo_path',
         'selling_price',
         'is_active',
     ];
@@ -34,6 +37,16 @@ class Menu extends Model
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(MenuCategory::class, 'menu_category_id');
+    }
+
+    public function photoUrl(): ?string
+    {
+        return $this->photo_path ? Storage::url($this->photo_path) : null;
     }
 
     public function recipes(): HasMany

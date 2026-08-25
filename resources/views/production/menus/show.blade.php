@@ -16,7 +16,7 @@
         </div>
     @endif
 
-    <div class="flex justify-end gap-2">
+    <div class="flex justify-end gap-2 flex-wrap">
         <form method="POST" action="{{ route('production.menus.destroy', $menu) }}"
               onsubmit="return confirm('{{ $menu->canHardDelete() ? 'Hapus menu ini?' : 'Menu ini masih punya riwayat resep, jadi tidak bisa dihapus permanen — nonaktifkan menu ini?' }}')">
             @csrf
@@ -26,11 +26,38 @@
                 <span>Hapus Menu</span>
             </button>
         </form>
+        <a href="{{ route('production.menus.edit', $menu) }}" class="sf-btn-secondary inline-flex min-h-11 items-center gap-2">
+            <i class="ti ti-pencil text-base" aria-hidden="true"></i>
+            <span>Edit Menu</span>
+        </a>
         <a href="{{ route('production.recipes.create', $menu) }}" class="sf-btn-primary inline-flex min-h-11 items-center gap-2">
             <i class="ti ti-plus text-base" aria-hidden="true"></i>
             <span>Resep Versi Baru</span>
         </a>
     </div>
+
+    <x-sf.card>
+        <div class="flex items-center gap-4">
+            @if($menu->photoUrl())
+                <img src="{{ $menu->photoUrl() }}" alt="{{ $menu->name }}" class="w-20 h-20 rounded-2xl object-cover shrink-0">
+            @else
+                <div class="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-semibold shrink-0 {{ $menu->category?->placeholderClass() ?? 'ph-gray' }}">
+                    {{ strtoupper(substr($menu->name, 0, 1)) }}
+                </div>
+            @endif
+            <div class="min-w-0">
+                @if($menu->category)
+                    <span class="{{ $menu->category->badgeClass() }} mb-1">{{ $menu->category->name }}</span>
+                @endif
+                <p class="text-lg font-bold text-gray-900">
+                    {{ $menu->selling_price ? 'Rp '.number_format((float) $menu->selling_price, 0, ',', '.') : 'Harga jual belum diisi' }}
+                </p>
+                @if(!$menu->selling_price)
+                    <p class="text-xs text-amber-600 mt-1">Isi harga jual lewat "Edit Menu" supaya bisa dijual di POS.</p>
+                @endif
+            </div>
+        </div>
+    </x-sf.card>
 
     <x-sf.card title="Histori Versi Resep">
         @if($menu->recipes->isEmpty())

@@ -170,6 +170,10 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                 ->only(['index', 'store', 'update', 'destroy'])
                 ->parameters(['item-categories' => 'itemCategory'])
                 ->names('item-categories');
+            Route::resource('menu-categories', \App\Http\Controllers\Settings\MenuCategoryController::class)
+                ->only(['index', 'store', 'update', 'destroy'])
+                ->parameters(['menu-categories' => 'menuCategory'])
+                ->names('menu-categories');
             Route::get('default-conversions', [DefaultConversionController::class, 'index'])->name('default-conversions.index');
             Route::post('default-conversions', [DefaultConversionController::class, 'store'])->name('default-conversions.store');
             Route::delete('default-conversions/{id}', [DefaultConversionController::class, 'destroy'])->name('default-conversions.destroy');
@@ -550,6 +554,8 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::get('/menus/create', [MenuController::class, 'create'])->name('menus.create');
             Route::post('/menus', [MenuController::class, 'store'])->name('menus.store');
             Route::get('/menus/{menu}', [MenuController::class, 'show'])->name('menus.show');
+            Route::get('/menus/{menu}/edit', [MenuController::class, 'edit'])->name('menus.edit');
+            Route::put('/menus/{menu}', [MenuController::class, 'update'])->name('menus.update');
             Route::delete('/menus/{menu}', [MenuController::class, 'destroy'])->name('menus.destroy');
 
             Route::get('/menus/{menu}/recipes/create', [RecipeController::class, 'create'])->name('recipes.create');

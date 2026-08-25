@@ -184,6 +184,19 @@
     .badge-rose     { @apply inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-rose-100 text-rose-800; }
     .badge-indigo   { @apply inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-indigo-100 text-indigo-800; }
 
+    /* Placeholder foto (kotak warna + huruf) untuk menu/produk tanpa foto --
+       nama class statis (bukan kombinasi utility ditulis dinamis) supaya
+       aman dari content-scanning Tailwind v4 (cuma nge-scan *.blade.php,
+       bukan file model PHP tempat warna ini dipilih lewat match()). */
+    .ph-gray   { @apply bg-gray-100 text-gray-600; }
+    .ph-green  { @apply bg-primary-100 text-primary-700; }
+    .ph-blue   { @apply bg-blue-100 text-blue-700; }
+    .ph-amber  { @apply bg-amber-100 text-amber-700; }
+    .ph-red    { @apply bg-red-100 text-red-700; }
+    .ph-purple { @apply bg-purple-100 text-purple-700; }
+    .ph-rose   { @apply bg-rose-100 text-rose-700; }
+    .ph-indigo { @apply bg-indigo-100 text-indigo-700; }
+
     /* KPI stat card helpers */
     .sf-stat-card {
         @apply bg-white rounded-2xl border border-gray-100 overflow-hidden p-4 flex flex-col gap-1;

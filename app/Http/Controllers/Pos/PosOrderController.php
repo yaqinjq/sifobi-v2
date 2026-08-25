@@ -9,6 +9,7 @@ use App\Modules\Pos\Models\PosOrderItem;
 use App\Modules\Pos\Models\PosPayment;
 use App\Modules\Pos\Models\PosTable;
 use App\Modules\Production\Models\Menu;
+use App\Modules\Production\Models\MenuCategory;
 use App\Services\PosOrderService;
 use App\Services\PosShiftService;
 use Illuminate\Http\JsonResponse;
@@ -96,8 +97,16 @@ class PosOrderController extends Controller
             ->where('tenant_id', $order->tenant_id)
             ->where('is_active', true)
             ->whereNotNull('selling_price')
+            ->with('category:id,name,color')
             ->orderBy('name')
-            ->get(['id', 'name', 'code', 'selling_price']);
+            ->get(['id', 'name', 'code', 'selling_price', 'photo_path', 'menu_category_id']);
+
+        $menuCategories = MenuCategory::query()
+            ->where('tenant_id', $order->tenant_id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         $remainingDue = bcsub((string) $order->total_amount, $order->amountPaid(), 4);
         $hasOpenShift = (bool) $this->shiftService->findOpenShift((int) $order->tenant_id, (int) $order->outlet_id);
@@ -109,7 +118,7 @@ class PosOrderController extends Controller
             ->where('id', '!=', $order->id)
             ->get(['id', 'order_number']);
 
-        return view('pos.orders.show', compact('order', 'menus', 'remainingDue', 'hasOpenShift', 'otherOpenOrders'));
+        return view('pos.orders.show', compact('order', 'menus', 'menuCategories', 'remainingDue', 'hasOpenShift', 'otherOpenOrders'));
     }
 
     public function addItem(Request $request, PosOrder $order): RedirectResponse
