@@ -615,5 +615,10 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::post('shifts/{shift}/reconcile', [\App\Http\Controllers\Pos\PosShiftController::class, 'reconcile'])
                 ->middleware('permission:approve_pos_shift')
                 ->name('shifts.reconcile');
+
+            Route::middleware('permission:operate_pos')->group(function (): void {
+                Route::get('kitchen', [\App\Http\Controllers\Pos\PosKitchenController::class, 'index'])->name('kitchen.index');
+                Route::post('kitchen/items/{item}/ready', [\App\Http\Controllers\Pos\PosKitchenController::class, 'markReady'])->name('kitchen.items.ready');
+            });
         });
 });

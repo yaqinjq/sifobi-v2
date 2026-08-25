@@ -30,6 +30,10 @@
                 <i class="ti ti-cash text-base" aria-hidden="true"></i>
                 <span>Shift Kasir</span>
             </a>
+            <a href="{{ route('pos.kitchen.index', ['outlet_id' => $outletId]) }}" class="sf-btn-secondary inline-flex min-h-11 items-center gap-2">
+                <i class="ti ti-tools-kitchen-2 text-base" aria-hidden="true"></i>
+                <span>Dapur</span>
+            </a>
             <a href="{{ route('pos.orders.create', ['outlet_id' => $outletId]) }}" class="sf-btn-primary inline-flex min-h-11 items-center gap-2">
                 <i class="ti ti-plus text-base" aria-hidden="true"></i>
                 <span>Order Baru</span>
