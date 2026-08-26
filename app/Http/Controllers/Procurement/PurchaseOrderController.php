@@ -94,6 +94,12 @@ class PurchaseOrderController extends Controller
         $tenantId  = $this->tenantId($request);
         $user      = $request->user();
 
+        if (! $user->outlet_id) {
+            return response()->json([
+                'error' => 'Akun Anda belum ditugaskan ke outlet manapun, jadi Purchase Order tidak bisa dibuat. Hubungi admin untuk mengatur outlet di menu Manajemen User.',
+            ], 422);
+        }
+
         $data = $request->validate([
             'needed_at'             => ['required', 'date', 'after_or_equal:today'],
             'notes'                 => ['nullable', 'string', 'max:2000'],
