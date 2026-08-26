@@ -112,16 +112,21 @@
                     </div>
                 </x-sf.form-group>
 
-                {{-- Remember --}}
-                <label class="flex items-center gap-3 cursor-pointer">
-                    <input
-                        type="checkbox"
-                        name="remember"
-                        value="1"
-                        class="w-4 h-4 rounded border-gray-300 text-primary-700 focus:ring-primary-500"
-                    >
-                    <span class="text-sm text-gray-700">Ingat saya di perangkat ini</span>
-                </label>
+                {{-- Remember + Lupa Password --}}
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            name="remember"
+                            value="1"
+                            class="w-4 h-4 rounded border-gray-300 text-primary-700 focus:ring-primary-500"
+                        >
+                        <span class="text-sm text-gray-700">Ingat saya di perangkat ini</span>
+                    </label>
+                    <a href="{{ route('password.request') }}" class="text-sm font-medium text-primary-700 hover:text-primary-800">
+                        Lupa password?
+                    </a>
+                </div>
 
                 {{-- Validation error --}}
                 @if($errors->any())
@@ -130,6 +135,22 @@
                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                         </svg>
                         {{ $errors->first() }}
+                    </div>
+
+                    @if(str_contains($errors->first(), 'belum diverifikasi'))
+                        <form method="POST" action="{{ route('register.resend-verification') }}">
+                            @csrf
+                            <input type="hidden" name="email" value="{{ old('email') }}">
+                            <button type="submit" class="text-sm font-medium text-primary-700 hover:text-primary-800">
+                                Kirim ulang link verifikasi
+                            </button>
+                        </form>
+                    @endif
+                @endif
+
+                @if(session('success'))
+                    <div class="rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-700">
+                        {{ session('success') }}
                     </div>
                 @endif
 

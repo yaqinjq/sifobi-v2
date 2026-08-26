@@ -55,6 +55,7 @@ class TenantController extends Controller
                 'email' => $validated['admin_email'],
                 'password' => $temporaryPassword,
                 'status' => 'ACTIVE',
+                'email_verified_at' => now(),
             ]);
 
             app(PermissionRegistrar::class)->setPermissionsTeamId($tenant->id);

@@ -76,6 +76,7 @@ class UserController extends Controller
                 'password'      => $data['password'],
                 'phone'         => $data['phone'] ?? null,
                 'status'        => $this->statusToDatabase($data['status']),
+                'email_verified_at' => now(),
             ]);
 
             $user->assignRole($data['role']);
