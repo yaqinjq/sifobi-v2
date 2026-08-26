@@ -40,12 +40,24 @@
                             <p class="font-semibold text-gray-900 truncate">{{ $tenant->name }}</p>
                             <p class="text-xs text-gray-500">{{ $tenant->code }}</p>
                         </div>
-                        <button type="button" @click="editing = !editing" class="sf-btn-secondary text-xs min-h-9 shrink-0">
-                            <span x-text="editing ? 'Batal' : 'Atur Domain'"></span>
-                        </button>
+                        <div class="flex items-center gap-2 shrink-0">
+                            @if($tenant->isTrial())
+                                <form method="POST" action="{{ route('admin.tenants.approve', $tenant) }}"
+                                      onsubmit="return confirm('Aktifkan penuh tenant {{ $tenant->name }}?')">
+                                    @csrf @method('PATCH')
+                                    <button type="submit" class="sf-btn-primary text-xs min-h-9">Approve</button>
+                                </form>
+                            @endif
+                            <button type="button" @click="editing = !editing" class="sf-btn-secondary text-xs min-h-9 shrink-0">
+                                <span x-text="editing ? 'Batal' : 'Atur Domain'"></span>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="mt-2 flex flex-wrap gap-1.5 text-xs">
+                        <span class="{{ $tenant->isTrial() ? 'badge-pending' : 'badge-active' }}">
+                            {{ $tenant->isTrial() ? 'TRIAL' : $tenant->status }}
+                        </span>
                         @if($tenant->subdomain)
                             <span class="badge-active">{{ $tenant->fullSubdomainHost() }}</span>
                         @endif
@@ -56,6 +68,23 @@
                             <span class="badge-draft">Belum ada domain — pakai domain utama</span>
                         @endif
                     </div>
+
+                    @if($tenant->isTrial() && $tenant->settings)
+                        <div class="mt-2 text-xs text-gray-500 space-y-0.5">
+                            @if(!empty($tenant->settings['business_phone']))
+                                <p><i class="ti ti-phone text-gray-400" aria-hidden="true"></i> {{ $tenant->settings['business_phone'] }}</p>
+                            @endif
+                            @if(!empty($tenant->settings['business_address']))
+                                <p><i class="ti ti-map-pin text-gray-400" aria-hidden="true"></i> {{ $tenant->settings['business_address'] }}</p>
+                            @endif
+                            @if(!empty($tenant->settings['plan']))
+                                <p><i class="ti ti-package text-gray-400" aria-hidden="true"></i> Paket diminati: {{ $tenant->settings['plan'] }}</p>
+                            @endif
+                            @if($tenant->trial_ends_at)
+                                <p><i class="ti ti-clock text-gray-400" aria-hidden="true"></i> Trial sampai {{ $tenant->trial_ends_at->format('d/m/Y') }}</p>
+                            @endif
+                        </div>
+                    @endif
 
                     <form x-show="editing" x-cloak method="POST" action="{{ route('admin.tenants.update', $tenant) }}" class="mt-3 space-y-3">
                         @csrf

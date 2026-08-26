@@ -17,12 +17,14 @@ class Tenant extends Model
         'subdomain',
         'custom_domain',
         'settings',
+        'trial_ends_at',
     ];
 
     protected function casts(): array
     {
         return [
             'settings' => 'array',
+            'trial_ends_at' => 'datetime',
         ];
     }
 
@@ -33,6 +35,11 @@ class Tenant extends Model
         }
 
         return "{$this->subdomain}.".config('app.base_domain');
+    }
+
+    public function isTrial(): bool
+    {
+        return $this->status === 'TRIAL';
     }
 
     public function getActivitylogOptions(): LogOptions

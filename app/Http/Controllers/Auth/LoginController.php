@@ -41,6 +41,18 @@ class LoginController extends Controller
                 ->onlyInput('email');
         }
 
+        // Akun hasil registrasi self-serve belum bisa login sampai link
+        // verifikasi email di-klik (lihat TenantRegistrationController) —
+        // status tenant TRIAL/ACTIVE TIDAK dicek di sini, cuma verifikasi
+        // email yang jadi gate akses sungguhan.
+        if (! Auth::user()->email_verified_at) {
+            Auth::logout();
+
+            return back()
+                ->withErrors(['email' => 'Email Anda belum diverifikasi. Cek inbox/spam, atau minta kirim ulang link verifikasi.'])
+                ->onlyInput('email');
+        }
+
         // Update last login — WAJIB pakai try-catch agar tidak crash
         try {
             Auth::user()->forceFill([

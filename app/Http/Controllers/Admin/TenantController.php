@@ -100,4 +100,11 @@ class TenantController extends Controller
 
         return back()->with('success', "Domain tenant {$tenant->name} berhasil disimpan.");
     }
+
+    public function approve(Tenant $tenant): RedirectResponse
+    {
+        $tenant->update(['status' => 'ACTIVE']);
+
+        return back()->with('success', "Tenant {$tenant->name} sudah diaktifkan penuh.");
+    }
 }

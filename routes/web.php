@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CoreHealthController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Http\Controllers\Auth\TenantRegistrationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Debug\DatabaseDebugController;
 use App\Http\Controllers\MasterData\ImportExportController;
@@ -116,17 +117,29 @@ Route::get('/', function () {
         return redirect()->route('dashboard');
     }
 
-    return redirect()->route('login');
+    $mode = config('app.landing_mode', 'saas');
+    $mode = in_array($mode, ['saas', 'mko'], true) ? $mode : 'saas';
+
+    return view("landing.{$mode}");
 })->name('home');
 
 if (config('app.debug')) {
     Route::get('/test-db', DatabaseDebugController::class)->name('debug.test-db');
 }
 
+// Verifikasi email pendaftaran tenant baru — signed permanen, di luar
+// grup 'guest' karena harus tetap bisa diakses walau ada sesi tamu lain
+// yang sedang berjalan (mis. dibuka di tab/device lain).
+Route::get('/register/verify/{user}', [TenantRegistrationController::class, 'verify'])
+    ->middleware('signed')
+    ->name('register.verify');
+
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->name('login.store');
-    Route::redirect('/register', '/login')->name('register');
+    Route::get('/register', [TenantRegistrationController::class, 'create'])->name('register');
+    Route::post('/register', [TenantRegistrationController::class, 'store'])->name('register.store');
+    Route::post('/register/resend-verification', [TenantRegistrationController::class, 'resendVerification'])->name('register.resend-verification');
     Route::get('/forgot-password', [ForgotPasswordController::class, 'create'])->name('password.request');
     Route::post('/forgot-password', [ForgotPasswordController::class, 'store'])->name('password.email');
     Route::get('/reset-password/{token}', [ResetPasswordController::class, 'create'])->name('password.reset');
@@ -153,6 +166,7 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::get('/create', [\App\Http\Controllers\Admin\TenantController::class, 'create'])->name('create');
             Route::post('/', [\App\Http\Controllers\Admin\TenantController::class, 'store'])->name('store');
             Route::put('/{tenant}', [\App\Http\Controllers\Admin\TenantController::class, 'update'])->name('update');
+            Route::patch('/{tenant}/approve', [\App\Http\Controllers\Admin\TenantController::class, 'approve'])->name('approve');
         });
 
     Route::prefix('settings')
