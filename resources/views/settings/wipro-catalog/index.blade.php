@@ -7,7 +7,13 @@
     title="Katalog Wipro"
     subtitle="Import produk Wipro untuk digunakan saat PO ke Central Kitchen"
     back="{{ route('settings.index') }}"
-/>
+>
+    <x-slot:actions>
+        <a href="{{ route('master-data.wipro-items.index') }}" class="sf-btn-secondary text-sm min-h-11">
+            Lihat Data Item Wipro
+        </a>
+    </x-slot:actions>
+</x-sf.page-header>
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-5">
 

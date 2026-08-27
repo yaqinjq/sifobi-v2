@@ -121,6 +121,20 @@ class WiproCatalogImport
             ->first();
 
         if ($existing) {
+            // Item ini sudah pernah "diadopsi" manual oleh staff (dikasih
+            // foto, track_stock dinyalakan, atau kategorinya diganti dari
+            // hasil auto-sync "Wipro — X") — jangan timpa lagi kategori &
+            // track_stock-nya supaya kustomisasi manual tidak hilang tiap
+            // kali katalog di-upload ulang. Field lain (nama, satuan,
+            // status aktif, rasio) tetap selalu ikut sumber Wipro.
+            $isCustomized = (bool) $existing->photo
+                || $existing->track_stock
+                || ! str_starts_with($existing->category?->name ?? '', 'Wipro —');
+
+            if ($isCustomized) {
+                unset($attributes['item_category_id'], $attributes['track_stock']);
+            }
+
             $existing->update($attributes);
             $this->updated++;
         } else {

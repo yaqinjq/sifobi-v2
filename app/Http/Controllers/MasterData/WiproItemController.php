@@ -4,6 +4,7 @@ namespace App\Http\Controllers\MasterData;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Inventory\Models\Item;
+use App\Modules\Inventory\Models\ItemCategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -14,6 +15,7 @@ class WiproItemController extends Controller
     {
         $tenantId = $this->tenantId($request);
         $search = $request->string('q')->toString();
+        $categoryFilter = $request->string('category_id')->toString();
 
         $query = Item::query()
             ->with(['category', 'baseUnit'])
@@ -27,11 +29,23 @@ class WiproItemController extends Controller
             );
         }
 
+        if ($categoryFilter !== '') {
+            $query->where('item_category_id', $categoryFilter);
+        }
+
         $items = $query->orderBy('name')->paginate(20)->withQueryString();
+
+        $categories = ItemCategory::query()
+            ->where('tenant_id', $tenantId)
+            ->whereHas('items', fn ($q) => $q->where('item_source', 'WIPRO'))
+            ->orderBy('name')
+            ->get();
 
         return view('master-data.wipro-items.index', [
             'items' => $items,
             'search' => $search,
+            'categories' => $categories,
+            'categoryFilter' => $categoryFilter,
         ]);
     }
 
