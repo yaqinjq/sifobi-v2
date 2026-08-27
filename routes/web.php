@@ -291,6 +291,11 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
         Route::resource('master-data/items', ItemController::class)
             ->except(['index', 'show'])
             ->names('master-data.items');
+
+        Route::resource('master-data/wipro-items', \App\Http\Controllers\MasterData\WiproItemController::class)
+            ->only(['edit', 'update'])
+            ->parameters(['wipro-items' => 'item'])
+            ->names('master-data.wipro-items');
     });
 
     Route::middleware('permission:view_master_data')->group(function (): void {
@@ -301,6 +306,10 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
         Route::resource('master-data/items', ItemController::class)
             ->only(['index', 'show'])
             ->names('master-data.items');
+
+        Route::resource('master-data/wipro-items', \App\Http\Controllers\MasterData\WiproItemController::class)
+            ->only(['index'])
+            ->names('master-data.wipro-items');
     });
 
     Route::prefix('master-data/import-export')
