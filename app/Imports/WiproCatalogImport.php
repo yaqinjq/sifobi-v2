@@ -120,6 +120,23 @@ class WiproCatalogImport
             ->where('canonical_sku', $sku)
             ->first();
 
+        // SKU dari Wipro ternyata bisa kebetulan sama dengan SKU item bahan
+        // baku internal yang dibuat manual dan sama sekali tidak berkaitan
+        // (kejadian nyata: BMB-TMYM dipakai Wipro untuk "Bumbu Tomyum" versi
+        // mereka, TAPI kode yang sama juga sudah lebih dulu dipakai staff
+        // untuk bahan baku internal yang berbeda produk). Kalau item yang
+        // ketemu itu BUKAN item Wipro (item_source-nya bukan 'WIPRO'),
+        // JANGAN disentuh sama sekali — itu bukan produk yang sama, cuma
+        // kebetulan kodenya sama. Catat sebagai konflik biar admin sadar dan
+        // bisa ganti salah satu kodenya secara manual, baru re-import.
+        if ($existing && $existing->item_source !== 'WIPRO') {
+            $this->errors[] = "SKU {$sku} ({$name}) sudah dipakai item lain yang BUKAN item Wipro "
+                ."(\"{$existing->name}\", id {$existing->id}) — dilewati supaya tidak tertimpa. "
+                .'Ganti salah satu kode SKU-nya secara manual, lalu import ulang.';
+
+            return;
+        }
+
         if ($existing) {
             // Item ini sudah pernah "diadopsi" manual oleh staff (dikasih
             // foto, track_stock dinyalakan, atau kategorinya diganti dari
