@@ -30,6 +30,7 @@
                 <li><a href="#gudang" class="hover:underline">Cek Saldo Stok (Gudang)</a></li>
                 <li><a href="#roles" class="hover:underline">Roles & Hak Akses</a></li>
                 <li><a href="#wipro" class="hover:underline">Integrasi Wipro (Central Kitchen)</a></li>
+                <li><a href="#pos" class="hover:underline">Modul POS/Kasir</a></li>
                 <li><a href="#troubleshoot" class="hover:underline">Troubleshooting Umum</a></li>
             </ol>
         </div>
@@ -566,7 +567,151 @@
         </div>
     </x-sf.card>
 
-    {{-- 11. TROUBLESHOOT --}}
+    {{-- 11. POS --}}
+    <x-sf.card id="pos">
+        <x-slot:header>
+            <div class="flex items-center gap-3">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold text-sm shrink-0">11</span>
+                <h3 class="font-heading font-bold text-gray-900">Modul POS/Kasir</h3>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-4 text-sm text-gray-700">
+
+            <div class="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-amber-800 text-xs">
+                Modul ini terpisah dari alur inventori back-office di atas — dipakai untuk transaksi jual langsung ke pelanggan (dine-in, takeaway, delivery).
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">Setup Awal POS</p>
+                <ol class="space-y-2 list-decimal list-inside text-gray-600">
+                    <li>
+                        <strong>Denah Area & Meja</strong> — POS → Layout Meja → Tambah Area, lalu tambah meja per area<br>
+                        <span class="text-xs text-gray-400 ml-5">Meja bisa diatur posisinya lewat drag & drop di mode "Atur Denah".</span>
+                    </li>
+                    <li>
+                        <strong>Menu Kasir</strong> — Menu & Resep → pilih menu → isi Harga Jual, Foto, dan Kategori Menu<br>
+                        <span class="text-xs text-gray-400 ml-5">Menu tanpa harga jual tidak akan muncul di katalog kasir.</span>
+                    </li>
+                    <li>
+                        <strong>Kategori Menu</strong> — Pengaturan → Kategori Menu<br>
+                        <span class="text-xs text-gray-400 ml-5">Dipakai sebagai tab filter di layar kasir (mis: Makanan, Minuman, Snack).</span>
+                    </li>
+                </ol>
+            </div>
+
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2">Alur Order & Pembayaran</p>
+                <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Buka <strong>POS</strong> → pilih meja (dine-in) atau <strong>Takeaway</strong></li>
+                    <li>Cari menu lewat pencarian langsung (live search) atau tab kategori, klik untuk tambah ke keranjang</li>
+                    <li>Atur qty dengan tombol +/- di keranjang, tambahkan diskon/catatan kalau perlu</li>
+                    <li>Klik <strong>Bayar</strong> → pilih metode pembayaran (Tunai/Transfer/E-Wallet)</li>
+                    <li>Struk otomatis muncul sebagai halaman print-friendly setelah pembayaran lunas</li>
+                </ol>
+                <div class="mt-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-800">
+                    <strong>Split bill:</strong> dari halaman detail order, pindahkan sebagian/semua item ke order lain yang masih terbuka di outlet yang sama.<br>
+                    <strong>Split metode bayar:</strong> 1 tagihan bisa dibayar dengan lebih dari 1 metode sekaligus (mis. sebagian tunai, sisanya transfer) — tambahkan pembayaran satu per satu sampai lunas.<br>
+                    <strong>Gabung bill:</strong> tarik semua item dari order lain ke order yang sedang dibuka — order sumber otomatis dibatalkan dengan catatan "[Digabung]".
+                </div>
+            </div>
+
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2">Shift Kasir</p>
+                <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Sebelum mulai transaksi, buka shift dulu: <strong>POS → Buka Shift</strong> → isi saldo kas awal</li>
+                    <li>Semua transaksi tunai selama shift otomatis terekap</li>
+                    <li>Di akhir jam kerja, <strong>Tutup Shift</strong> → isi saldo kas akhir hasil hitung fisik</li>
+                    <li>Sistem otomatis hitung selisih (rekonsiliasi) antara kas seharusnya vs kas fisik</li>
+                </ol>
+                <p class="text-xs text-gray-400 mt-1">Butuh permission <code class="bg-gray-100 px-1 rounded">manage_pos_shift</code> untuk approve/tutup shift orang lain.</p>
+            </div>
+
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2">QR Self-Order (Pelanggan Pesan Sendiri)</p>
+                <p class="text-xs text-gray-500 mb-2">Cara admin siapkan QR meja:</p>
+                <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Buka <strong>POS → Layout Meja</strong> → pilih meja → <strong>"Lihat QR Meja"</strong></li>
+                    <li>Cetak/tempelkan QR code tersebut di meja fisiknya</li>
+                </ol>
+                <p class="text-xs text-gray-500 mt-2 mb-2">Cara pelanggan pakai:</p>
+                <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Scan QR di meja pakai kamera HP — tidak perlu install app atau login</li>
+                    <li>Pilih menu, atur qty, kirim pesanan — bisa tambah pesanan lagi kapan saja selama meja masih aktif</li>
+                    <li>Bisa daftar/masuk sebagai member langsung dari halaman ini (lihat bagian Membership di bawah)</li>
+                </ol>
+                <div class="mt-2 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-700">
+                    ⚠ Pembayaran TIDAK bisa dilakukan dari halaman QR self-order — pelanggan tetap harus bayar di kasir. Ini sengaja dibatasi demi keamanan transaksi.
+                </div>
+            </div>
+
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2">Kitchen Display System (KDS)</p>
+                <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Buka <strong>POS → Kitchen Display</strong> di layar/tablet dapur</li>
+                    <li>Semua item pesanan yang belum disiapkan (status Pending) muncul otomatis dari order manapun — termasuk dari QR self-order</li>
+                    <li>Layar refresh sendiri tiap beberapa detik, tidak perlu reload manual</li>
+                    <li>Tandai item <strong>"Siap"</strong> begitu selesai dimasak</li>
+                </ol>
+            </div>
+
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2">Membership & Poin Loyalty</p>
+                <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
+                    <li><strong>Daftar member</strong> — dari halaman detail order kasir (isi No. HP + nama) atau pelanggan daftar sendiri lewat QR self-order</li>
+                    <li>Nomor HP yang sama otomatis dikenali sebagai member yang sudah ada, tidak bikin duplikat</li>
+                    <li>Poin didapat otomatis saat order lunas, dihitung dari total belanja (aturan Rp per 1 poin diatur di <strong>Pengaturan → Aplikasi</strong>)</li>
+                    <li><strong>Tukar poin</strong> jadi potongan harga — cuma bisa dilakukan kasir dari halaman detail order (tidak tersedia di QR self-order)</li>
+                    <li>Lihat daftar member & riwayat poin di <strong>Pengaturan → Member & Loyalty</strong></li>
+                </ol>
+                <div class="mt-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-800">
+                    Kalau field aturan poin di Pengaturan → Aplikasi dikosongkan, member tetap bisa didaftarkan tapi tidak akan dapat/bisa tukar poin (fitur nonaktif otomatis, tidak error).
+                </div>
+            </div>
+
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2">Laporan POS</p>
+                <p class="text-xs text-gray-600">Buka <strong>POS → Laporan</strong> — bisa filter rentang tanggal dan export ke Excel. Butuh permission <code class="bg-gray-100 px-1 rounded">view_pos_reports</code>.</p>
+            </div>
+
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2">Permission Khusus POS</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs border-separate" style="border-spacing: 0">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="text-left px-3 py-2 rounded-tl-lg font-semibold text-gray-600">Permission</th>
+                                <th class="text-left px-3 py-2 rounded-tr-lg font-semibold text-gray-600">Untuk Apa</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr>
+                                <td class="px-3 py-2 text-gray-700"><code class="bg-gray-100 px-1 rounded">operate_pos</code></td>
+                                <td class="px-3 py-2 text-gray-600">Buka order, tambah item, proses pembayaran</td>
+                            </tr>
+                            <tr class="bg-gray-50/50">
+                                <td class="px-3 py-2 text-gray-700"><code class="bg-gray-100 px-1 rounded">manage_pos_layout</code></td>
+                                <td class="px-3 py-2 text-gray-600">Atur denah area/meja</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 text-gray-700"><code class="bg-gray-100 px-1 rounded">manage_pos_shift</code></td>
+                                <td class="px-3 py-2 text-gray-600">Approve/tutup shift kasir</td>
+                            </tr>
+                            <tr class="bg-gray-50/50">
+                                <td class="px-3 py-2 text-gray-700"><code class="bg-gray-100 px-1 rounded">view_pos_reports</code></td>
+                                <td class="px-3 py-2 text-gray-600">Lihat & export laporan penjualan POS</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 text-gray-700"><code class="bg-gray-100 px-1 rounded">void_pos_order</code></td>
+                                <td class="px-3 py-2 text-gray-600">Batalkan order yang sudah dibuat</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- 12. TROUBLESHOOT --}}
     <x-sf.card id="troubleshoot">
         <x-slot:header>
             <div class="flex items-center gap-3">
@@ -617,7 +762,7 @@
     </x-sf.card>
 
     <div class="text-center text-xs text-gray-400 pb-4">
-        SIFOBI v2.6 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
+        SIFOBI v2.9 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
         &middot; <a href="{{ route('changelog') }}" class="text-primary-600 hover:underline">Lihat Changelog</a>
     </div>
 

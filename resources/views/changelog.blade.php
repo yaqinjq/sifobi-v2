@@ -8,12 +8,64 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.9 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.9 &mdash; 28 Agustus 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Modul POS/Kasir — Denah Meja, Dapur &amp; Membership</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Denah meja interaktif — atur ulang posisi meja langsung dengan drag &amp; drop lewat mode "Atur Denah"</li>
+                    <li>Kitchen Display System (KDS) — dapur pantau pesanan masuk secara real-time di layar/tablet terpisah, tandai "Siap" begitu selesai dimasak</li>
+                    <li>QR Self-Order — pelanggan scan QR di meja untuk lihat menu &amp; pesan sendiri lewat HP tanpa login, pembayaran tetap di kasir</li>
+                    <li>Membership &amp; Poin Loyalty — daftar member lewat kasir atau QR self-order, poin otomatis didapat tiap belanja, bisa ditukar jadi potongan harga di kasir</li>
+                    <li>Katalog kasir didesain ulang: foto produk, tab kategori, dan pencarian langsung (live search)</li>
+                    <li>Laporan penjualan POS sekarang bisa difilter rentang tanggal dan diekspor ke Excel</li>
+                </ul>
+                <p class="text-xs text-gray-400 mt-1">Panduan lengkap penggunaan ada di <a href="{{ route('tutorial') }}#pos" class="text-primary-600 hover:underline">SOP &amp; Tutorial &rarr; Modul POS/Kasir</a>.</p>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Landing Page &amp; Pendaftaran Mandiri</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Halaman depan (landing page) aktif kembali untuk pengunjung baru, menampilkan info produk &amp; paket harga</li>
+                    <li>Calon klien baru bisa daftar sendiri lewat "Coba Gratis 14 Hari" tanpa perlu dibuatkan akun manual oleh admin</li>
+                    <li>Verifikasi email otomatis untuk akun yang daftar sendiri, demi keamanan</li>
+                    <li>Tombol "Lupa Password?" dan kirim ulang email verifikasi sekarang tersedia langsung di halaman login</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Data Item Wipro</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Menu terpisah khusus item dari katalog Wipro (Central Kitchen) — tambah foto &amp; keterangan tanpa perlu isi form lengkap seperti bahan baku biasa</li>
+                    <li>Filter kategori dan mode tampilan list/grid, sama seperti halaman Item biasa</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-50 pt-3">
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan &amp; Peningkatan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Purchase Order sekarang memberi pesan jelas kalau akun belum ditugaskan ke outlet manapun (sebelumnya gagal tanpa keterangan)</li>
+                    <li>Perbaikan alur verifikasi email supaya akun yang dibuat admin lewat Manajemen User tidak ikut kena blokir "belum diverifikasi"</li>
+                    <li>Peningkatan keamanan tampilan Dashboard — data yang ditampilkan sekarang lebih akurat sesuai outlet yang menjadi tanggung jawab masing-masing pengguna</li>
+                    <li>Sinkronisasi katalog Wipro diperkuat supaya tidak lagi menimpa data item yang sudah disesuaikan manual, dan mencegah tabrakan kode SKU antar item</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.8 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.8 &mdash; 17 Agustus 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
