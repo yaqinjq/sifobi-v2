@@ -51,6 +51,17 @@
         @method('PUT')
     @endif
 
+    @if($errors->any())
+        <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p class="font-semibold mb-1">Item belum tersimpan — perbaiki dulu:</p>
+            <ul class="list-disc list-inside space-y-0.5">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <input type="hidden" name="is_active" :value="isActive ? 1 : 0">
     <input type="hidden" name="track_expiry" :value="trackExpiry ? 1 : 0">
     <input type="hidden" name="sync_extra_conversions" value="1">

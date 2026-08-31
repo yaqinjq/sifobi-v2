@@ -180,4 +180,48 @@ class StoreItemRequest extends FormRequest
             }
         };
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'canonical_sku' => 'SKU',
+            'name' => 'Nama Bahan',
+            'photo' => 'Foto',
+            'item_type' => 'Tipe Item',
+            'item_jenis_id' => 'Jenis Bahan',
+            'item_category_id' => 'Kategori Bahan',
+            'base_unit_id' => 'Satuan Dasar',
+            'inventory_unit_id' => 'Satuan Inventory',
+            'purchase_unit_id' => 'Satuan Pembelian',
+            'inventory_ratio' => 'Rasio Satuan Inventory',
+            'purchase_ratio' => 'Rasio Satuan Pembelian',
+            'primary_department_id' => 'Departemen Utama',
+            'opname_frequency' => 'Frekuensi Opname',
+            'min_stock' => 'Minimum Stok',
+            'last_purchase_price' => 'Estimasi Harga Beli',
+            'yield_pct' => 'Yield',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'required' => 'Kolom :attribute wajib diisi.',
+            'canonical_sku.unique' => 'SKU ini sudah dipakai item lain.',
+            'item_jenis_id.exists' => 'Jenis Bahan yang dipilih tidak valid atau sudah non-aktif.',
+            'item_category_id.exists' => 'Kategori Bahan yang dipilih tidak valid atau sudah non-aktif.',
+            'base_unit_id.exists' => 'Satuan Dasar yang dipilih tidak valid.',
+            'inventory_unit_id.exists' => 'Satuan Inventory yang dipilih tidak valid.',
+            'purchase_unit_id.exists' => 'Satuan Pembelian yang dipilih tidak valid.',
+            'primary_department_id.exists' => 'Departemen yang dipilih tidak valid.',
+            'photo.image' => 'File harus berupa gambar.',
+            'photo.max' => 'Ukuran foto maksimal 3MB.',
+        ];
+    }
 }
