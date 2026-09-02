@@ -2,6 +2,7 @@
 
 namespace App\Imports;
 
+use App\Http\Requests\MasterData\StoreItemRequest;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\ItemCategory;
 use App\Modules\Inventory\Models\Unit;
@@ -65,7 +66,7 @@ class ItemsImport implements SkipsOnError, SkipsOnFailure, ToCollection, WithBat
         return [
             '*.canonical_sku' => ['required', 'string', 'max:50'],
             '*.name' => ['required', 'string', 'max:255'],
-            '*.item_type' => ['required', 'in:BAHAN_BAKU,WIP_L1,WIP_L2,WIP_L3,PACKAGING,MENU_ITEM'],
+            '*.item_type' => ['required', 'in:'.implode(',', StoreItemRequest::ITEM_TYPES)],
             '*.base_unit' => ['required', 'string'],
             '*.inventory_ratio' => ['required', Decimal::validationRule(8), $this->decimalMinRule('0.0001')],
             '*.purchase_ratio' => ['required', Decimal::validationRule(8), $this->decimalMinRule('0.0001')],

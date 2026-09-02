@@ -12,6 +12,7 @@ class StoreItemRequest extends FormRequest
 {
     public const ITEM_TYPES = [
         'BAHAN_BAKU',
+        'NON_BAHAN_BAKU',
         'WIP_L1',
         'WIP_L2',
         'WIP_L3',
@@ -21,6 +22,7 @@ class StoreItemRequest extends FormRequest
 
     public const ITEM_TYPE_OPTIONS = [
         'BAHAN_BAKU' => 'Bahan Baku Mentah',
+        'NON_BAHAN_BAKU' => 'Non Bahan Baku',
         'WIP_L1' => 'WIP Level 1 (Premix/Sirup)',
         'WIP_L2' => 'WIP Level 2 (Assembly)',
         'WIP_L3' => 'WIP Level 3 (Final Prep)',

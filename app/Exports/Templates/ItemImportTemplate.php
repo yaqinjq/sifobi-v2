@@ -91,7 +91,7 @@ class ItemInstructionSheet implements FromArray, ShouldAutoSize, WithStyles, Wit
             ['name', 'Nama lengkap item', 'Ajinomoto MSG 500g', 'Ya'],
             ['description', 'Deskripsi singkat item', 'Bumbu penyedap', 'Tidak'],
             ['item_category', 'Nama kategori item, dibuat otomatis jika belum ada', 'Bumbu', 'Tidak'],
-            ['item_type', 'Pilih: BAHAN_BAKU, WIP_L1, WIP_L2, WIP_L3, PACKAGING, MENU_ITEM', 'BAHAN_BAKU', 'Ya'],
+            ['item_type', 'Pilih: '.implode(', ', \App\Http\Requests\MasterData\StoreItemRequest::ITEM_TYPES), 'BAHAN_BAKU', 'Ya'],
             ['base_unit', 'Kode/abbreviation satuan dasar', 'gr', 'Ya'],
             ['inventory_unit', 'Kode/abbreviation satuan inventory', 'sachet', 'Tidak'],
             ['purchase_unit', 'Kode/abbreviation satuan beli', 'karton', 'Tidak'],
