@@ -8,12 +8,33 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.10 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.10 &mdash; 4 September 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Penerimaan Barang — Laporan Ketidaksesuaian ke Wipro</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Item yang ternyata sama sekali tidak ada di dalam box sekarang bisa dilaporkan langsung (qty diterima 0) lengkap dengan alasannya — sebelumnya sistem menolak kalau qty diisi 0</li>
+                    <li>Bisa lampirkan foto dan video sebagai bukti untuk item yang bermasalah (opsional, tidak wajib)</li>
+                    <li>Alasan ketidaksesuaian dan link foto/video ikut terkirim otomatis ke Wipro saat Penerimaan di-approve — sebelumnya cuma angka jumlah yang terkirim, tanpa keterangan</li>
+                    <li>Pesan kesalahan saat gagal simpan sekarang ditampilkan jelas di halaman (sebelumnya tidak ada keterangan sama sekali kalau ada data yang belum valid)</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.9 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.9 &mdash; 28 Agustus 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

@@ -250,6 +250,17 @@
 
                 <div class="rounded-xl border border-gray-100 overflow-hidden">
                     <div class="bg-gray-50 px-3 py-2 border-b border-gray-100">
+                        <p class="font-semibold text-gray-800 text-xs">Kalau Ada Item yang Tidak Sesuai/Tidak Ada</p>
+                    </div>
+                    <div class="px-3 py-2 text-xs text-gray-600 space-y-1.5">
+                        <p>Kalau qty yang diterima beda dari qty di PO (termasuk kalau barangnya <strong>sama sekali tidak ada</strong> di box — isi qty terima <strong>0</strong>), pilih <strong>Alasan Selisih</strong> yang muncul otomatis: Vendor Kirim Kurang/Lebih, Barang Rusak, Salah Item, atau Lainnya.</p>
+                        <p>Foto dan/atau video bukti bisa dilampirkan per item yang bermasalah (opsional, tidak wajib) — muncul di bawah pilihan alasan.</p>
+                        <p>Alasan dan link foto/video ini otomatis ikut terkirim ke Wipro saat GR di-approve (lihat bagian Wipro di bawah).</p>
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-gray-100 overflow-hidden">
+                    <div class="bg-gray-50 px-3 py-2 border-b border-gray-100">
                         <p class="font-semibold text-gray-800 text-xs">Langkah 3 — Submit untuk Review</p>
                     </div>
                     <div class="px-3 py-2 text-xs text-gray-600">
@@ -264,7 +275,7 @@
                     </div>
                     <div class="px-3 py-2 text-xs text-gray-600 space-y-1">
                         <p>Buka GR → klik <strong>"Approve"</strong>. Stok otomatis masuk ke ledger (permanen, tidak bisa dihapus).</p>
-                        <p>GR yang terhubung ke shipment Wipro → konfirmasi penerimaan dikirim ke Wipro secara otomatis.</p>
+                        <p>GR yang terhubung ke shipment Wipro → konfirmasi penerimaan dikirim ke Wipro secara otomatis, lengkap dengan alasan selisih & link foto/video kalau ada.</p>
                         <p>Status DO di halaman PO berubah menjadi <em>Diterima ✓</em>.</p>
                     </div>
                 </div>
@@ -762,7 +773,7 @@
     </x-sf.card>
 
     <div class="text-center text-xs text-gray-400 pb-4">
-        SIFOBI v2.9 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
+        SIFOBI v2.10 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
         &middot; <a href="{{ route('changelog') }}" class="text-primary-600 hover:underline">Lihat Changelog</a>
     </div>
 
