@@ -192,6 +192,17 @@ class RoleController extends Controller
                 'approve_po'  => 'Approve PO',
                 'view_all_po' => 'Lihat PO Semua Dept.',
             ],
+            'Menu & Resep' => [
+                'manage_recipes'  => 'Kelola Menu & Resep',
+                'approve_recipes' => 'Approve Resep',
+            ],
+            'POS/Kasir' => [
+                'operate_pos'        => 'Operasikan Kasir',
+                'manage_pos_layout'  => 'Kelola Denah Meja',
+                'view_pos_reports'   => 'Lihat Laporan POS',
+                'void_pos_order'     => 'Void Order POS',
+                'approve_pos_shift'  => 'Approve Shift Kasir',
+            ],
             'Laporan' => [
                 'view_reports'     => 'Lihat Laporan',
                 'view_all_reports' => 'Laporan Semua Outlet',

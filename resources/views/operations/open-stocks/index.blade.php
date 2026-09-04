@@ -333,7 +333,11 @@
                                                             method="POST" />
                                             @endcan
                                         @elseif($openStock->status === 'POSTED')
-                                            @can('void_open_stock')
+                                            {{-- Server-side, void di-otorisasi lewat post_open_stock
+                                                 (VoidOpenStockRequest) — dulu tombol ini mengecek
+                                                 permission 'void_open_stock' yang tidak pernah benar-benar
+                                                 dibuat/di-seed, jadi tidak pernah tampil ke siapa pun. --}}
+                                            @can('post_open_stock')
                                                 <x-icon-btn icon="void" label="Void" color="red" size="sm"
                                                             href="{{ route('operations.open-stocks.void', $openStock) }}"
                                                             method="POST"
