@@ -32,6 +32,8 @@ class GoodsReceiptItem extends Model
         'batch_code',
         'mutation_id',
         'notes',
+        'photo_path',
+        'video_path',
     ];
 
     /** Kode alasan selisih qty_ordered vs qty_received, dipakai validasi & dropdown form. */

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Modules\Core\Models\IntegrationProfile;
 use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Receiving\Models\GoodsReceipt;
+use App\Modules\Receiving\Models\GoodsReceiptItem;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Symfony\Component\Process\Process;
@@ -191,6 +192,12 @@ class WiproIntegrationService
                 'qty_over'      => (float) $item->qty_over,
                 'uom'           => $item->unit?->code,
                 'notes'         => $item->notes,
+                'variance_reason'       => $item->variance_reason,
+                'variance_reason_label' => $item->variance_reason
+                    ? (GoodsReceiptItem::VARIANCE_REASONS[$item->variance_reason] ?? null)
+                    : null,
+                'photo_url' => $item->photo_path ? asset('storage/'.$item->photo_path) : null,
+                'video_url' => $item->video_path ? asset('storage/'.$item->video_path) : null,
             ])->values()->all(),
         ];
     }

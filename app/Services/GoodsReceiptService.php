@@ -434,6 +434,8 @@ class GoodsReceiptService
                 'expired_date' => $row['expired_date'] ?? null,
                 'batch_code' => $row['batch_code'] ?? null,
                 'notes' => $row['notes'] ?? null,
+                'photo_path' => $row['photo_path'] ?? null,
+                'video_path' => $row['video_path'] ?? null,
             ];
         }
 

@@ -80,6 +80,7 @@ class GoodsReceiptController extends Controller
     {
         $validated = $this->validated($request);
         $tenantId = $this->tenantId($request);
+        $validated['items'] = $this->hydrateItemMedia($request, $validated['items'], $tenantId);
 
         if ($request->hasFile('photo_document')) {
             $validated['photo_document'] = $request->file('photo_document')
@@ -146,6 +147,7 @@ class GoodsReceiptController extends Controller
     {
         $validated = $this->validated($request);
         $tenantId = $this->tenantId($request);
+        $validated['items'] = $this->hydrateItemMedia($request, $validated['items'], $tenantId);
 
         if ($request->hasFile('photo_document')) {
             $validated['photo_document'] = $request->file('photo_document')
@@ -335,6 +337,32 @@ class GoodsReceiptController extends Controller
     }
 
     /**
+     * Simpan foto/video bukti per item (kalau ada file baru diupload),
+     * atau pertahankan path lama kalau tidak ada file baru (dipakai saat
+     * edit GR — items lama dihapus & dibuat ulang oleh
+     * GoodsReceiptService, jadi path lama harus dibawa terus lewat form).
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function hydrateItemMedia(Request $request, array $items, int $tenantId): array
+    {
+        foreach ($items as $index => $item) {
+            $photo = $request->file("items.{$index}.photo");
+            $items[$index]['photo_path'] = $photo
+                ? $photo->store("tenants/{$tenantId}/receiving/items", 'public')
+                : ($item['existing_photo_path'] ?? null);
+
+            $video = $request->file("items.{$index}.video");
+            $items[$index]['video_path'] = $video
+                ? $video->store("tenants/{$tenantId}/receiving/items", 'public')
+                : ($item['existing_video_path'] ?? null);
+        }
+
+        return $items;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function validated(Request $request): array
@@ -381,6 +409,10 @@ class GoodsReceiptController extends Controller
             'items.*.batch_code' => ['nullable', 'string', 'max:100'],
             'items.*.notes' => ['nullable', 'string', 'max:1000'],
             'items.*.variance_reason' => ['nullable', Rule::in(array_keys(GoodsReceiptItem::VARIANCE_REASONS))],
+            'items.*.photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'items.*.video' => ['nullable', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:20480'],
+            'items.*.existing_photo_path' => ['nullable', 'string'],
+            'items.*.existing_video_path' => ['nullable', 'string'],
         ]);
 
         $hasPurchaseOrder = ! empty($validated['purchase_order_id']);
@@ -389,15 +421,19 @@ class GoodsReceiptController extends Controller
             $qtyOrdered = Decimal::toFixed($item['qty_ordered'] ?? 0, 6);
             $qtyReceived = Decimal::toFixed($item['qty_received'] ?? 0, 6);
 
-            if (bccomp($qtyReceived, '0.000000', 6) <= 0) {
+            // Item PO-nya ada tapi qty diterima 0 itu SAH — artinya barang
+            // yang seharusnya ada di box ternyata memang tidak ada sama
+            // sekali (bukan sekadar kurang). Tanpa referensi PO, qty 0 tetap
+            // ditolak karena tidak ada dasar pembanding untuk klaim itu.
+            $hasPoReference = $hasPurchaseOrder && bccomp($qtyOrdered, '0.000000', 6) > 0;
+
+            if (bccomp($qtyReceived, '0.000000', 6) <= 0 && ! $hasPoReference) {
                 throw ValidationException::withMessages([
                     "items.{$index}.qty_received" => 'Qty terima harus lebih dari 0.',
                 ]);
             }
 
-            $hasVariance = $hasPurchaseOrder
-                && bccomp($qtyOrdered, '0.000000', 6) > 0
-                && bccomp($qtyReceived, $qtyOrdered, 6) !== 0;
+            $hasVariance = $hasPoReference && bccomp($qtyReceived, $qtyOrdered, 6) !== 0;
 
             if ($hasVariance && empty($item['variance_reason'])) {
                 throw ValidationException::withMessages([

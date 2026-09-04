@@ -14,6 +14,8 @@
             'batch_code' => $row['batch_code'] ?? '',
             'notes' => $row['notes'] ?? '',
             'variance_reason' => $row['variance_reason'] ?? '',
+            'existing_photo_path' => $row['existing_photo_path'] ?? '',
+            'existing_video_path' => $row['existing_video_path'] ?? '',
         ])->all();
     } elseif ($isEdit) {
         $rows = $receipt->items->map(fn ($item) => [
@@ -26,6 +28,8 @@
             'batch_code' => $item->batch_code ?? '',
             'notes' => $item->notes ?? '',
             'variance_reason' => $item->variance_reason ?? '',
+            'existing_photo_path' => $item->photo_path ?? '',
+            'existing_video_path' => $item->video_path ?? '',
         ])->values()->all();
     } else {
         $rows = [[
@@ -38,6 +42,8 @@
             'batch_code' => '',
             'notes' => '',
             'variance_reason' => '',
+            'existing_photo_path' => '',
+            'existing_video_path' => '',
         ]];
     }
 
@@ -109,6 +115,17 @@
     @csrf
     @if(($formMethod ?? 'POST') !== 'POST')
         @method($formMethod)
+    @endif
+
+    @if($errors->any())
+        <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p class="font-semibold mb-1">Penerimaan belum tersimpan — perbaiki dulu:</p>
+            <ul class="list-disc list-inside space-y-0.5">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
     @endif
 
     <input type="hidden" name="source" value="{{ $activeSource }}">
@@ -372,6 +389,38 @@
                         </div>
                     </div>
 
+                    {{-- Foto/video bukti item bermasalah — opsional, cuma pelengkap --}}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3" x-show="rowVariance(row) !== 0">
+                        <div>
+                            <label class="sf-label">Foto Bukti (opsional)</label>
+                            <div class="flex gap-2">
+                                <input type="file" :name="`items[${index}][photo]`" accept="image/png,image/jpeg,image/webp" class="sf-input text-base min-h-11 flex-1">
+                                <button type="button"
+                                        @click="capturePhoto(`items[${index}][photo]`)"
+                                        class="sf-btn-secondary min-h-11 px-3 shrink-0"
+                                        title="Foto dengan kamera">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <input type="hidden" :name="`items[${index}][existing_photo_path]`" x-model="row.existing_photo_path">
+                            <template x-if="row.existing_photo_path">
+                                <p class="text-xs text-gray-500 mt-1">Foto lama tersimpan. Upload baru untuk mengganti.</p>
+                            </template>
+                        </div>
+                        <div>
+                            <label class="sf-label">Video Bukti (opsional)</label>
+                            <input type="file" :name="`items[${index}][video]`" accept="video/mp4,video/quicktime,video/webm" capture="environment" class="sf-input text-base min-h-11">
+                            <input type="hidden" :name="`items[${index}][existing_video_path]`" x-model="row.existing_video_path">
+                            <template x-if="row.existing_video_path">
+                                <p class="text-xs text-gray-500 mt-1">Video lama tersimpan. Upload baru untuk mengganti.</p>
+                            </template>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3" x-show="row.track_expiry">
                         <div>
                             <label class="sf-label">Expired Date</label>
@@ -530,6 +579,8 @@ function goodsReceiptForm(config) {
         batch_code: '',
         notes: '',
         variance_reason: '',
+        existing_photo_path: '',
+        existing_video_path: '',
         track_expiry: false,
     });
 
@@ -589,6 +640,8 @@ function goodsReceiptForm(config) {
                     batch_code: '',
                     notes: '',
                     variance_reason: '',
+                    existing_photo_path: '',
+                    existing_video_path: '',
                     track_expiry: item ? item.track_expiry === true : false,
                 };
             });
@@ -655,6 +708,8 @@ function goodsReceiptForm(config) {
                     batch_code: '',
                     notes: '',
                     variance_reason: '',
+                    existing_photo_path: '',
+                    existing_video_path: '',
                     track_expiry: item.track_expiry === true,
                 });
             }
