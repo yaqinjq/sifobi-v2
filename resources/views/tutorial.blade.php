@@ -526,6 +526,14 @@
                 </table>
             </div>
             <p class="text-xs text-gray-400">Permission diatur di Pengaturan → Users. Permission <code class="bg-gray-100 px-1 rounded">view_all_po</code> perlu dicentang secara eksplisit untuk Manager/Admin yang perlu lintas departemen.</p>
+            <div class="bg-blue-50 border-l-4 border-blue-400 rounded-r-lg px-3 py-2 text-xs text-blue-800">
+                Tabel di atas cuma contoh ringkas 3 kategori peran (Admin/Manager/Staff). SIFOBI sebenarnya punya
+                <strong>11 role standar</strong> dengan total <strong>45 permission</strong> tersebar di 15 grup modul
+                (Master Data, Stok &amp; Gudang, GR, PO, POS/Kasir, dll). Matriks lengkap role × permission per modul
+                tersedia sebagai dokumen referensi teknis untuk tim admin/engineering:
+                <code class="bg-blue-100 px-1 rounded">docs/technical/permission-matrix-sifobi.md</code> (tersedia juga
+                versi Word &amp; PDF).
+            </div>
         </div>
     </x-sf.card>
 
