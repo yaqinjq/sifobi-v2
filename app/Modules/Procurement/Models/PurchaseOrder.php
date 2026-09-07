@@ -80,6 +80,7 @@ class PurchaseOrder extends Model
             'closed_at'           => 'datetime',
             'external_synced_at'  => 'datetime',
             'wipro_shipped_at'    => 'datetime',
+            'wipro_excluded_items' => 'array',
         ];
     }
 

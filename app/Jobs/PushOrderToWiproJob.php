@@ -45,6 +45,7 @@ class PushOrderToWiproJob implements ShouldQueue
             'external_reference'  => $result['wipro_order_number'] ?? $result['wipro_order_id'],
             'external_synced_at'  => now(),
             'external_sync_error' => null,
+            'wipro_excluded_items' => $result['excluded_items'] ?: null,
         ])->save();
     }
 

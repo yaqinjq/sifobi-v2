@@ -25,7 +25,17 @@ class WiproIntegrationService
      * Push an approved Central Kitchen PO to Wipro.
      * Throws on failure — caller decides whether to block the SENT transition.
      *
-     * @return array{wipro_order_id: mixed, wipro_order_number: mixed, duplicate: bool}
+     * Wipro validates the whole order and rejects it entirely the moment ONE
+     * item has a SKU it doesn't recognize/has inactive in its own catalog
+     * (message: "Product SKU not found or inactive: {sku}") — a data-sync gap
+     * between the two systems' catalogs, not something FBI can fix outright.
+     * Rather than let 1-2 stale SKUs block an entire order (and everything a
+     * busy outlet ordered along with them), we drop exactly the SKU Wipro
+     * names and resend, repeating until it accepts or every item is gone.
+     * Dropped items are reported back so someone can chase Wipro to activate
+     * them and the order can be re-sent later — never silently lost.
+     *
+     * @return array{wipro_order_id: mixed, wipro_order_number: mixed, duplicate: bool, excluded_items: array<int, array{sku: ?string, name: ?string, reason: string}>}
      */
     public function pushOrder(PurchaseOrder $po): array
     {
@@ -40,28 +50,65 @@ class WiproIntegrationService
         $path = (string) (data_get($profile->meta, 'order_path') ?: '/api/fbi/orders');
         $fullUrl = $this->url($profile, $path);
 
-        $result = $this->curlPost($profile, $fullUrl, $this->payload($po));
-        $json = json_decode($result['body'], true);
+        $items = $po->items->values();
+        $excluded = [];
+        $lastError = null;
 
-        if ($result['status'] < 200 || $result['status'] >= 300) {
+        // Cap attempts at item-count + 1: each retry can drop at most one
+        // item, so this always terminates instead of looping forever on an
+        // error message we can't parse.
+        $maxAttempts = $items->count() + 1;
+
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+            if ($items->isEmpty()) {
+                throw new RuntimeException(
+                    'Semua item di PO ini ditolak Wipro (SKU tidak dikenali/tidak aktif): '.
+                    $lastError
+                );
+            }
+
+            $result = $this->curlPost($profile, $fullUrl, $this->payload($po, $items));
+            $json = json_decode($result['body'], true);
+
+            if ($result['status'] >= 200 && $result['status'] < 300) {
+                return [
+                    'wipro_order_id' => data_get($json, 'wipro_order_id'),
+                    'wipro_order_number' => data_get($json, 'wipro_order_number'),
+                    'duplicate' => (bool) data_get($json, 'duplicate', false),
+                    'excluded_items' => $excluded,
+                ];
+            }
+
+            $lastError = data_get($json, 'messages.error') ?? data_get($json, 'message') ?? $result['body'];
+
             Log::error('[WIPRO] pushOrder failed', ['po' => $po->po_number, 'status' => $result['status'], 'body' => $result['body']]);
 
-            throw new RuntimeException(
-                'Wipro merespons HTTP '.$result['status'].': '.(data_get($json, 'message') ?? $result['body'])
-            );
+            if (! preg_match('/Product SKU not found or inactive:\s*(\S+)/i', (string) $lastError, $m)) {
+                // Not an item-specific rejection (e.g. outlet not found) —
+                // dropping items won't help, fail immediately as before.
+                throw new RuntimeException('Wipro merespons HTTP '.$result['status'].': '.$lastError);
+            }
+
+            $badSku = rtrim($m[1], '.,");');
+            $badItem = $items->first(fn ($item) => $item->item?->canonical_sku === $badSku);
+
+            $excluded[] = [
+                'sku' => $badSku,
+                'name' => $badItem?->item?->name,
+                'reason' => $lastError,
+            ];
+
+            $items = $items->reject(fn ($item) => $item->item?->canonical_sku === $badSku)->values();
         }
 
-        return [
-            'wipro_order_id' => data_get($json, 'wipro_order_id'),
-            'wipro_order_number' => data_get($json, 'wipro_order_number'),
-            'duplicate' => (bool) data_get($json, 'duplicate', false),
-        ];
+        throw new RuntimeException('Wipro tetap menolak PO ini setelah semua item bermasalah dikeluarkan: '.$lastError);
     }
 
     /**
+     * @param  \Illuminate\Support\Collection<int, \App\Modules\Procurement\Models\PurchaseOrderItem>|null  $items
      * @return array<string, mixed>
      */
-    private function payload(PurchaseOrder $po): array
+    private function payload(PurchaseOrder $po, $items = null): array
     {
         return [
             'order_no' => $po->po_number,
@@ -72,7 +119,7 @@ class WiproIntegrationService
             'needed_at' => optional($po->needed_at)->toDateString(),
             'requested_by_name' => $po->requestedBy?->name,
             'notes' => $po->notes,
-            'items' => $po->items->map(fn ($item) => [
+            'items' => ($items ?? $po->items)->map(fn ($item) => [
                 'external_item_id' => $item->item_id,
                 'sku' => $item->item?->canonical_sku,
                 'qty' => (float) $item->qty_ordered,

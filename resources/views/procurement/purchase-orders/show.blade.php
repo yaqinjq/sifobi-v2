@@ -106,6 +106,8 @@
                 <dd class="text-right border-t border-gray-50 pt-2">
                     @if($purchaseOrder->external_sync_error)
                         <span class="badge-void">Gagal kirim</span>
+                    @elseif($purchaseOrder->external_synced_at && filled($purchaseOrder->wipro_excluded_items))
+                        <span class="badge-pending">Terkirim sebagian</span>
                     @elseif($purchaseOrder->external_synced_at)
                         <span class="badge-posted">Diterima {{ $integrationTarget }}</span>
                     @else
@@ -115,6 +117,21 @@
                 @if($purchaseOrder->external_reference)
                     <dt class="text-gray-500">No. Order {{ $integrationTarget }}</dt>
                     <dd class="text-right font-mono text-gray-600 text-xs">{{ $purchaseOrder->external_reference }}</dd>
+                @endif
+                @if(filled($purchaseOrder->wipro_excluded_items))
+                    <dt class="text-gray-500 border-t border-gray-50 pt-2">Item Tidak Terkirim</dt>
+                    <dd class="text-right border-t border-gray-50 pt-2">
+                        <div class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-left">
+                            <p class="text-xs text-amber-800 font-semibold mb-1">
+                                {{ count($purchaseOrder->wipro_excluded_items) }} item ditolak {{ $integrationTarget }} (SKU belum aktif di katalog mereka), sisanya tetap terkirim:
+                            </p>
+                            <ul class="text-xs text-amber-700 list-disc list-inside space-y-0.5">
+                                @foreach($purchaseOrder->wipro_excluded_items as $excluded)
+                                    <li>{{ $excluded['name'] ?? $excluded['sku'] ?? 'Item' }} ({{ $excluded['sku'] ?? '-' }})</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </dd>
                 @endif
                 @if($purchaseOrder->shipments->isNotEmpty())
                     <dt class="text-gray-500 border-t border-gray-50 pt-2">Pengiriman (DO)</dt>
