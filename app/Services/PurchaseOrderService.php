@@ -253,8 +253,8 @@ class PurchaseOrderService
      */
     public function resend(PurchaseOrder $po): PurchaseOrder
     {
-        if ($po->status !== PurchaseOrder::STATUS_SENT) {
-            throw ValidationException::withMessages(['status' => 'Hanya PO berstatus terkirim yang bisa dikirim ulang.']);
+        if (! $po->canResend()) {
+            throw ValidationException::withMessages(['status' => 'Hanya PO yang pernah terkirim yang bisa dikirim ulang.']);
         }
 
         if ($po->po_type === PurchaseOrder::TYPE_CENTRAL_KITCHEN) {

@@ -561,9 +561,13 @@
             @endcan
         @endif
 
-        {{-- INTEGRATION RESEND (Central Kitchen → Wipro / OCIA Roastery → OCIA) --}}
+        {{-- INTEGRATION RESEND (Central Kitchen → Wipro / OCIA Roastery → OCIA) —
+             pakai canResend() (SENT/SHIPPED/CLOSED), bukan cuma status SENT,
+             supaya PO yang sudah lanjut siklusnya tapi datanya di vendor masih
+             belum lengkap (mis. sebagian item ditolak katalog vendor) tetap
+             bisa dikirim ulang tanpa perlu bantuan tinker manual. --}}
         @php
-            $isSentIntegrated = $purchaseOrder->status === \App\Modules\Procurement\Models\PurchaseOrder::STATUS_SENT
+            $isSentIntegrated = $purchaseOrder->canResend()
                 && in_array($purchaseOrder->po_type, [
                     \App\Modules\Procurement\Models\PurchaseOrder::TYPE_CENTRAL_KITCHEN,
                     \App\Modules\Procurement\Models\PurchaseOrder::TYPE_OCIA_ROASTERY,
@@ -576,6 +580,20 @@
                     <div class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
                         <p class="font-semibold mb-1">Gagal dikirim ke {{ $resendTarget }}</p>
                         <p class="text-xs">{{ $purchaseOrder->external_sync_error }}</p>
+                    </div>
+                    <form method="POST" action="{{ route('procurement.purchase-orders.resend', $purchaseOrder) }}">
+                        @csrf
+                        <button type="submit" class="sf-btn-secondary w-full">
+                            Kirim Ulang ke {{ $resendTarget }}
+                        </button>
+                    </form>
+                @elseif($purchaseOrder->external_synced_at && filled($purchaseOrder->wipro_excluded_items))
+                    <div class="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                        <p class="font-semibold mb-1">Terkirim sebagian ke {{ $resendTarget }}</p>
+                        <p class="text-xs">
+                            {{ count($purchaseOrder->wipro_excluded_items) }} item belum ikut terkirim (lihat daftar di atas).
+                            Kirim ulang setelah {{ $resendTarget }} mengaktifkan item tersebut.
+                        </p>
                     </div>
                     <form method="POST" action="{{ route('procurement.purchase-orders.resend', $purchaseOrder) }}">
                         @csrf

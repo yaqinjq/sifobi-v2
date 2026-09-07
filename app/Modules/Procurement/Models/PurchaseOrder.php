@@ -223,6 +223,18 @@ class PurchaseOrder extends Model
         return in_array($this->status, [self::STATUS_SHIPPED, self::STATUS_SENT]);
     }
 
+    /**
+     * Resend ke Wipro/OCIA bergantung pada apakah PO PERNAH terkirim, bukan
+     * status saat ini — PO tetap bisa lanjut ke SHIPPED/CLOSED sementara sync
+     * ke vendor masih tertinggal (mis. sebagian item ditolak katalog vendor
+     * lalu diaktifkan belakangan). Statusnya sendiri di FBI sudah selesai,
+     * tapi datanya di sisi vendor belum lengkap sampai di-resend.
+     */
+    public function canResend(): bool
+    {
+        return in_array($this->status, [self::STATUS_SENT, self::STATUS_SHIPPED, self::STATUS_CLOSED]);
+    }
+
     public function canReject(): bool
     {
         return in_array($this->status, [self::STATUS_SUBMITTED, self::STATUS_APPROVED]);
