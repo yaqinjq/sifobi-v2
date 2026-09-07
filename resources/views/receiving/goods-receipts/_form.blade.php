@@ -645,6 +645,23 @@ function goodsReceiptForm(config) {
                     track_expiry: item ? item.track_expiry === true : false,
                 };
             });
+            this.syncRowSelectsAfterRender();
+        },
+
+        // Alpine's x-model pada <select> gagal set nilai kalau <option>-nya baru
+        // saja dirender lewat x-for bersarang di tick yang sama (options belum ada
+        // di DOM saat x-model coba assign select.value) — akibatnya dropdown Item
+        // & Satuan tampil kosong walau row.item_id/unit_id sudah benar. Set ulang
+        // langsung ke elemen DOM-nya setelah Alpine selesai render.
+        syncRowSelectsAfterRender() {
+            this.$nextTick(() => {
+                this.rows.forEach((row, index) => {
+                    const itemSel = document.querySelector(`select[name="items[${index}][item_id]"]`);
+                    if (itemSel && itemSel.value !== row.item_id) itemSel.value = row.item_id;
+                    const unitSel = document.querySelector(`select[name="items[${index}][unit_id]"]`);
+                    if (unitSel && unitSel.value !== row.unit_id) unitSel.value = row.unit_id;
+                });
+            });
         },
 
         applyShipmentDoc(shipmentId, shipments) {
@@ -712,6 +729,7 @@ function goodsReceiptForm(config) {
                     existing_video_path: '',
                     track_expiry: item.track_expiry === true,
                 });
+                this.syncRowSelectsAfterRender();
             }
         },
 
