@@ -110,7 +110,7 @@ class SpoilWasteService
             return $spoil->refresh()->load(['outlet', 'department', 'item', 'unit', 'mutation', 'duplicateReference']);
         });
 
-        $approvers = $this->recipients->usersForApproval((int) $spoil->tenant_id, 'approve_spoil_waste', $spoil->department_id, $spoil->outlet_id);
+        $approvers = $this->recipients->usersForApproval((int) $spoil->tenant_id, 'approve_spoil', $spoil->department_id, $spoil->outlet_id);
         Notification::send($approvers, new WorkflowNotification(
             "Spoil {$spoil->item?->name} perlu persetujuan",
             "Catatan spoil/waste {$spoil->item?->name} di {$spoil->outlet?->name} menunggu persetujuan Anda.",

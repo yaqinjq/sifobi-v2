@@ -90,7 +90,7 @@ class StockTransferController extends Controller
             }
         });
 
-        return redirect()->route('stock.transfers.index')
+        return redirect()->route('operations.stock-transfers.index')
             ->with('success', 'Transfer stok berhasil dibuat.');
     }
 
@@ -112,7 +112,7 @@ class StockTransferController extends Controller
             throw $e;
         }
 
-        return redirect()->route('stock.transfers.show', $transfer)
+        return redirect()->route('operations.stock-transfers.show', $transfer)
             ->with('success', 'Transfer stok berhasil disubmit untuk approval.');
     }
 
@@ -124,7 +124,7 @@ class StockTransferController extends Controller
             throw $e;
         }
 
-        return redirect()->route('stock.transfers.show', $transfer)
+        return redirect()->route('operations.stock-transfers.show', $transfer)
             ->with('success', 'Transfer stok berhasil disetujui dan stok telah dipindahkan.');
     }
 
@@ -140,7 +140,7 @@ class StockTransferController extends Controller
             throw $e;
         }
 
-        return redirect()->route('stock.transfers.show', $transfer)
+        return redirect()->route('operations.stock-transfers.show', $transfer)
             ->with('success', 'Transfer stok ditolak.');
     }
 
@@ -156,7 +156,7 @@ class StockTransferController extends Controller
             throw $e;
         }
 
-        return redirect()->route('stock.transfers.show', $transfer)
+        return redirect()->route('operations.stock-transfers.show', $transfer)
             ->with('success', 'Transfer stok berhasil dibatalkan dan stok sudah dikembalikan.');
     }
 

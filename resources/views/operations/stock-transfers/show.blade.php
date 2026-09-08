@@ -7,6 +7,12 @@
 
 <div class="px-4 py-5 pb-24 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full" x-data="{ rejectModal: false, voidModal: false }">
 
+    @if($errors->any())
+        <div class="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 mb-4">
+            {{ $errors->first() }}
+        </div>
+    @endif
+
     {{-- Status badge --}}
     <div class="flex items-center gap-3 mb-4">
         <span class="{{ $transfer->statusBadgeClass() }} text-sm px-3 py-1">{{ $transfer->statusLabel() }}</span>

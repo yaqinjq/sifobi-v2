@@ -6,6 +6,12 @@
 <x-sf.page-header title="Detail Spoil" subtitle="{{ $spoil->item?->name ?? '-' }}" back="{{ route('operations.spoil-wastes.index') }}" />
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-4xl mx-auto w-full space-y-4">
+    @if($errors->any())
+        <div class="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {{ $errors->first() }}
+        </div>
+    @endif
+
     <x-sf.card>
         <div class="flex flex-wrap items-center gap-2 mb-4">
             <span class="{{ $spoil->status_badge_class }}">{{ $spoil->status }}</span>

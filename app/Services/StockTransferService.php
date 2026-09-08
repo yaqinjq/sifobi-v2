@@ -20,10 +20,15 @@ class StockTransferService
 
     public function create(array $data, int $userId): StockTransfer
     {
-        return StockTransfer::query()->create(array_merge($data, [
-            'status'     => StockTransfer::STATUS_DRAFT,
-            'created_by' => $userId,
-        ]));
+        return StockTransfer::query()->create([
+            'tenant_id'       => $data['tenant_id'],
+            'from_outlet_id'  => $data['from_outlet_id'],
+            'to_outlet_id'    => $data['to_outlet_id'],
+            'transfer_date'   => $data['transfer_date'],
+            'notes'           => $data['notes'] ?? null,
+            'status'          => StockTransfer::STATUS_DRAFT,
+            'created_by'      => $userId,
+        ]);
     }
 
     public function submit(StockTransfer $transfer, int $userId): StockTransfer
