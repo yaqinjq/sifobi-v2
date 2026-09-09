@@ -27,35 +27,42 @@
         </div>
 
         <div class="divide-y divide-gray-50">
+            @php $failedRowId = (int) old('category_id'); @endphp
             @foreach($categories as $category)
-                <div class="py-3" x-data="{ editing: false }">
+                @php $rowFailed = $failedRowId === $category->id; @endphp
+                <div class="py-3" x-data="{ editing: {{ $rowFailed ? 'true' : 'false' }} }">
                     <form method="POST" action="{{ route('settings.item-categories.update', $category) }}" class="grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr_1.8fr_0.6fr_0.7fr_auto] gap-3 items-center">
                         @csrf
                         @method('PUT')
+                        <input type="hidden" name="category_id" value="{{ $category->id }}">
 
                         <div>
                             <span class="lg:hidden sf-label">Kode</span>
                             <span x-show="!editing" class="font-semibold text-gray-900">{{ $category->code }}</span>
-                            <input x-show="editing" x-cloak name="code" value="{{ $category->code }}" class="sf-input text-base uppercase">
+                            <input x-show="editing" x-cloak name="code" value="{{ $rowFailed ? old('code') : $category->code }}" class="sf-input text-base uppercase">
                         </div>
 
                         <div>
                             <span class="lg:hidden sf-label">Nama</span>
                             <span x-show="!editing" class="text-gray-700">{{ $category->name }}</span>
-                            <input x-show="editing" x-cloak name="name" value="{{ $category->name }}" class="sf-input text-base">
+                            <input x-show="editing" x-cloak name="name" value="{{ $rowFailed ? old('name') : $category->name }}" class="sf-input text-base">
                         </div>
 
                         <div>
                             <span class="lg:hidden sf-label">Deskripsi</span>
                             <span x-show="!editing" class="text-gray-500">{{ $category->description ?: '-' }}</span>
-                            <input x-show="editing" x-cloak name="description" value="{{ $category->description }}" class="sf-input text-base">
+                            <input x-show="editing" x-cloak name="description" value="{{ $rowFailed ? old('description') : $category->description }}" class="sf-input text-base">
                         </div>
 
                         <div>
                             <span class="lg:hidden sf-label">Urutan</span>
                             <span x-show="!editing" class="text-gray-700">{{ $category->sort_order }}</span>
-                            <input x-show="editing" x-cloak name="sort_order" type="number" min="0" value="{{ $category->sort_order }}" class="sf-input text-base">
+                            <input x-show="editing" x-cloak name="sort_order" type="number" min="0" value="{{ $rowFailed ? old('sort_order') : $category->sort_order }}" class="sf-input text-base">
                         </div>
+
+                        @if($rowFailed && $errors->any())
+                            <div class="lg:col-span-full text-xs text-red-600">{{ $errors->first() }}</div>
+                        @endif
 
                         <div class="lg:text-right">
                             <span class="lg:hidden sf-label">Jumlah Item</span>

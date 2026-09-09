@@ -208,8 +208,10 @@ class ItemController extends Controller
     {
         $this->authorizeTenant($request, $item);
 
-        return view('master-data.items.edit', array_merge($this->formData($request), [
-            'item' => $item->load(['baseUnit', 'inventoryUnit', 'purchaseUnit', 'category', 'jenis', 'primaryDepartment', 'departments', 'outlets', 'brandAliases.brand', 'conversions.fromUnit', 'conversions.toUnit']),
+        $item->load(['baseUnit', 'inventoryUnit', 'purchaseUnit', 'category', 'jenis', 'primaryDepartment', 'departments', 'outlets', 'brandAliases.brand', 'conversions.fromUnit', 'conversions.toUnit']);
+
+        return view('master-data.items.edit', array_merge($this->formData($request, $item), [
+            'item' => $item,
         ]));
     }
 
@@ -260,20 +262,48 @@ class ItemController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function formData(Request $request): array
+    private function formData(Request $request, ?Item $item = null): array
     {
         $tenantId = $this->tenantId($request);
+
+        $departments = Department::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'ACTIVE')
+            ->orderBy('name')
+            ->get();
+
+        $jenises = ItemJenis::query()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        $categories = ItemCategory::query()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->where('status', 'ACTIVE')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        // Kalau item yang sedang diedit dulunya dipasangkan ke departemen/jenis/
+        // kategori yang sekarang sudah dinonaktifkan, tetap sertakan nilainya di
+        // dropdown (ditandai "nonaktif") — supaya edit field LAIN yang tidak
+        // terkait tidak diam-diam menghapus/memblokir field ini (celah yang
+        // sempat bikin item_category_id ke-null tanpa peringatan sama sekali).
+        if ($item) {
+            $departments = $this->withInactiveCurrentOption($departments, $item->primaryDepartment);
+            $jenises = $this->withInactiveCurrentOption($jenises, $item->jenis);
+            $categories = $this->withInactiveCurrentOption($categories, $item->category);
+        }
 
         return [
             'units' => Unit::query()
                 ->where('tenant_id', $tenantId)
                 ->orderBy('name')
                 ->get(),
-            'departments' => Department::query()
-                ->where('tenant_id', $tenantId)
-                ->where('status', 'ACTIVE')
-                ->orderBy('name')
-                ->get(),
+            'departments' => $departments,
             'outlets' => Outlet::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')
@@ -284,19 +314,8 @@ class ItemController extends Controller
                 ->where('status', 'ACTIVE')
                 ->orderBy('name')
                 ->get(),
-            'jenises' => ItemJenis::query()
-                ->where('tenant_id', $tenantId)
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get(),
-            'categories' => ItemCategory::query()
-                ->where('tenant_id', $tenantId)
-                ->where('is_active', true)
-                ->where('status', 'ACTIVE')
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get(),
+            'jenises' => $jenises,
+            'categories' => $categories,
             'itemTypes' => StoreItemRequest::ITEM_TYPE_OPTIONS,
             'opnameFrequencies' => [
                 'DAILY' => 'Harian',
@@ -304,6 +323,24 @@ class ItemController extends Controller
                 'MONTHLY' => 'Bulanan',
             ],
         ];
+    }
+
+    /**
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     * @param  \Illuminate\Support\Collection<int, TModel>  $activeOptions
+     * @param  TModel|null  $current
+     * @return \Illuminate\Support\Collection<int, TModel>
+     */
+    private function withInactiveCurrentOption($activeOptions, $current)
+    {
+        if (! $current || $activeOptions->contains('id', $current->id)) {
+            return $activeOptions;
+        }
+
+        $current = clone $current;
+        $current->name = $current->name.' (nonaktif)';
+
+        return $activeOptions->push($current);
     }
 
     private function tenantId(Request $request): int

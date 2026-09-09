@@ -22,7 +22,7 @@ class ItemsExport implements FromCollection, ShouldAutoSize, WithEvents, WithHea
     public function collection(): Collection
     {
         return Item::query()
-            ->with(['category', 'baseUnit', 'inventoryUnit', 'purchaseUnit'])
+            ->with(['category', 'jenis', 'baseUnit', 'inventoryUnit', 'purchaseUnit'])
             ->where('tenant_id', $this->tenantId)
             ->orderBy('canonical_sku')
             ->get();
@@ -35,6 +35,7 @@ class ItemsExport implements FromCollection, ShouldAutoSize, WithEvents, WithHea
             'name',
             'description',
             'item_category',
+            'item_jenis',
             'item_type',
             'base_unit',
             'inventory_unit',
@@ -54,6 +55,7 @@ class ItemsExport implements FromCollection, ShouldAutoSize, WithEvents, WithHea
             $row->name,
             $row->description,
             $row->category?->name,
+            $row->jenis?->name,
             $row->item_type,
             $row->baseUnit?->code,
             $row->inventoryUnit?->code,

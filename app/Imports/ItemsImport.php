@@ -5,6 +5,7 @@ namespace App\Imports;
 use App\Http\Requests\MasterData\StoreItemRequest;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\ItemCategory;
+use App\Modules\Inventory\Models\ItemJenis;
 use App\Modules\Inventory\Models\Unit;
 use App\Support\Decimal;
 use Closure;
@@ -143,6 +144,7 @@ class ItemsImport implements SkipsOnError, SkipsOnFailure, ToCollection, WithBat
         }
 
         $category = $this->category((string) $row->get('item_category'));
+        $jenis = $this->jenis((string) ($row->get('item_jenis') ?? ''));
         $existing = Item::query()
             ->where('tenant_id', $this->tenantId)
             ->where('canonical_sku', $sku)
@@ -150,6 +152,7 @@ class ItemsImport implements SkipsOnError, SkipsOnFailure, ToCollection, WithBat
 
         $attributes = [
             'item_category_id' => $category?->id,
+            'item_jenis_id' => $jenis?->id ?? $existing?->item_jenis_id,
             'base_unit_id' => $baseUnit->id,
             'inventory_unit_id' => $inventoryUnit->id,
             'purchase_unit_id' => $purchaseUnit->id,
@@ -197,6 +200,37 @@ class ItemsImport implements SkipsOnError, SkipsOnFailure, ToCollection, WithBat
                     ->orWhere('abbreviation', strtolower($value));
             })
             ->first();
+    }
+
+    /**
+     * Beda dari category(): Jenis Bahan adalah daftar klasifikasi bisnis
+     * yang dikurasi (dipakai Finance), jadi TIDAK dibuat otomatis dari isi
+     * kolom Excel — kalau diisi harus cocok dengan Jenis yang sudah ada di
+     * Pengaturan > Jenis Bahan, kalau tidak dianggap error baris supaya
+     * tidak ada klasifikasi baru yang nyelonong tanpa sepengetahuan admin.
+     */
+    private function jenis(string $value): ?ItemJenis
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        $jenis = ItemJenis::query()
+            ->where('tenant_id', $this->tenantId)
+            ->where('is_active', true)
+            ->where(function ($query) use ($value): void {
+                $query->whereRaw('LOWER(code) = ?', [strtolower($value)])
+                    ->orWhereRaw('LOWER(name) = ?', [strtolower($value)]);
+            })
+            ->first();
+
+        if (! $jenis) {
+            throw new \RuntimeException("Jenis Bahan '{$value}' tidak ditemukan/tidak aktif. Kosongkan kolom item_jenis atau samakan dengan yang ada di Pengaturan > Jenis Bahan.");
+        }
+
+        return $jenis;
     }
 
     private function category(string $name): ?ItemCategory

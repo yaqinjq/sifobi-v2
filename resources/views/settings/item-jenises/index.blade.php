@@ -26,22 +26,25 @@
         </div>
 
         <div class="divide-y divide-gray-50">
+            @php $failedRowId = (int) old('jenis_id'); @endphp
             @foreach($jenises as $jenis)
-                <div class="py-3" x-data="{ editing: false }">
+                @php $rowFailed = $failedRowId === $jenis->id; @endphp
+                <div class="py-3" x-data="{ editing: {{ $rowFailed ? 'true' : 'false' }} }">
                     <form method="POST" action="{{ route('settings.item-jenises.update', $jenis) }}" class="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr_1fr_1fr_auto] gap-3 items-center">
                         @csrf
                         @method('PUT')
+                        <input type="hidden" name="jenis_id" value="{{ $jenis->id }}">
 
                         <div>
                             <span class="lg:hidden sf-label">Kode</span>
                             <span x-show="!editing" class="font-semibold text-gray-900">{{ $jenis->code }}</span>
-                            <input x-show="editing" x-cloak name="code" value="{{ $jenis->code }}" class="sf-input text-base uppercase">
+                            <input x-show="editing" x-cloak name="code" value="{{ $rowFailed ? old('code') : $jenis->code }}" class="sf-input text-base uppercase">
                         </div>
 
                         <div>
                             <span class="lg:hidden sf-label">Nama</span>
                             <span x-show="!editing" class="text-gray-700">{{ $jenis->name }}</span>
-                            <input x-show="editing" x-cloak name="name" value="{{ $jenis->name }}" class="sf-input text-base">
+                            <input x-show="editing" x-cloak name="name" value="{{ $rowFailed ? old('name') : $jenis->name }}" class="sf-input text-base">
                         </div>
 
                         <div>
@@ -49,7 +52,7 @@
                             <span x-show="!editing" class="{{ $jenis->badgeClass() }}">{{ $jenis->color }}</span>
                             <select x-show="editing" x-cloak name="color" class="sf-input text-base">
                                 @foreach($colors as $color)
-                                    <option value="{{ $color }}" @selected($jenis->color === $color)>{{ $color }}</option>
+                                    <option value="{{ $color }}" @selected(($rowFailed ? old('color') : $jenis->color) === $color)>{{ $color }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -57,8 +60,12 @@
                         <div>
                             <span class="lg:hidden sf-label">Urutan</span>
                             <span x-show="!editing" class="text-gray-700">{{ $jenis->sort_order }}</span>
-                            <input x-show="editing" x-cloak name="sort_order" type="number" min="0" value="{{ $jenis->sort_order }}" class="sf-input text-base">
+                            <input x-show="editing" x-cloak name="sort_order" type="number" min="0" value="{{ $rowFailed ? old('sort_order') : $jenis->sort_order }}" class="sf-input text-base">
                         </div>
+
+                        @if($rowFailed && $errors->any())
+                            <div class="lg:col-span-full text-xs text-red-600">{{ $errors->first() }}</div>
+                        @endif
 
                         <div class="flex justify-end gap-2">
                             <x-icon-btn icon="edit" label="Edit" color="blue" x-show="!editing" @click="editing = true" />
