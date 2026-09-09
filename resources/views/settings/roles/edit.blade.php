@@ -18,6 +18,10 @@
         <div class="rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700 mb-4">{{ session('success') }}</div>
     @endif
 
+    @if($errors->any())
+        <div class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 mb-4">{{ $errors->first() }}</div>
+    @endif
+
     <form method="POST" action="{{ route('settings.roles.update', $role) }}">
         @csrf
         @method('PUT')

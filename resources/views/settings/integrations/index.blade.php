@@ -132,8 +132,8 @@
                         </x-sf.form-group>
 
                         <div x-show="authMode === 'BEARER'" x-cloak>
-                            <x-sf.form-group label="Bearer Token" for="auth_token_{{ $profile->id }}">
-                                <input id="auth_token_{{ $profile->id }}" name="auth_token" value="{{ old('auth_token', $profile->auth_token ?: $profile->api_token) }}" class="sf-input text-base" maxlength="255" autocomplete="off">
+                            <x-sf.form-group label="Bearer Token" for="auth_token_{{ $profile->id }}" :hint="($profile->auth_token || $profile->api_token) ? 'Sudah tersimpan. Kosongkan jika tidak ingin mengubah.' : null">
+                                <input id="auth_token_{{ $profile->id }}" name="auth_token" value="{{ old('auth_token') }}" class="sf-input text-base" maxlength="255" autocomplete="off">
                             </x-sf.form-group>
                         </div>
 

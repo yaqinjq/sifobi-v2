@@ -65,6 +65,7 @@ class UserController extends Controller
     {
         $tenantId = (int) $request->user()->tenant_id;
         $data = $this->validated($request, $tenantId);
+        $this->assertMayAssignRole($request, $data['role']);
 
         DB::transaction(function () use ($data, $tenantId, $request): void {
             $user = User::withoutGlobalScopes()->create([
@@ -116,6 +117,7 @@ class UserController extends Controller
         $this->authorizeUser($request, $user);
         $tenantId = (int) $request->user()->tenant_id;
         $data = $this->validated($request, $tenantId, $user);
+        $this->assertMayAssignRole($request, $data['role']);
 
         DB::transaction(function () use ($data, $user, $request): void {
             $payload = [
@@ -176,6 +178,12 @@ class UserController extends Controller
 
         $temporaryPassword = 'Reset@'.random_int(10000, 99999);
         $user->update(['password' => $temporaryPassword]);
+
+        activity('user')
+            ->causedBy($request->user())
+            ->performedOn($user)
+            ->event('password_reset')
+            ->log("Password user {$user->name} direset paksa oleh admin");
 
         return back()->with(
             'success',
@@ -256,6 +264,28 @@ class UserController extends Controller
     private function authorizeUser(Request $request, User $user): void
     {
         abort_unless((int) $user->tenant_id === (int) $request->user()->tenant_id, 403, 'Tidak berwenang.');
+    }
+
+    /**
+     * Validasi 'role' cuma cek role itu ADA (Rule::exists), tidak cek siapa
+     * yang boleh MEMBERIKANnya — sebelum fix ini, siapa pun dengan
+     * manage_users (bukan cuma SUPER_ADMIN) bisa assign role SUPER_ADMIN ke
+     * user manapun, termasuk ke akun sendiri (eskalasi privilese instan,
+     * tidak ada pengecekan hierarki role sama sekali di codebase ini).
+     * Cegah khusus untuk SUPER_ADMIN: cuma SUPER_ADMIN yang sudah ada yang
+     * boleh assign role SUPER_ADMIN ke siapa pun.
+     */
+    private function assertMayAssignRole(Request $request, string $roleName): void
+    {
+        if (strtoupper($roleName) !== 'SUPER_ADMIN') {
+            return;
+        }
+
+        abort_unless(
+            $request->user()->hasRole('SUPER_ADMIN'),
+            403,
+            'Hanya SUPER_ADMIN yang boleh memberikan role SUPER_ADMIN.'
+        );
     }
 
     private function statusToDatabase(?string $status): ?string

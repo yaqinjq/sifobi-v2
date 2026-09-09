@@ -136,7 +136,7 @@ Route::get('/register/verify/{user}', [TenantRegistrationController::class, 'ver
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
-    Route::post('/login', [LoginController::class, 'store'])->name('login.store');
+    Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:10,1')->name('login.store');
     Route::get('/register', [TenantRegistrationController::class, 'create'])->name('register');
     Route::post('/register', [TenantRegistrationController::class, 'store'])->name('register.store');
     Route::post('/register/resend-verification', [TenantRegistrationController::class, 'resendVerification'])->name('register.resend-verification');

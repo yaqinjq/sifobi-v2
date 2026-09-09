@@ -32,7 +32,7 @@ class ReportController extends Controller
     public function mutationReport(Request $request): View
     {
         $tenantId = $this->tenantId($request);
-        $filters = $this->validateMutationFilters($request, $tenantId);
+        $filters = $this->enforceOutletScope($request, $this->validateMutationFilters($request, $tenantId));
         [$dateFrom, $dateTo] = $this->dateRange($filters);
 
         $base = $this->mutationQuery($tenantId, $filters, $dateFrom, $dateTo);
@@ -76,7 +76,7 @@ class ReportController extends Controller
     public function spoilReport(Request $request): View
     {
         $tenantId = $this->tenantId($request);
-        $filters = $this->validateSpoilFilters($request, $tenantId);
+        $filters = $this->enforceOutletScope($request, $this->validateSpoilFilters($request, $tenantId));
         [$dateFrom, $dateTo] = $this->dateRange($filters);
 
         $base = $this->spoilQuery($tenantId, $filters, $dateFrom, $dateTo);
@@ -121,7 +121,7 @@ class ReportController extends Controller
     public function receivingReport(Request $request): View
     {
         $tenantId = $this->tenantId($request);
-        $filters = $this->validateReceivingFilters($request, $tenantId);
+        $filters = $this->enforceOutletScope($request, $this->validateReceivingFilters($request, $tenantId));
         [$dateFrom, $dateTo] = $this->dateRange($filters);
 
         $base = $this->receivingQuery($tenantId, $filters, $dateFrom, $dateTo);
@@ -246,10 +246,10 @@ class ReportController extends Controller
     {
         $tenantId = $this->tenantId($request);
 
-        $filters = $request->validate([
+        $filters = $this->enforceOutletScope($request, $request->validate([
             'outlet_id'   => ['nullable', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
             'category_id' => ['nullable', 'integer', Rule::exists('item_categories', 'id')->where('tenant_id', $tenantId)],
-        ]);
+        ]));
 
         $lowStockItems = DB::table('stock_balances as sb')
             ->join('items as i', 'i.id', '=', 'sb.item_id')
@@ -287,7 +287,7 @@ class ReportController extends Controller
     public function exportMutasi(Request $request): BinaryFileResponse
     {
         $tenantId = $this->tenantId($request);
-        $filters = $this->validateMutationFilters($request, $tenantId);
+        $filters = $this->enforceOutletScope($request, $this->validateMutationFilters($request, $tenantId));
 
         return Excel::download(new MutasiExport($tenantId, $filters), 'LaporanMutasiStok.xlsx');
     }
@@ -295,7 +295,7 @@ class ReportController extends Controller
     public function exportSpoil(Request $request): BinaryFileResponse
     {
         $tenantId = $this->tenantId($request);
-        $filters = $this->validateSpoilFilters($request, $tenantId);
+        $filters = $this->enforceOutletScope($request, $this->validateSpoilFilters($request, $tenantId));
 
         return Excel::download(new SpoilExport($tenantId, $filters), 'LaporanSpoilWaste.xlsx');
     }
@@ -303,7 +303,7 @@ class ReportController extends Controller
     public function exportPenerimaan(Request $request): BinaryFileResponse
     {
         $tenantId = $this->tenantId($request);
-        $filters = $this->validateReceivingFilters($request, $tenantId);
+        $filters = $this->enforceOutletScope($request, $this->validateReceivingFilters($request, $tenantId));
 
         return Excel::download(new PenerimaanExport($tenantId, $filters), 'LaporanPenerimaanBarang.xlsx');
     }
@@ -325,10 +325,10 @@ class ReportController extends Controller
     public function exportStokMenipis(Request $request): BinaryFileResponse
     {
         $tenantId = $this->tenantId($request);
-        $filters = $request->validate([
+        $filters = $this->enforceOutletScope($request, $request->validate([
             'outlet_id'   => ['nullable', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
             'category_id' => ['nullable', 'integer', Rule::exists('item_categories', 'id')->where('tenant_id', $tenantId)],
-        ]);
+        ]));
 
         return Excel::download(new StokMenipisExport($tenantId, $filters), 'LaporanStokMenipis.xlsx');
     }
@@ -452,6 +452,30 @@ class ReportController extends Controller
         abort_unless($tenantId, 403);
 
         return (int) $tenantId;
+    }
+
+    /**
+     * Laporan Mutasi/Spoil/Penerimaan/Stok Menipis dulu cuma memfilter
+     * tenant_id — outlet_id diperlakukan murni sebagai dropdown pilihan
+     * bebas, jadi siapapun yang punya view_reports (bukan cuma
+     * view_all_reports) bisa lihat/export data outlet MANAPUN di tenant
+     * itu lewat query string, bukan cuma outlet sendiri. Paksa outlet_id
+     * ke outlet user kalau user terikat 1 outlet dan tidak punya
+     * view_all_reports — menimpa apapun yang dikirim di request, bukan
+     * cuma default saat kosong.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function enforceOutletScope(Request $request, array $filters): array
+    {
+        $user = $request->user();
+
+        if ($user?->outlet_id && ! $user->can('view_all_reports')) {
+            $filters['outlet_id'] = (int) $user->outlet_id;
+        }
+
+        return $filters;
     }
 
     private function outlets(int $tenantId): \Illuminate\Database\Eloquent\Collection

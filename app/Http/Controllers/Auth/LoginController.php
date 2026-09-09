@@ -53,6 +53,18 @@ class LoginController extends Controller
                 ->onlyInput('email');
         }
 
+        // User::$status ('ACTIVE'/'INACTIVE') sebelumnya cuma kosmetik —
+        // dinonaktifkan admin tapi tetap bisa login normal, password sama
+        // sekali tidak berubah. Sesi yang SUDAH terbuka ditangani terpisah
+        // oleh middleware EnsureUserIsActive.
+        if (strtoupper((string) Auth::user()->status) === 'INACTIVE') {
+            Auth::logout();
+
+            return back()
+                ->withErrors(['email' => 'Akun Anda sudah dinonaktifkan. Hubungi admin tenant Anda.'])
+                ->onlyInput('email');
+        }
+
         // Update last login — WAJIB pakai try-catch agar tidak crash
         try {
             Auth::user()->forceFill([
