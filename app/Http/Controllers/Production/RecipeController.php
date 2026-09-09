@@ -218,6 +218,8 @@ class RecipeController extends Controller
             'other_costs.*.amount'       => ['required', 'numeric', 'min:0'],
         ]);
 
+        $this->assertResolvableUnits($validated['ingredients'] ?? [], $tenantId);
+
         return [
             'recipe' => [
                 'test_date'             => $validated['test_date'] ?? null,
@@ -231,6 +233,67 @@ class RecipeController extends Controller
             'ingredients' => $validated['ingredients'] ?? [],
             'other_costs' => $validated['other_costs'] ?? [],
         ];
+    }
+
+    /**
+     * RecipeIngredient::toBaseQty() diam-diam pakai faktor konversi 1:1 kalau
+     * satuan yang dipilih bukan satuan dasar/inventory/pembelian item DAN
+     * tidak ada baris di unit_conversions yang menjembataninya ke satuan
+     * dasar — itu bikin HPP dan potong stok POS bisa salah berkali-kali
+     * lipat tanpa ketahuan (pernah kejadian nyata, lihat migration
+     * 2026_07_24_100001_fix_inventory_ratio_kg_to_gr). Cegah dari sumbernya:
+     * tolak simpan resep kalau ada baris ingredient yang satuannya tidak
+     * (dan tidak akan pernah) bisa dikonversi ke satuan dasar item-nya.
+     *
+     * @param  array<int, array<string, mixed>>  $ingredients
+     */
+    private function assertResolvableUnits(array $ingredients, int $tenantId): void
+    {
+        $errors = [];
+
+        foreach ($ingredients as $index => $ingredient) {
+            $item = Item::query()->where('tenant_id', $tenantId)->find($ingredient['item_id'] ?? null);
+
+            if (! $item) {
+                continue;
+            }
+
+            foreach (['buy_unit_id' => 'Satuan Beli', 'recipe_unit_id' => 'Satuan Pakai'] as $field => $label) {
+                $unitId = (int) ($ingredient[$field] ?? 0);
+
+                if ($this->hasResolvableConversion($item, $unitId)) {
+                    continue;
+                }
+
+                $errors["ingredients.{$index}.{$field}"] = "{$label} untuk \"{$item->name}\" tidak punya jalur konversi ke satuan dasarnya. Tambahkan dulu di Master Data > Item (Konversi Tambahan) sebelum dipakai di resep.";
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    private function hasResolvableConversion(Item $item, int $unitId): bool
+    {
+        if ((int) $item->base_unit_id === $unitId) {
+            return true;
+        }
+
+        if ((int) $item->inventory_unit_id === $unitId && $item->inventory_ratio) {
+            return true;
+        }
+
+        if ((int) $item->purchase_unit_id === $unitId && $item->purchase_ratio) {
+            return true;
+        }
+
+        return UnitConversion::withoutGlobalScopes()
+            ->where('tenant_id', $item->tenant_id)
+            ->where('item_id', $item->id)
+            ->where('from_unit_id', $unitId)
+            ->where('to_unit_id', $item->base_unit_id)
+            ->exists();
     }
 
     /**

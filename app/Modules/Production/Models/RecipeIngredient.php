@@ -104,6 +104,22 @@ class RecipeIngredient extends Model
 
             if ($conversion) {
                 $factor = Decimal::toFixed($conversion->factor, 6);
+            } else {
+                // Tidak ada jalur konversi sama sekali ke satuan dasar item —
+                // diam-diam pakai faktor 1:1 di bawah ini SALAH kalau satuan
+                // yang dipilih beda skala (mis. kg vs gr, faktor harusnya
+                // 1000). RecipeController::assertResolvableUnits() mencegah
+                // resep BARU tersimpan dengan kondisi ini; log ini jaring
+                // pengaman untuk data resep lama yang lolos sebelum fix itu
+                // ada, supaya ketahuan lewat log alih-alih diam-diam salah
+                // hitung HPP/potong stok POS.
+                \Illuminate\Support\Facades\Log::warning('[RECIPE] toBaseQty fallback ke faktor 1:1 — kemungkinan salah hitung', [
+                    'item_id' => $item->id,
+                    'item_name' => $item->name,
+                    'unit_id' => $unitId,
+                    'base_unit_id' => $item->base_unit_id,
+                    'recipe_ingredient_id' => $this->id,
+                ]);
             }
         }
 

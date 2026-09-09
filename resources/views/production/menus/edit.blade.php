@@ -49,7 +49,9 @@
                         <option value="{{ $category->id }}" @selected(old('menu_category_id', $menu->menu_category_id) == $category->id)>{{ $category->name }}</option>
                     @endforeach
                 </select>
-                <p class="text-xs text-gray-500 mt-1">Belum ada kategori yang cocok? <a href="{{ route('settings.menu-categories.index') }}" class="text-primary-700 underline" target="_blank">Kelola kategori menu</a>.</p>
+                @can('manage_settings')
+                    <p class="text-xs text-gray-500 mt-1">Belum ada kategori yang cocok? <a href="{{ route('settings.menu-categories.index') }}" class="text-primary-700 underline" target="_blank">Kelola kategori menu</a>.</p>
+                @endcan
             </x-sf.form-group>
 
             <x-sf.form-group label="Nama Menu" for="name" :required="true">

@@ -97,6 +97,21 @@ class MenuController extends Controller
         $brands = Brand::query()->where('tenant_id', $tenantId)->orderBy('name')->get();
         $categories = MenuCategory::query()->where('tenant_id', $tenantId)->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get();
 
+        // Kalau kategori yang sedang dipakai menu ini sudah dinonaktifkan,
+        // tetap sertakan di dropdown (ditandai nonaktif) — supaya simpan
+        // perubahan field LAIN yang tidak terkait tidak diam-diam menghapus
+        // menu_category_id (dropdown tanpa opsi yang cocok -> browser balik
+        // ke "Tanpa kategori" -> tersimpan null tanpa error apa pun).
+        if ($menu->menu_category_id && ! $categories->contains('id', $menu->menu_category_id)) {
+            $current = MenuCategory::query()->where('tenant_id', $tenantId)->find($menu->menu_category_id);
+
+            if ($current) {
+                $current = clone $current;
+                $current->name = $current->name.' (nonaktif)';
+                $categories->push($current);
+            }
+        }
+
         return view('production.menus.edit', compact('menu', 'brands', 'categories'));
     }
 
