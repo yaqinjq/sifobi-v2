@@ -7,6 +7,10 @@
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full">
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <x-sf.card title="Kartu Stok" subtitle="Saldo awal, masuk, keluar, saldo akhir per item — lihat barang apa saja yang habis">
+            <a href="{{ route('laporan.kartu-stok') }}" class="sf-btn-primary min-h-11 w-full mt-2">Buka</a>
+        </x-sf.card>
+
         <x-sf.card title="Mutasi Stok" subtitle="Riwayat semua pergerakan stok">
             <a href="{{ route('laporan.mutasi') }}" class="sf-btn-primary min-h-11 w-full mt-2">Buka</a>
         </x-sf.card>

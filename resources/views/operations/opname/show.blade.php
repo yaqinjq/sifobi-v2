@@ -84,7 +84,7 @@
         </form>
     </div>
 
-    <div class="space-y-3">
+    <div class="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">
         @forelse($items as $opnameItem)
             @php
                 $item = $opnameItem->item;
@@ -117,6 +117,16 @@
                   x-init="fetchSuggestion()"
                   x-effect="$el.dataset.overSystem = isOverSystemStock; $el.dataset.suspicious = isSuspiciousWhenZero; $el.dataset.physicalDisplay = physicalBaseDisplay">
                 <div class="flex items-start justify-between gap-3">
+                    <div class="hidden lg:block shrink-0">
+                        @if($item?->photo)
+                            <img src="{{ asset('storage/'.$item->photo) }}" alt="{{ $item->name }}"
+                                 class="w-14 h-14 rounded-xl object-cover border border-gray-200">
+                        @else
+                            <div class="w-14 h-14 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-300">
+                                <i class="ti ti-photo text-xl" aria-hidden="true"></i>
+                            </div>
+                        @endif
+                    </div>
                     <div class="min-w-0 flex-1">
                         <p class="font-semibold text-gray-900">{{ $item?->name ?? '-' }}</p>
                         <p class="text-xs text-gray-500">{{ $item?->canonical_sku ?? '-' }}</p>

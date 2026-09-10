@@ -5,6 +5,9 @@
 @section('content')
 <x-sf.page-header title="Spoil & Waste" subtitle="{{ auth()->user()->outlet->name ?? 'Semua outlet' }}">
     <x-slot:actions>
+        @can('approve_spoil')
+            <a href="{{ route('operations.spoil-wastes.import-form') }}" class="sf-btn-secondary min-h-11 px-3 text-xs">Import</a>
+        @endcan
         @can('record_spoil')
             <a href="{{ route('operations.spoil-wastes.create') }}" class="sf-btn-primary min-h-11 px-3">+ Catat</a>
         @endcan

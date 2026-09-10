@@ -402,6 +402,11 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::get('hpp/export', [\App\Http\Controllers\Reports\HppReportController::class, 'export'])->name('hpp.export');
             Route::get('stok-summary/export', [ReportController::class, 'exportStokSummary'])->name('stok-summary.export');
             Route::get('stok-menipis/export', [ReportController::class, 'exportStokMenipis'])->name('stok-menipis.export');
+
+            Route::get('kartu-stok', [ReportController::class, 'kartuStokRingkasan'])->name('kartu-stok');
+            Route::get('kartu-stok/export', [ReportController::class, 'exportKartuStokRingkasan'])->name('kartu-stok.export');
+            Route::get('kartu-stok/{item}', [ReportController::class, 'kartuStokDetail'])->name('kartu-stok.detail');
+            Route::get('kartu-stok/{item}/export', [ReportController::class, 'exportKartuStokDetail'])->name('kartu-stok.detail.export');
         });
 
     Route::prefix('operations')->name('operations.')->group(function (): void {
@@ -427,6 +432,19 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
         Route::post('/spoil-wastes/{spoil}/reject', [SpoilWasteController::class, 'reject'])
             ->middleware('permission:approve_spoil')
             ->name('spoil-wastes.reject');
+
+        // Import histori dari Excel otomatis approve tiap baris (lihat
+        // SpoilWasteImport) — digerbang approve_spoil, bukan cuma
+        // record_spoil, karena efeknya setara record + approve sekaligus.
+        Route::get('/spoil-wastes-import', [SpoilWasteController::class, 'importForm'])
+            ->middleware('permission:approve_spoil')
+            ->name('spoil-wastes.import-form');
+        Route::post('/spoil-wastes-import', [SpoilWasteController::class, 'import'])
+            ->middleware('permission:approve_spoil')
+            ->name('spoil-wastes.import');
+        Route::get('/spoil-wastes-import/template', [SpoilWasteController::class, 'importTemplate'])
+            ->middleware('permission:approve_spoil')
+            ->name('spoil-wastes.import-template');
 
         Route::prefix('opname')->name('opname.')->group(function (): void {
             Route::get('/', [OpnameController::class, 'index'])

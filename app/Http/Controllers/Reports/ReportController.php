@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Reports;
 
+use App\Exports\Reports\KartuStokDetailExport;
+use App\Exports\Reports\KartuStokRingkasanExport;
 use App\Exports\Reports\MutasiExport;
 use App\Exports\Reports\PenerimaanExport;
 use App\Exports\Reports\SpoilExport;
@@ -284,6 +286,109 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * Kartu Stok — ringkasan semua item (saldo awal, masuk, keluar, saldo
+     * akhir) per outlet dalam 1 rentang tanggal. Beda dari Laporan Mutasi
+     * (daftar mentah kronologis SEMUA item tercampur): ini per-item,
+     * langsung menjawab "barang apa saja yang habis" tanpa harus scroll
+     * ratusan baris mutasi. Saldo dihitung dari SUM(qty_change) mentah
+     * berdasarkan performed_at — BUKAN dari kolom balance_after yang
+     * tersimpan (yang cuma akurat mengikuti urutan INSERT, bukan urutan
+     * kronologis — jadi bisa salah kalau ada entri backdated/historis).
+     */
+    public function kartuStokRingkasan(Request $request): View
+    {
+        $tenantId = $this->tenantId($request);
+        $filters = $this->enforceOutletScope($request, $request->validate([
+            'outlet_id' => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'date_from' => ['nullable', 'date'],
+            'date_to'   => ['nullable', 'date'],
+            'q'         => ['nullable', 'string', 'max:255'],
+        ]));
+
+        $outlets = $this->outlets($tenantId);
+        $filters['outlet_id'] = $filters['outlet_id'] ?? $outlets->first()?->id;
+        [$dateFrom, $dateTo] = $this->dateRange($filters);
+
+        $rows = collect();
+
+        if ($filters['outlet_id']) {
+            $rows = $this->kartuStokSummaryQuery($tenantId, (int) $filters['outlet_id'], $dateFrom, $dateTo, $filters['q'] ?? null);
+        }
+
+        return view('laporan.kartu-stok-ringkasan', [
+            'rows' => $rows,
+            'outlets' => $outlets,
+            'filters' => $filters,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+        ]);
+    }
+
+    public function exportKartuStokRingkasan(Request $request): BinaryFileResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $filters = $this->enforceOutletScope($request, $request->validate([
+            'outlet_id' => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'date_from' => ['nullable', 'date'],
+            'date_to'   => ['nullable', 'date'],
+            'q'         => ['nullable', 'string', 'max:255'],
+        ]));
+        [$dateFrom, $dateTo] = $this->dateRange($filters);
+
+        $rows = $this->kartuStokSummaryQuery($tenantId, (int) $filters['outlet_id'], $dateFrom, $dateTo, $filters['q'] ?? null);
+
+        return Excel::download(new KartuStokRingkasanExport($rows, $dateFrom, $dateTo), 'KartuStokRingkasan.xlsx');
+    }
+
+    /**
+     * Kartu Stok — kartu 1 item: saldo awal, daftar mutasi kronologis
+     * (bukan terbalik seperti Laporan Mutasi), saldo berjalan dihitung di
+     * PHP (bukan pakai balance_after tersimpan), lalu saldo akhir.
+     */
+    public function kartuStokDetail(Request $request, Item $item): View
+    {
+        $tenantId = $this->tenantId($request);
+        abort_unless((int) $item->tenant_id === $tenantId, 403);
+
+        $filters = $this->enforceOutletScope($request, $request->validate([
+            'outlet_id' => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'date_from' => ['nullable', 'date'],
+            'date_to'   => ['nullable', 'date'],
+        ]));
+
+        $outlets = $this->outlets($tenantId);
+        $filters['outlet_id'] = $filters['outlet_id'] ?? $outlets->first()?->id;
+        [$dateFrom, $dateTo] = $this->dateRange($filters);
+
+        $card = $this->kartuStokCard($tenantId, (int) $filters['outlet_id'], $item->id, $dateFrom, $dateTo);
+
+        return view('laporan.kartu-stok-detail', array_merge($card, [
+            'item' => $item,
+            'outlets' => $outlets,
+            'filters' => $filters,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+        ]));
+    }
+
+    public function exportKartuStokDetail(Request $request, Item $item): BinaryFileResponse
+    {
+        $tenantId = $this->tenantId($request);
+        abort_unless((int) $item->tenant_id === $tenantId, 403);
+
+        $filters = $this->enforceOutletScope($request, $request->validate([
+            'outlet_id' => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'date_from' => ['nullable', 'date'],
+            'date_to'   => ['nullable', 'date'],
+        ]));
+        [$dateFrom, $dateTo] = $this->dateRange($filters);
+
+        $card = $this->kartuStokCard($tenantId, (int) $filters['outlet_id'], $item->id, $dateFrom, $dateTo);
+
+        return Excel::download(new KartuStokDetailExport($item, $card, $dateFrom, $dateTo), 'KartuStok-'.$item->canonical_sku.'.xlsx');
+    }
+
     public function exportMutasi(Request $request): BinaryFileResponse
     {
         $tenantId = $this->tenantId($request);
@@ -476,6 +581,95 @@ class ReportController extends Controller
         }
 
         return $filters;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, object>
+     */
+    private function kartuStokSummaryQuery(int $tenantId, int $outletId, Carbon $dateFrom, Carbon $dateTo, ?string $search): \Illuminate\Support\Collection
+    {
+        $rows = DB::table('items as i')
+            ->leftJoin('units as u', 'u.id', '=', 'i.inventory_unit_id')
+            ->leftJoin('stock_mutations as sm', function ($join) use ($tenantId, $outletId): void {
+                $join->on('sm.item_id', '=', 'i.id')
+                    ->where('sm.tenant_id', $tenantId)
+                    ->where('sm.outlet_id', $outletId);
+            })
+            ->where('i.tenant_id', $tenantId)
+            ->where('i.is_active', true)
+            ->when($search, fn ($q) => $q->where(function ($q) use ($search): void {
+                $q->where('i.name', 'like', "%{$search}%")->orWhere('i.canonical_sku', 'like', "%{$search}%");
+            }))
+            ->selectRaw('
+                i.id as item_id,
+                i.name as item_name,
+                i.canonical_sku,
+                u.abbreviation as unit,
+                COALESCE(SUM(CASE WHEN sm.performed_at < ? THEN sm.qty_change ELSE 0 END), 0) as saldo_awal,
+                COALESCE(SUM(CASE WHEN sm.performed_at BETWEEN ? AND ? AND sm.qty_change > 0 THEN sm.qty_change ELSE 0 END), 0) as total_masuk,
+                COALESCE(SUM(CASE WHEN sm.performed_at BETWEEN ? AND ? AND sm.qty_change < 0 THEN sm.qty_change ELSE 0 END), 0) as total_keluar,
+                COUNT(CASE WHEN sm.performed_at BETWEEN ? AND ? THEN sm.id END) as jumlah_transaksi
+            ', [$dateFrom, $dateFrom, $dateTo, $dateFrom, $dateTo, $dateFrom, $dateTo])
+            ->groupBy('i.id', 'i.name', 'i.canonical_sku', 'u.abbreviation')
+            ->havingRaw('saldo_awal <> 0 OR total_masuk <> 0 OR total_keluar <> 0')
+            ->orderBy('i.name')
+            ->get();
+
+        return $rows->map(function ($row) {
+            $row->saldo_akhir = bcadd(bcadd((string) $row->saldo_awal, (string) $row->total_masuk, 6), (string) $row->total_keluar, 6);
+
+            return $row;
+        });
+    }
+
+    /**
+     * @return array{saldo_awal: string, saldo_akhir: string, mutations: \Illuminate\Support\Collection<int, object>}
+     */
+    private function kartuStokCard(int $tenantId, int $outletId, int $itemId, Carbon $dateFrom, Carbon $dateTo): array
+    {
+        $saldoAwal = (string) (DB::table('stock_mutations')
+            ->where('tenant_id', $tenantId)
+            ->where('outlet_id', $outletId)
+            ->where('item_id', $itemId)
+            ->where('performed_at', '<', $dateFrom)
+            ->sum('qty_change') ?: '0.000000');
+
+        $mutations = DB::table('stock_mutations as sm')
+            ->where('sm.tenant_id', $tenantId)
+            ->where('sm.outlet_id', $outletId)
+            ->where('sm.item_id', $itemId)
+            ->whereBetween('sm.performed_at', [$dateFrom, $dateTo])
+            ->orderBy('sm.performed_at')
+            ->orderBy('sm.id')
+            ->select(['sm.performed_at', 'sm.mutation_type', 'sm.stock_target', 'sm.qty_change', 'sm.reference_type', 'sm.reference_id', 'sm.notes'])
+            ->get();
+
+        $running = $saldoAwal;
+        $mutations = $mutations->map(function ($row) use (&$running) {
+            $running = bcadd($running, (string) $row->qty_change, 6);
+            $row->saldo_berjalan = $running;
+            $row->mutation_type_label = $this->allMutationTypeLabels()[$row->mutation_type] ?? $row->mutation_type;
+
+            return $row;
+        });
+
+        return [
+            'saldo_awal' => $saldoAwal,
+            'saldo_akhir' => $running,
+            'mutations' => $mutations,
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function allMutationTypeLabels(): array
+    {
+        return $this->mutationTypes() + [
+            StockMutation::TYPE_TRANSFER_OUT => 'Transfer Keluar',
+            StockMutation::TYPE_TRANSFER_IN => 'Transfer Masuk',
+            StockMutation::TYPE_POS_SALE => 'Penjualan POS',
+        ];
     }
 
     private function outlets(int $tenantId): \Illuminate\Database\Eloquent\Collection

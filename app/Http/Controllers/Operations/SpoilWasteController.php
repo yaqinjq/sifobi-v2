@@ -258,6 +258,38 @@ class SpoilWasteController extends Controller
         return $validated;
     }
 
+    public function importForm(Request $request): View
+    {
+        return view('operations.spoil-wastes.import');
+    }
+
+    public function import(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
+        ]);
+
+        $tenantId = $this->tenantId($request);
+        $import = new \App\Imports\SpoilWasteImport($tenantId, (int) $request->user()->id, $this->spoilWasteService);
+
+        \Maatwebsite\Excel\Facades\Excel::import($import, $validated['file']);
+
+        $summary = $import->summary();
+
+        return redirect()
+            ->route('operations.spoil-wastes.import-form')
+            ->with($summary['success'] ? 'success' : 'warning', "{$summary['inserted']} baris berhasil diimpor & di-approve, {$summary['failed']} baris gagal.")
+            ->with('importErrors', $summary['errors']);
+    }
+
+    public function importTemplate(): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\Templates\SpoilWasteImportTemplate(),
+            'Template-Import-SpoilWaste.xlsx'
+        );
+    }
+
     private function tenantId(Request $request): int
     {
         $tenantId = $request->user()?->tenant_id;

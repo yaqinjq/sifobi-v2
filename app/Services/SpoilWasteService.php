@@ -274,10 +274,18 @@ class SpoilWasteService
     {
         $factor = '1.000000';
 
-        if ((int) $item->inventory_unit_id === $unitId && $item->inventory_ratio) {
-            $factor = Decimal::toFixed($item->inventory_ratio, 6);
-        } elseif ((int) $item->base_unit_id === $unitId) {
+        // base_unit_id WAJIB dicek duluan: banyak item punya
+        // inventory_unit_id === base_unit_id (satuan inventory sama dengan
+        // satuan dasar), dan urutan sebelumnya cek inventory_unit_id lebih
+        // dulu — akibatnya unit yang sebenarnya adalah base_unit (faktor
+        // seharusnya 1:1) malah dikalikan inventory_ratio, salah berkali
+        // lipat (mis. qty 25 dianggap 25 x 500 = 12500 kalau
+        // inventory_ratio=500). Urutan yang benar meniru
+        // RecipeIngredient::toBaseQty() yang sudah cek base_unit_id duluan.
+        if ((int) $item->base_unit_id === $unitId) {
             $factor = '1.000000';
+        } elseif ((int) $item->inventory_unit_id === $unitId && $item->inventory_ratio) {
+            $factor = Decimal::toFixed($item->inventory_ratio, 6);
         } elseif ((int) $item->purchase_unit_id === $unitId && $item->purchase_ratio) {
             $factor = Decimal::toFixed($item->purchase_ratio, 6);
         } else {
