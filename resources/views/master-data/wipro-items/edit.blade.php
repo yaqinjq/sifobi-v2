@@ -33,6 +33,24 @@
             Data di atas otomatis mengikuti sinkronisasi katalog Wipro — kalau perlu diubah, hubungi
             admin untuk update di sisi Wipro, bukan di sini.
         </p>
+
+        @can('manage_items')
+            <details class="mt-3 group">
+                <summary class="text-xs text-amber-700 font-semibold cursor-pointer select-none">
+                    ⚠ Butuh ubah Nama/SKU/Kategori sekarang juga? (jalur darurat)
+                </summary>
+                <div class="mt-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2">
+                    <p class="text-xs text-amber-800 mb-2">
+                        Bisa diedit lewat halaman Item biasa, tapi perubahannya akan <strong>tertimpa lagi</strong>
+                        begitu ada sinkronisasi ulang Wipro Catalog berikutnya. Cuma dipakai untuk perbaikan cepat
+                        sementara — perbaikan permanen tetap harus lewat sisi Wipro.
+                    </p>
+                    <a href="{{ route('master-data.items.edit', $item) }}" class="sf-btn-secondary min-h-9 px-3 text-xs inline-flex items-center">
+                        Buka Edit Item Biasa (Darurat)
+                    </a>
+                </div>
+            </details>
+        @endcan
     </x-sf.card>
 
     <form method="POST" action="{{ route('master-data.wipro-items.update', $item) }}" enctype="multipart/form-data" class="space-y-5">

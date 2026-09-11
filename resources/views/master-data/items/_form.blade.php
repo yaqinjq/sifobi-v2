@@ -62,6 +62,18 @@
         </div>
     @endif
 
+    @if($isEdit && $item->item_source === 'WIPRO')
+        <div class="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p class="font-semibold mb-1">⚠ Ini item dari katalog Wipro — jalur edit darurat</p>
+            <p class="text-xs">
+                Halaman ini biasanya diakses lewat Master Data &rarr; Item Wipro (yang tidak punya field Nama/SKU/Kategori).
+                Kalau Anda ubah Nama, SKU, atau Kategori di sini, perubahan itu akan <strong>tertimpa lagi otomatis</strong>
+                begitu ada yang menjalankan sinkronisasi ulang di Settings &rarr; Integrasi &rarr; Wipro Catalog.
+                Sebaiknya cuma dipakai untuk perbaikan cepat sementara, sambil menunggu koreksi resmi dari sisi Wipro.
+            </p>
+        </div>
+    @endif
+
     <input type="hidden" name="is_active" :value="isActive ? 1 : 0">
     <input type="hidden" name="track_expiry" :value="trackExpiry ? 1 : 0">
     <input type="hidden" name="sync_extra_conversions" value="1">
