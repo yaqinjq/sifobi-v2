@@ -8,12 +8,79 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.11 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.11 &mdash; 11 September 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Laporan <strong>Kartu Stok</strong> baru (Laporan &rarr; Kartu Stok) &mdash; lihat Saldo Awal, Masuk, Keluar, Saldo Akhir per item, langsung kelihatan barang apa saja yang habis. Ada tampilan ringkasan semua item dan kartu detail kronologis per item</li>
+                    <li>Foto item ditampilkan di halaman Opname (khusus tampilan desktop) supaya tidak salah pilih barang yang mirip</li>
+                    <li>Import histori Spoil &amp; Waste dari Excel (tombol "Import" di halaman Spoil &amp; Waste) &mdash; download template, isi, upload, baris yang berhasil otomatis ter-approve</li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Keamanan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>User yang di-nonaktifkan admin sekarang benar-benar tidak bisa login atau lanjut pakai sesi yang sudah terbuka &mdash; sebelumnya nonaktifkan user tidak mencegah akses sama sekali</li>
+                    <li>Ditutup celah dimana user dengan akses kelola user bisa memberi diri sendiri/orang lain role SUPER_ADMIN tanpa batasan</li>
+                    <li>Laporan Mutasi Stok, Spoil &amp; Waste, Penerimaan Barang, dan Stok Menipis sekarang benar-benar membatasi user yang terikat 1 outlet supaya cuma lihat data outlet-nya sendiri (sebelumnya bisa lihat outlet lain lewat filter)</li>
+                    <li>Reset password oleh admin sekarang tercatat di Log Aktivitas</li>
+                    <li>Token API di halaman Integrasi tidak lagi ditampilkan dalam bentuk plaintext saat edit</li>
+                    <li>Ditambahkan pembatasan percobaan login berulang (rate limit)</li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Modul Transfer Stok, Opname &amp; Spoil/Waste</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Transfer Stok: perbaikan menyeluruh &mdash; sebelumnya modul ini tidak bisa dipakai sama sekali (gagal saat buat baru, dan submit/approve/reject/void menampilkan halaman error meski datanya tersimpan)</li>
+                    <li>Opname, Spoil &amp; Waste, Transfer Stok: pesan kesalahan sekarang tampil jelas di halaman detail saat approve/submit/reject/void gagal (sebelumnya gagal secara diam-diam tanpa keterangan)</li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Master Data</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Edit Item tidak lagi diam-diam menghapus Kategori Bahan kalau kategorinya sudah dinonaktifkan</li>
+                    <li>Import Excel Item sekarang mendukung kolom Jenis Bahan (sebelumnya wajib diisi manual satu-satu setelah import)</li>
+                    <li>Edit inline di Pengaturan &gt; Kategori/Jenis Bahan tidak lagi kehilangan isian saat validasi gagal</li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Menu &amp; Resep</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Resep sekarang ditolak saat disimpan kalau ada bahan dengan satuan yang tidak punya jalur konversi ke satuan dasarnya (mencegah salah hitung HPP dan salah potong stok POS)</li>
+                    <li>Edit Menu tidak lagi diam-diam menghapus Kategori Menu kalau kategorinya sudah dinonaktifkan</li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Integrasi Wipro</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Dropdown Item/Satuan di form Penerimaan Barang sekarang benar-benar ter-isi otomatis setelah scan QR (sebelumnya tampil kosong walau data sudah benar di belakang layar)</li>
+                    <li>Penerimaan Barang dari PO sekarang tersimpan dengan link yang benar ke PO/pengiriman-nya &mdash; sebelumnya link ini hilang sehingga konfirmasi otomatis ke Wipro tidak pernah terkirim meski staf sudah approve</li>
+                    <li>Kirim PO ke Wipro sekarang tetap berhasil untuk item yang valid meski ada item lain yang SKU-nya belum aktif di katalog Wipro (sebelumnya 1 item bermasalah menggagalkan seluruh PO)</li>
+                    <li>PO yang sudah lanjut ke status Dikirim/Selesai sekarang bisa dikirim ulang ke Wipro kalau masih ada item yang belum berhasil sync (sebelumnya cuma bisa dikirim ulang saat masih berstatus Terkirim)</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.10 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.10 &mdash; 4 September 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

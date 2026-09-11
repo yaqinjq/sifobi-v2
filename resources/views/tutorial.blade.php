@@ -382,6 +382,9 @@
             <div class="rounded-xl bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-800">
                 Frekuensi opname per item diatur di Master Data (DAILY / WEEKLY / MONTHLY). Hanya item yang jadwalnya jatuh hari itu yang muncul.
             </div>
+            <div class="rounded-xl bg-green-50 border border-green-100 px-3 py-2 text-xs text-green-800">
+                Di tampilan desktop, tiap item sekarang menampilkan foto (kalau ada) supaya lebih mudah dikenali dan tidak salah pilih barang yang mirip.
+            </div>
         </div>
     </x-sf.card>
 
@@ -402,6 +405,18 @@
                 <li>Isi alasan (Kadaluarsa, Tumpah, Rusak Proses, dll.)</li>
                 <li>Submit → stok berkurang otomatis di ledger</li>
             </ol>
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2 text-xs">Import Histori dari Excel</p>
+                <p class="text-xs text-gray-500 mb-1.5">Untuk data lama yang sudah dicatat manual di spreadsheet, tidak perlu input satu-satu:</p>
+                <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Klik tombol <strong>"Import"</strong> di halaman Spoil & Waste (perlu permission Approve Spoil)</li>
+                    <li>Unduh template Excel, isi sesuai contoh & petunjuk di sheet "PETUNJUK"</li>
+                    <li>Upload file — baris yang berhasil otomatis ber-status Approved, baris yang gagal (outlet/SKU/satuan tidak ditemukan, stok tidak cukup) dilewati dengan pesan error jelas</li>
+                </ol>
+                <div class="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800 mt-2">
+                    Qty langsung memotong stok <strong>saat ini</strong>, bukan saldo di tanggal historisnya — import sebaiknya berurutan dari data paling lama ke paling baru.
+                </div>
+            </div>
         </div>
     </x-sf.card>
 
@@ -415,6 +430,10 @@
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm text-gray-700">
             <div class="space-y-2">
+                <div class="rounded-lg bg-primary-50 border border-primary-100 px-3 py-2">
+                    <p class="font-medium text-primary-800 text-xs">Kartu Stok (Baru)</p>
+                    <p class="text-xs text-primary-700 mt-0.5">Saldo Awal, Masuk, Keluar, Saldo Akhir per item — langsung kelihatan barang apa saja yang habis, tanpa perlu scroll riwayat mutasi mentah. Ada tampilan ringkasan semua item dan kartu detail kronologis per item, mirip "kartu stok" di aplikasi akuntansi pada umumnya.</p>
+                </div>
                 <div class="rounded-lg bg-gray-50 px-3 py-2">
                     <p class="font-medium text-gray-800 text-xs">Mutasi Stok</p>
                     <p class="text-xs text-gray-500 mt-0.5">Riwayat lengkap pergerakan stok per item/outlet. Filter: item, outlet, tipe mutasi, periode. Bisa export Excel.</p>
@@ -581,6 +600,16 @@
                     <li>SIFOBI kini otomatis menyediakan daftar outlet lewat <code class="bg-gray-100 px-1 rounded">GET /api/outlets</code> yang bisa ditarik Wipro (menu Integrasi &rarr; FBI Integration &rarr; "Sync Outlets" di sisi Wipro)</li>
                     <li>Outlet baru/berganti nama sebaiknya di-sync ulang dari sisi Wipro setelah dibuat/diubah di SIFOBI</li>
                     <li>Kalau nama outlet SIFOBI dan Wipro terlalu berbeda untuk dicocokkan otomatis, mapping perlu diisi manual di halaman Outlet Mapping milik Wipro</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2">Kenapa Nama Item Wipro Tidak Bisa Diedit?</p>
+                <p class="text-xs text-gray-500 mb-2">Ini bukan bug — memang sengaja dikunci.</p>
+                <ul class="space-y-1.5 text-xs text-gray-600 list-disc list-inside">
+                    <li>Halaman Master Data &rarr; Item Wipro cuma mengizinkan ubah <strong>Foto</strong>, <strong>Deskripsi</strong>, dan <strong>Keterangan Pembeda</strong> — SKU, Kategori, Satuan, dan Nama sengaja tidak ada di form karena semuanya mengikuti sinkronisasi katalog Wipro</li>
+                    <li>Kalau nama dipaksa diubah lewat halaman Item biasa, perubahan itu akan <strong>tertimpa lagi otomatis</strong> begitu ada yang menjalankan sinkronisasi ulang di Settings &rarr; Integrasi &rarr; Wipro Catalog — karena proses itu menulis ulang nama sesuai data terbaru dari Wipro</li>
+                    <li><strong>Cara yang benar:</strong> minta perbaikan nama di sistem Wipro dulu, lalu jalankan sinkronisasi ulang Wipro Catalog di SIFOBI — nama akan otomatis ikut terupdate tanpa perlu edit manual</li>
                 </ul>
             </div>
         </div>
@@ -781,7 +810,7 @@
     </x-sf.card>
 
     <div class="text-center text-xs text-gray-400 pb-4">
-        SIFOBI v2.10 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
+        SIFOBI v2.11 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
         &middot; <a href="{{ route('changelog') }}" class="text-primary-600 hover:underline">Lihat Changelog</a>
     </div>
 
