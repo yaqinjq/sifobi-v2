@@ -36,8 +36,8 @@ class OpenStockTemplateSheet implements FromArray, ShouldAutoSize, WithEvents, W
     public function array(): array
     {
         return [
-            ['tanggal_stok_awal', 'item_sku', 'departemen_code', 'target', 'qty_whole', 'qty_loose', 'catatan'],
-            ['2026-06-29', 'MKO-AJINOMOTO-500GR', 'BAR', 'STOK_HARIAN_OUTLET', '2', '350', 'Sisa kemarin'],
+            ['tanggal_stok_awal', 'item_sku', 'departemen_code', 'target', 'qty_whole', 'qty_loose', 'harga_per_unit', 'catatan'],
+            ['2026-06-29', 'MKO-AJINOMOTO-500GR', 'BAR', 'STOK_HARIAN_OUTLET', '2', '350', '15000', 'Sisa kemarin'],
         ];
     }
 
@@ -95,6 +95,7 @@ class OpenStockInstructionSheet implements FromArray, ShouldAutoSize, WithStyles
             ['target', 'STOK_HARIAN_OUTLET atau GUDANG_UTAMA', 'STOK_HARIAN_OUTLET'],
             ['qty_whole', 'Jumlah dalam satuan utuh/inventory atau pembelian', '2'],
             ['qty_loose', 'Jumlah ecer dalam satuan dasar, isi 0 untuk gudang utama', '350'],
+            ['harga_per_unit', 'Wajib diisi. Harga/HPP per unit satuan dasar, dipakai untuk hitung nilai stok di laporan Finance', '15000'],
             ['catatan', 'Catatan opsional per baris', 'Sisa dari shift kemarin'],
         ];
     }

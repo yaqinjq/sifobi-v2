@@ -321,8 +321,8 @@ test('open stock import creates draft rows from excel', function (): void {
     $spreadsheet = new Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->fromArray([
-        ['tanggal_stok_awal', 'item_sku', 'departemen_code', 'target', 'qty_whole', 'qty_loose', 'catatan'],
-        ['2026-06-29', 'MKO-AJINOMOTO-500GR', 'BAR', 'STOK_HARIAN_OUTLET', '2', '350', 'Sisa test'],
+        ['tanggal_stok_awal', 'item_sku', 'departemen_code', 'target', 'qty_whole', 'qty_loose', 'harga_per_unit', 'catatan'],
+        ['2026-06-29', 'MKO-AJINOMOTO-500GR', 'BAR', 'STOK_HARIAN_OUTLET', '2', '350', '15000', 'Sisa test'],
     ]);
     (new Xlsx($spreadsheet))->save($path);
 
@@ -352,7 +352,47 @@ test('open stock import creates draft rows from excel', function (): void {
     expect($openStock->business_date->toDateString())->toBe('2026-06-29')
         ->and((string) $openStock->qty_whole)->toBe('2.000000')
         ->and((string) $openStock->qty_loose)->toBe('350.000000')
+        ->and((string) $openStock->cost_per_unit)->toBe('15000.0000')
         ->and($openStock->status)->toBe(OpenStock::STATUS_DRAFT);
+});
+
+test('open stock import rejects rows without harga_per_unit', function (): void {
+    $user = openStockUser('PIC_OUTLET');
+    $path = storage_path('framework/testing/open-stock-import-no-cost.xlsx');
+    File::ensureDirectoryExists(dirname($path));
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->fromArray([
+        ['tanggal_stok_awal', 'item_sku', 'departemen_code', 'target', 'qty_whole', 'qty_loose', 'catatan'],
+        ['2026-06-29', 'MKO-AJINOMOTO-500GR', 'BAR', 'STOK_HARIAN_OUTLET', '2', '350', 'Tanpa HPP'],
+    ]);
+    (new Xlsx($spreadsheet))->save($path);
+
+    $upload = new UploadedFile(
+        $path,
+        'open-stock-import-no-cost.xlsx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        null,
+        true
+    );
+
+    $this->actingAs($user)
+        ->post(route('operations.open-stocks.import.store'), [
+            'outlet_id' => $this->outlet->id,
+            'file' => $upload,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('import_result');
+
+    $exists = OpenStock::query()
+        ->where('tenant_id', $this->tenant->id)
+        ->where('outlet_id', $this->outlet->id)
+        ->where('item_id', $this->item->id)
+        ->where('stock_target', OpenStock::TARGET_OUTLET_DAILY)
+        ->exists();
+
+    expect($exists)->toBeFalse();
 });
 
 test('draft can be edited', function (): void {

@@ -26,7 +26,7 @@ class StoreOpenStockRequest extends FormRequest
             'business_date' => ['required', 'date'],
             'qty_whole' => ['required', Decimal::validationRule()],
             'qty_loose' => ['required', Decimal::validationRule()],
-            'cost_per_unit' => ['nullable', Decimal::validationRule(4)],
+            'cost_per_unit' => ['required', Decimal::validationRule(4), 'min:0.0001'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }

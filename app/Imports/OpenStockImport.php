@@ -87,6 +87,15 @@ class OpenStockImport implements SkipsOnError, SkipsOnFailure, ToCollection, Wit
             '*.target' => ['required'],
             '*.qty_whole' => ['nullable'],
             '*.qty_loose' => ['nullable'],
+            '*.harga_per_unit' => ['required', 'numeric', 'min:0.0001'],
+        ];
+    }
+
+    public function customValidationMessages(): array
+    {
+        return [
+            '*.harga_per_unit.required' => 'Harga/HPP per unit wajib diisi — dipakai untuk hitung nilai stok di laporan.',
+            '*.harga_per_unit.min' => 'Harga/HPP per unit harus lebih dari 0.',
         ];
     }
 
@@ -161,6 +170,7 @@ class OpenStockImport implements SkipsOnError, SkipsOnFailure, ToCollection, Wit
                 'item_id' => $item->id,
                 'qty_whole' => $qtyWhole,
                 'qty_loose' => $qtyLoose,
+                'cost_per_unit' => Decimal::toFixed($row->get('harga_per_unit'), 4),
                 'notes' => $row->get('catatan'),
             ],
         ];

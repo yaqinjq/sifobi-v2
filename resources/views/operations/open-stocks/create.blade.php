@@ -193,6 +193,10 @@
                                     </div>
                                 </div>
 
+                                <div class="mt-2">
+                                    <label class="block mb-1 text-xs text-gray-500">HPP / Cost per Unit <span class="text-red-500">*</span></label>
+                                    <input type="text" inputmode="decimal" x-model="row.cost_per_unit" class="sf-input text-base" placeholder="0" required>
+                                </div>
                                 <input type="text" x-model="row.notes" class="sf-input text-base mt-2" placeholder="Catatan baris (opsional)">
                             </div>
 
@@ -350,6 +354,7 @@ function openStockBatch(config) {
                 qty_whole: '',
                 qty_loose: '',
                 qty_purchase: '',
+                cost_per_unit: '',
                 notes: '',
                 suggestion: null,
                 suggestionLoading: false,
@@ -493,12 +498,12 @@ function openStockBatch(config) {
             return (this.parseQty(row.qty_purchase) * row.purchase_ratio).toFixed(4);
         },
         get validRows() {
-            return this.rows.filter((row) => row.item_id && row.department_id && Array.isArray(row.targets) && row.targets.length > 0);
+            return this.rows.filter((row) => row.item_id && row.department_id && Array.isArray(row.targets) && row.targets.length > 0 && this.parseQty(row.cost_per_unit) > 0);
         },
         async submitBatch() {
             this.error = '';
             if (this.validRows.length === 0) {
-                this.error = 'Minimal 1 baris dengan departemen dan bahan baku harus diisi.';
+                this.error = 'Minimal 1 baris dengan departemen, bahan baku, dan HPP/Cost per Unit harus diisi.';
                 return;
             }
 
@@ -523,7 +528,7 @@ function openStockBatch(config) {
                             qty_whole: row.qty_whole || '0',
                             qty_loose: row.qty_loose || '0',
                             qty_purchase: row.qty_purchase || '0',
-                            cost_per_unit: '',
+                            cost_per_unit: row.cost_per_unit || '',
                             notes: row.notes || '',
                         })),
                     }),

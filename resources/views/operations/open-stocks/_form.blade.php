@@ -81,8 +81,8 @@
                 </x-sf.form-group>
             </div>
 
-            <x-sf.form-group label="HPP / Cost per Unit" for="cost_per_unit"
-                hint="Opsional. Untuk perhitungan nilai stok.">
+            <x-sf.form-group label="HPP / Cost per Unit" for="cost_per_unit" :required="true"
+                hint="Wajib diisi — dipakai untuk hitung nilai stok di laporan Finance.">
                 <input
                     type="text"
                     inputmode="decimal"
@@ -91,6 +91,7 @@
                     value="{{ old('cost_per_unit', $openStock->cost_per_unit ?? '') }}"
                     class="sf-input"
                     placeholder="0"
+                    required
                 >
             </x-sf.form-group>
 

@@ -35,7 +35,7 @@ class StoreBulkOpenStockRequest extends FormRequest
             'items.*.qty_whole'  => ['required', Decimal::validationRule()],
             'items.*.qty_loose'  => ['required', Decimal::validationRule()],
             'items.*.qty_purchase' => ['nullable', Decimal::validationRule()],
-            'items.*.cost_per_unit' => ['nullable', Decimal::validationRule(4)],
+            'items.*.cost_per_unit' => ['required', Decimal::validationRule(4), 'min:0.0001'],
             'items.*.notes'      => ['nullable', 'string', 'max:1000'],
         ];
     }
@@ -53,6 +53,8 @@ class StoreBulkOpenStockRequest extends FormRequest
             'items.*.department_id.required' => 'Departemen wajib dipilih di setiap baris.',
             'items.*.qty_whole.required' => 'Qty utuh wajib diisi.',
             'items.*.qty_loose.required' => 'Qty ecer wajib diisi.',
+            'items.*.cost_per_unit.required' => 'Harga/HPP per unit wajib diisi — dipakai untuk hitung nilai stok di laporan.',
+            'items.*.cost_per_unit.min' => 'Harga/HPP per unit harus lebih dari 0.',
         ];
     }
 
