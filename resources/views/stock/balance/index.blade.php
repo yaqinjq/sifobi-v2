@@ -17,10 +17,12 @@
 </x-sf.page-header>
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-7xl mx-auto w-full space-y-4">
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div class="grid grid-cols-1 {{ auth()->user()->can('view_stock_value') ? 'sm:grid-cols-3' : 'sm:grid-cols-2' }} gap-3">
         <x-sf.stat label="Total Item" :value="number_format((int) ($summary->total_items ?? 0))" />
         <x-sf.stat label="Item Kosong" :value="number_format((int) ($summary->empty_items ?? 0))" />
-        <x-sf.stat label="Nilai Total" :value="'Rp '.number_format((float) ($summary->total_inventory_value ?? 0), 0, ',', '.')" />
+        @can('view_stock_value')
+            <x-sf.stat label="Nilai Total" :value="'Rp '.number_format((float) ($summary->total_inventory_value ?? 0), 0, ',', '.')" />
+        @endcan
     </div>
 
     <x-sf.card>
@@ -178,7 +180,10 @@
     </div>
 
     <p class="text-xs text-gray-500">
-        Menampilkan {{ $balances->count() }} item dari {{ $balances->total() }} data. Total nilai: Rp {{ number_format((float) ($summary->total_inventory_value ?? 0), 0, ',', '.') }}.
+        Menampilkan {{ $balances->count() }} item dari {{ $balances->total() }} data.
+        @can('view_stock_value')
+            Total nilai: Rp {{ number_format((float) ($summary->total_inventory_value ?? 0), 0, ',', '.') }}.
+        @endcan
     </p>
 </div>
 @endsection

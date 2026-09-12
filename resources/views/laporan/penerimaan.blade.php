@@ -30,10 +30,12 @@
         </form>
     </x-sf.card>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div class="grid grid-cols-1 {{ auth()->user()->can('view_stock_value') ? 'sm:grid-cols-3' : 'sm:grid-cols-2' }} gap-3">
         <x-sf.stat label="Total GR" :value="number_format((int) ($summary->total_receipts ?? 0))" />
         <x-sf.stat label="Total Item" :value="number_format((int) ($summary->total_items ?? 0))" />
-        <x-sf.stat label="Total Nilai" :value="'Rp '.number_format((float) ($summary->total_value ?? 0), 0, ',', '.')" />
+        @can('view_stock_value')
+            <x-sf.stat label="Total Nilai" :value="'Rp '.number_format((float) ($summary->total_value ?? 0), 0, ',', '.')" />
+        @endcan
     </div>
 
     <div class="lg:hidden space-y-3">
@@ -57,7 +59,12 @@
                         <p class="text-xs text-gray-500">{{ \Illuminate\Support\Carbon::parse($row->receipt_date)->format('d M Y') }} | {{ $row->outlet_name }}</p>
                     </div>
                     <p class="text-sm text-gray-700">{{ $row->item_name }}</p>
-                    <p class="text-sm text-gray-500">{{ number_format((float) $row->qty_received, 4, ',', '.') }} {{ $row->unit }} | Rp {{ number_format((float) $row->total_value, 0, ',', '.') }}</p>
+                    <p class="text-sm text-gray-500">
+                        {{ number_format((float) $row->qty_received, 4, ',', '.') }} {{ $row->unit }}
+                        @can('view_stock_value')
+                            | Rp {{ number_format((float) $row->total_value, 0, ',', '.') }}
+                        @endcan
+                    </p>
                 </div>
             </x-sf.card>
         @empty
@@ -78,8 +85,10 @@
                             <th class="px-4 py-3">Outlet</th>
                             <th class="px-4 py-3">Item</th>
                             <th class="px-4 py-3 text-right">Qty</th>
-                            <th class="px-4 py-3 text-right">Harga</th>
-                            <th class="px-4 py-3 text-right">Total</th>
+                            @can('view_stock_value')
+                                <th class="px-4 py-3 text-right">Harga</th>
+                                <th class="px-4 py-3 text-right">Total</th>
+                            @endcan
                             <th class="px-4 py-3">Status</th>
                         </tr>
                     </thead>
@@ -104,13 +113,15 @@
                                     <p class="text-xs text-gray-500">{{ $row->canonical_sku }}</p>
                                 </td>
                                 <td class="px-4 py-3 text-right">{{ number_format((float) $row->qty_received, 4, ',', '.') }} {{ $row->unit }}</td>
-                                <td class="px-4 py-3 text-right">Rp {{ number_format((float) $row->unit_price, 2, ',', '.') }}</td>
-                                <td class="px-4 py-3 text-right">Rp {{ number_format((float) $row->total_value, 0, ',', '.') }}</td>
+                                @can('view_stock_value')
+                                    <td class="px-4 py-3 text-right">Rp {{ number_format((float) $row->unit_price, 2, ',', '.') }}</td>
+                                    <td class="px-4 py-3 text-right">Rp {{ number_format((float) $row->total_value, 0, ',', '.') }}</td>
+                                @endcan
                                 <td class="px-4 py-3"><span class="badge-posted">{{ $row->status }}</span></td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="px-4 py-10 text-center text-gray-500">Belum ada penerimaan.</td>
+                                <td colspan="{{ auth()->user()->can('view_stock_value') ? 10 : 8 }}" class="px-4 py-10 text-center text-gray-500">Belum ada penerimaan.</td>
                             </tr>
                         @endforelse
                     </tbody>

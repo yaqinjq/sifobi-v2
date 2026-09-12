@@ -410,7 +410,10 @@ class ReportController extends Controller
         $tenantId = $this->tenantId($request);
         $filters = $this->enforceOutletScope($request, $this->validateReceivingFilters($request, $tenantId));
 
-        return Excel::download(new PenerimaanExport($tenantId, $filters), 'LaporanPenerimaanBarang.xlsx');
+        return Excel::download(
+            new PenerimaanExport($tenantId, $filters, $request->user()->can('view_stock_value')),
+            'LaporanPenerimaanBarang.xlsx'
+        );
     }
 
     public function exportStokSummary(Request $request): BinaryFileResponse

@@ -20,7 +20,8 @@ class PenerimaanExport implements FromArray, ShouldAutoSize, WithEvents
      */
     public function __construct(
         private readonly int $tenantId,
-        private readonly array $filters = []
+        private readonly array $filters = [],
+        private readonly bool $showValue = true,
     ) {
     }
 
@@ -29,10 +30,8 @@ class PenerimaanExport implements FromArray, ShouldAutoSize, WithEvents
         $rows = $this->rows();
         $this->dataRowCount = $rows->count();
 
-        return array_merge([
-            ['Laporan Penerimaan Barang', 'Export: '.now()->format('d M Y H:i')],
-            ['Kode GR', 'Tanggal', 'Sumber', 'Supplier', 'Outlet', 'SKU', 'Item', 'Qty', 'Unit', 'Harga', 'Total', 'Status'],
-        ], $rows->map(fn ($row): array => [
+        $headings = ['Kode GR', 'Tanggal', 'Sumber', 'Supplier', 'Outlet', 'SKU', 'Item', 'Qty', 'Unit'];
+        $dataRows = $rows->map(fn ($row): array => [
             $row->code,
             Carbon::parse($row->receipt_date)->format('Y-m-d'),
             $row->source,
@@ -42,12 +41,31 @@ class PenerimaanExport implements FromArray, ShouldAutoSize, WithEvents
             $row->item_name,
             (float) $row->qty_received,
             $row->unit,
-            (float) $row->unit_price,
-            (float) $row->total_value,
-            $row->status,
-        ])->all(), [
-            ['TOTAL', '', '', '', '', '', '', '', '', '', (float) $rows->sum('total_value'), ''],
-        ]);
+        ])->all();
+        $totalRow = ['TOTAL', '', '', '', '', '', '', '', ''];
+
+        if ($this->showValue) {
+            $headings = array_merge($headings, ['Harga', 'Total', 'Status']);
+            foreach ($dataRows as $index => $row) {
+                $dataRows[$index] = array_merge($row, [
+                    (float) $rows[$index]->unit_price,
+                    (float) $rows[$index]->total_value,
+                    $rows[$index]->status,
+                ]);
+            }
+            $totalRow = array_merge($totalRow, ['', (float) $rows->sum('total_value'), '']);
+        } else {
+            $headings[] = 'Status';
+            foreach ($dataRows as $index => $row) {
+                $dataRows[$index] = array_merge($row, [$rows[$index]->status]);
+            }
+            $totalRow[] = '';
+        }
+
+        return array_merge([
+            ['Laporan Penerimaan Barang', 'Export: '.now()->format('d M Y H:i')],
+            $headings,
+        ], $dataRows, [$totalRow]);
     }
 
     public function registerEvents(): array
@@ -69,7 +87,9 @@ class PenerimaanExport implements FromArray, ShouldAutoSize, WithEvents
                 // Kolom Total (K) = Qty (H) x Harga (J) per baris, dan baris
                 // TOTAL di bawah = SUM — dijadikan rumus hidup, bukan angka
                 // statis, supaya finance bisa telusuri/ubah asumsi harga.
-                if ($this->dataRowCount > 0) {
+                // Cuma berlaku kalau kolom Harga/Total ikut di-export
+                // (showValue) — kalau tidak, letak kolom H/J/K sudah beda.
+                if ($this->showValue && $this->dataRowCount > 0) {
                     $firstDataRow = 3;
                     $lastDataRow = 2 + $this->dataRowCount;
 

@@ -18,10 +18,12 @@
             <p class="mt-2 text-3xl font-heading font-bold text-gray-900">
                 {{ number_format($totalQty, 4, ',', '.') }} {{ $item->baseUnit?->abbreviation ?? 'base' }}
             </p>
-            <p class="mt-2 text-sm text-gray-500">
-                HPP rata-rata: Rp {{ number_format($avgCost, 2, ',', '.') }} / {{ $item->baseUnit?->abbreviation ?? 'base' }}
-            </p>
-            <p class="text-sm text-gray-500">Total nilai: Rp {{ number_format($totalValue, 0, ',', '.') }}</p>
+            @can('view_stock_value')
+                <p class="mt-2 text-sm text-gray-500">
+                    HPP rata-rata: Rp {{ number_format($avgCost, 2, ',', '.') }} / {{ $item->baseUnit?->abbreviation ?? 'base' }}
+                </p>
+                <p class="text-sm text-gray-500">Total nilai: Rp {{ number_format($totalValue, 0, ',', '.') }}</p>
+            @endcan
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
@@ -41,7 +43,9 @@
                         {{ $item->baseUnit?->abbreviation ?? 'base' }}
                     </p>
                     <p class="mt-1 text-xs text-gray-500">Base: {{ number_format((float) $balance->qty_on_hand, 4, ',', '.') }}</p>
-                    <p class="mt-2 text-sm text-gray-600">Nilai: Rp {{ number_format((float) $balance->total_value, 0, ',', '.') }}</p>
+                    @can('view_stock_value')
+                        <p class="mt-2 text-sm text-gray-600">Nilai: Rp {{ number_format((float) $balance->total_value, 0, ',', '.') }}</p>
+                    @endcan
                 </div>
             @empty
                 <div class="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-500">

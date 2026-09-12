@@ -206,6 +206,7 @@ class RoleController extends Controller
             'Laporan' => [
                 'view_reports'     => 'Lihat Laporan',
                 'view_all_reports' => 'Laporan Semua Outlet',
+                'view_stock_value' => 'Lihat Nilai/HPP Stok (Rp)',
             ],
             'Pengaturan Sistem' => [
                 'manage_settings'         => 'Pengaturan Umum',
