@@ -8,12 +8,39 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.12 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.12 &mdash; 12 September 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Nilai Rp Stok Kini Khusus Finance/Back Office</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Nilai Rupiah (HPP, nilai stok, total nilai penerimaan) di Ringkasan Stok, Kartu Stok, dan Laporan Penerimaan Barang sekarang hanya tampil untuk role Finance/back office (General Finance, Finance Staff, Finance Accounting Staff, Manager Area) &mdash; role operational outlet (PIC Outlet, Staff Bar/Kitchen/Service/Gudang) tetap lihat qty seperti biasa tapi tidak lagi lihat angka Rp-nya</li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">HPP Kini Wajib Diisi Saat Input Stok Awal</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Form Input Stok Awal (single &amp; bulk/batch) dan Import Excel Stok Awal sekarang mewajibkan kolom HPP/harga per unit &mdash; sebelumnya opsional/tidak ada sama sekali di sebagian jalur, sehingga banyak laporan nilai stok tampil Rp 0 walau qty-nya benar</li>
+                    <li>Form bulk/batch Input Stok Awal sekarang punya kolom HPP yang sebelumnya memang belum ada di layar</li>
+                    <li>Template Excel Import Stok Awal bertambah kolom <code class="bg-gray-100 px-1 rounded text-xs">harga_per_unit</code> (wajib diisi)</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.11 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.11 &mdash; 11 September 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

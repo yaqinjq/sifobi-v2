@@ -109,6 +109,7 @@
                 <p class="font-semibold text-gray-800 mb-2">Open Stock Awal</p>
                 <p class="text-gray-600">Setelah master data selesai, lakukan <strong>Open Stock</strong> untuk memasukkan saldo stok awal:<br>
                 Operasi → Open Stock → pilih outlet → isi qty per item → Submit.</p>
+                <p class="text-gray-600 mt-2"><strong>HPP/harga per unit sekarang wajib diisi</strong> di semua cara input (form satuan, form batch/bulk, maupun import Excel) &mdash; dipakai untuk hitung nilai stok di laporan Finance. Tanpa HPP, submit akan ditolak.</p>
             </div>
         </div>
     </x-sf.card>
@@ -429,6 +430,7 @@
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm text-gray-700">
+            <p class="text-xs text-gray-500">Angka Rupiah (HPP, nilai stok, total nilai penerimaan) di laporan-laporan ini hanya tampil untuk role Finance/back office. Role operational outlet tetap lihat qty seperti biasa, tapi tidak lihat angka Rp-nya.</p>
             <div class="space-y-2">
                 <div class="rounded-lg bg-primary-50 border border-primary-100 px-3 py-2">
                     <p class="font-medium text-primary-800 text-xs">Kartu Stok (Baru)</p>
@@ -810,7 +812,7 @@
     </x-sf.card>
 
     <div class="text-center text-xs text-gray-400 pb-4">
-        SIFOBI v2.11 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
+        SIFOBI v2.12 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
         &middot; <a href="{{ route('changelog') }}" class="text-primary-600 hover:underline">Lihat Changelog</a>
     </div>
 
