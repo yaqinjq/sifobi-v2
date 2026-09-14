@@ -594,6 +594,7 @@ class ReportController extends Controller
     {
         $rows = DB::table('items as i')
             ->leftJoin('units as u', 'u.id', '=', 'i.inventory_unit_id')
+            ->leftJoin('item_categories as ic', 'ic.id', '=', 'i.item_category_id')
             ->leftJoin('stock_mutations as sm', function ($join) use ($tenantId, $outletId): void {
                 $join->on('sm.item_id', '=', 'i.id')
                     ->where('sm.tenant_id', $tenantId)
@@ -609,12 +610,13 @@ class ReportController extends Controller
                 i.name as item_name,
                 i.canonical_sku,
                 u.abbreviation as unit,
+                COALESCE(ic.name, \'Tanpa Kategori\') as category_name,
                 COALESCE(SUM(CASE WHEN sm.performed_at < ? THEN sm.qty_change ELSE 0 END), 0) as saldo_awal,
                 COALESCE(SUM(CASE WHEN sm.performed_at BETWEEN ? AND ? AND sm.qty_change > 0 THEN sm.qty_change ELSE 0 END), 0) as total_masuk,
                 COALESCE(SUM(CASE WHEN sm.performed_at BETWEEN ? AND ? AND sm.qty_change < 0 THEN sm.qty_change ELSE 0 END), 0) as total_keluar,
                 COUNT(CASE WHEN sm.performed_at BETWEEN ? AND ? THEN sm.id END) as jumlah_transaksi
             ', [$dateFrom, $dateFrom, $dateTo, $dateFrom, $dateTo, $dateFrom, $dateTo])
-            ->groupBy('i.id', 'i.name', 'i.canonical_sku', 'u.abbreviation')
+            ->groupBy('i.id', 'i.name', 'i.canonical_sku', 'u.abbreviation', 'ic.name')
             ->havingRaw('saldo_awal <> 0 OR total_masuk <> 0 OR total_keluar <> 0')
             ->orderBy('i.name')
             ->get();

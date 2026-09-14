@@ -90,3 +90,33 @@ test('kartu stok detail renders without outlet_id by defaulting to first outlet'
         ->get(route('laporan.kartu-stok.detail', ['item' => $item->id]))
         ->assertOk();
 });
+
+test('kartu stok ringkasan rows include category_name for client-side filtering', function (): void {
+    $user = User::query()->where('email', 'admin@sifobi.test')->firstOrFail();
+    $outlet = \App\Modules\Core\Models\Outlet::query()->where('tenant_id', $user->tenant_id)->firstOrFail();
+    $item = \App\Modules\Inventory\Models\Item::query()->where('canonical_sku', 'MKO-AJINOMOTO-500GR')->firstOrFail();
+
+    $this->actingAs($user)->post('/operations/open-stocks', [
+        'outlet_id' => $outlet->id,
+        'stock_target' => \App\Modules\Operations\Models\OpenStock::TARGET_OUTLET_DAILY,
+        'business_date' => now()->toDateString(),
+        'items' => [
+            [
+                'item_id' => $item->id,
+                'department_id' => \App\Modules\Core\Models\Department::query()->where('tenant_id', $user->tenant_id)->firstOrFail()->id,
+                'qty_whole' => '10',
+                'qty_loose' => '0',
+                'cost_per_unit' => '12000',
+            ],
+        ],
+    ]);
+    $openStock = \App\Modules\Operations\Models\OpenStock::query()->firstOrFail();
+    $this->actingAs($user)->post("/operations/open-stocks/{$openStock->id}/post");
+
+    $response = $this->actingAs($user)
+        ->get(route('laporan.kartu-stok', ['outlet_id' => $outlet->id]))
+        ->assertOk();
+
+    $response->assertSee('category_name', false);
+    $response->assertSee('Ajinomoto 500gr', false);
+});
