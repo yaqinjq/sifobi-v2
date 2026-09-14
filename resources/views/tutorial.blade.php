@@ -234,6 +234,7 @@
                             <li><strong>Kopi dari OCIA</strong> — barang dari OCIA Roastery</li>
                             <li><strong>Drygood Purchasing</strong> — bahan kering dari purchasing</li>
                             <li><strong>Supplier Luar</strong> — vendor lain</li>
+                            <li><strong>Penyesuaian Historis</strong> — koreksi/susulan data stok masa lalu yang belum sempat tercatat, bukan penerimaan dari supplier sungguhan. Tidak ada field supplier, tapi <strong>Catatan wajib diisi</strong> untuk menjelaskan alasan/asal datanya</li>
                         </ul>
                     </div>
                 </div>
@@ -812,7 +813,7 @@
     </x-sf.card>
 
     <div class="text-center text-xs text-gray-400 pb-4">
-        SIFOBI v2.12 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
+        SIFOBI v2.13 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
         &middot; <a href="{{ route('changelog') }}" class="text-primary-600 hover:underline">Lihat Changelog</a>
     </div>
 

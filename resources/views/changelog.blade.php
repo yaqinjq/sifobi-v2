@@ -8,12 +8,37 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.13 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.13 &mdash; 14 September 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Sumber <strong>"Penyesuaian Historis"</strong> di Penerimaan Barang &mdash; dipakai khusus untuk mencatat/mengoreksi stok masa lalu yang belum sempat tercatat, tanpa perlu menyalahgunakan sumber "Supplier Luar". Catatan wajib diisi untuk menjelaskan alasan/asal data penyesuaiannya</li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Menu "Kartu Stok" dan "HPP" sekarang muncul di dropdown sidebar Laporan &mdash; sebelumnya cuma bisa diakses lewat halaman hub Laporan, hilang dari sidebar sejak fitur Kartu Stok dibuat</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.12 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.12 &mdash; 12 September 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
