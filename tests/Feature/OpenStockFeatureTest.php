@@ -127,8 +127,8 @@ test('bulk store creates multiple drafts in one transaction', function (): void 
         'stock_target'  => OpenStock::TARGET_OUTLET_DAILY,
         'business_date' => '2026-06-28',
         'items'         => [
-            ['department_id' => $department->id, 'item_id' => $this->item->id, 'qty_whole' => '2', 'qty_loose' => '50'],
-            ['department_id' => $department->id, 'item_id' => $item2->id, 'qty_whole' => '5', 'qty_loose' => '0'],
+            ['department_id' => $department->id, 'item_id' => $this->item->id, 'qty_whole' => '2', 'qty_loose' => '50', 'cost_per_unit' => '12000'],
+            ['department_id' => $department->id, 'item_id' => $item2->id, 'qty_whole' => '5', 'qty_loose' => '0', 'cost_per_unit' => '8000'],
         ],
     ];
 
@@ -208,8 +208,8 @@ test('json batch store creates drafts and returns redirect payload', function ()
             'stock_target' => OpenStock::TARGET_OUTLET_DAILY,
             'batch_notes' => 'Batch dari test',
             'items' => [
-                ['department_id' => $department->id, 'item_id' => $this->item->id, 'qty_whole' => '1', 'qty_loose' => '50'],
-                ['department_id' => $department->id, 'item_id' => $item2->id, 'qty_whole' => '2', 'qty_loose' => '0'],
+                ['department_id' => $department->id, 'item_id' => $this->item->id, 'qty_whole' => '1', 'qty_loose' => '50', 'cost_per_unit' => '12000'],
+                ['department_id' => $department->id, 'item_id' => $item2->id, 'qty_whole' => '2', 'qty_loose' => '0', 'cost_per_unit' => '8000'],
             ],
         ])
         ->assertOk()
@@ -239,6 +239,7 @@ test('batch row can create daily and warehouse drafts for the same item', functi
                     'qty_whole' => '1',
                     'qty_loose' => '50',
                     'qty_purchase' => '2',
+                    'cost_per_unit' => '12000',
                 ],
             ],
         ])
@@ -281,6 +282,7 @@ test('batch row can create warehouse only draft for an item', function (): void 
                     'qty_whole' => '0',
                     'qty_loose' => '0',
                     'qty_purchase' => '3',
+                    'cost_per_unit' => '12000',
                 ],
             ],
         ])
