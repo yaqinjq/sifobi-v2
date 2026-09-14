@@ -188,6 +188,11 @@
                     </button>
 
                     <div x-show="open" x-collapse class="ml-8 space-y-0.5">
+                        <a href="{{ route('laporan.kartu-stok') }}"
+                           class="block px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                                  {{ request()->routeIs('laporan.kartu-stok*') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
+                            Kartu Stok
+                        </a>
                         <a href="{{ route('laporan.mutasi') }}"
                            class="block px-3 py-2 rounded-xl text-sm font-medium transition-colors
                                   {{ request()->routeIs('laporan.mutasi') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
@@ -215,6 +220,11 @@
                                 Stok Summary
                             </a>
                         @endcan
+                        <a href="{{ route('laporan.hpp') }}"
+                           class="block px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                                  {{ request()->routeIs('laporan.hpp') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
+                            HPP
+                        </a>
                     </div>
                 </div>
             @endcan
