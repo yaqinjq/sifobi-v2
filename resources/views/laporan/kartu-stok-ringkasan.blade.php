@@ -23,13 +23,13 @@
                 @endforeach
             </select>
 
-            <div class="relative shrink-0">
+            <div class="relative shrink-0" @click.outside="dateOpen = false">
                 <button type="button" @click="dateOpen = !dateOpen"
                         class="sf-btn-secondary min-h-11 px-3 flex items-center gap-2 text-sm whitespace-nowrap">
                     <i class="ti ti-calendar" aria-hidden="true"></i>
                     <span x-text="rangeLabel"></span>
                 </button>
-                <div x-show="dateOpen" x-cloak @click.outside="dateOpen = false"
+                <div x-show="dateOpen" x-cloak
                      class="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-lg space-y-3">
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Dari</label>
