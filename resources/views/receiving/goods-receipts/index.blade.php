@@ -17,6 +17,7 @@
         'WIP_CENTRAL_KITCHEN' => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-orange-100 text-orange-800',
         'PURCHASING_DRYGOOD' => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-blue-100 text-blue-800',
         'SUPPLIER_LUAR' => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-purple-100 text-purple-800',
+        'PENYESUAIAN_HISTORIS' => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-slate-200 text-slate-800',
     ];
 @endphp
 

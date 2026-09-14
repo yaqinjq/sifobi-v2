@@ -92,7 +92,7 @@ test('staff bar can view goods receipt index', function (): void {
         ->assertOk();
 });
 
-test('create page shows four receiving sources', function (): void {
+test('create page shows five receiving sources', function (): void {
     $user = goodsReceiptUser('STAFF_GUDANG');
 
     $this->actingAs($user)
@@ -101,7 +101,34 @@ test('create page shows four receiving sources', function (): void {
         ->assertSee('Kopi dari OCIA')
         ->assertSee('WIP Central Kitchen')
         ->assertSee('Drygood Purchasing')
-        ->assertSee('Supplier Luar');
+        ->assertSee('Supplier Luar')
+        ->assertSee('Penyesuaian Historis');
+});
+
+test('historical adjustment source requires notes', function (): void {
+    $user = goodsReceiptUser('STAFF_GUDANG');
+
+    $this->actingAs($user)
+        ->post(route('receiving.goods-receipts.store'), goodsReceiptPayload([
+            'source' => GoodsReceipt::SOURCE_HISTORICAL_ADJUSTMENT,
+            'notes' => '',
+        ]))
+        ->assertSessionHasErrors('notes');
+});
+
+test('historical adjustment source can be created with notes filled', function (): void {
+    $user = goodsReceiptUser('STAFF_GUDANG');
+
+    $this->actingAs($user)
+        ->post(route('receiving.goods-receipts.store'), goodsReceiptPayload([
+            'source' => GoodsReceipt::SOURCE_HISTORICAL_ADJUSTMENT,
+            'notes' => 'Entri historis, dicatat mundur dari data manual 3 Juli',
+        ]))
+        ->assertRedirect();
+
+    $receipt = GoodsReceipt::query()->where('source', GoodsReceipt::SOURCE_HISTORICAL_ADJUSTMENT)->firstOrFail();
+
+    expect($receipt->source_label)->toBe('Penyesuaian Historis');
 });
 
 test('staff gudang can create goods receipt draft', function (): void {

@@ -720,6 +720,7 @@ class ReportController extends Controller
             'WIP_CENTRAL_KITCHEN' => 'WIP Central Kitchen',
             'PURCHASING_DRYGOOD' => 'Drygood Purchasing',
             'SUPPLIER_LUAR' => 'Supplier Luar',
+            'PENYESUAIAN_HISTORIS' => 'Penyesuaian Historis',
         ];
     }
 }

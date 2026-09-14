@@ -237,6 +237,7 @@ class GoodsReceiptController extends Controller
             GoodsReceipt::SOURCE_WIP_CENTRAL_KITCHEN => 'WIP Central Kitchen',
             GoodsReceipt::SOURCE_PURCHASING_DRYGOOD => 'Drygood Purchasing',
             GoodsReceipt::SOURCE_SUPPLIER_LUAR => 'Supplier Luar',
+            GoodsReceipt::SOURCE_HISTORICAL_ADJUSTMENT => 'Penyesuaian Historis',
         ];
     }
 
@@ -390,7 +391,11 @@ class GoodsReceiptController extends Controller
             'photo_document' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'photo_invoice' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'receipt_date' => ['required', 'date'],
-            'notes' => ['nullable', 'string', 'max:2000'],
+            'notes' => [
+                $request->input('source') === GoodsReceipt::SOURCE_HISTORICAL_ADJUSTMENT ? 'required' : 'nullable',
+                'string',
+                'max:2000',
+            ],
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_id' => [
                 'required',
@@ -413,6 +418,8 @@ class GoodsReceiptController extends Controller
             'items.*.video' => ['nullable', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:20480'],
             'items.*.existing_photo_path' => ['nullable', 'string'],
             'items.*.existing_video_path' => ['nullable', 'string'],
+        ], [
+            'notes.required' => 'Catatan wajib diisi untuk sumber Penyesuaian Historis — jelaskan alasan/asal data penyesuaian ini.',
         ]);
 
         $hasPurchaseOrder = ! empty($validated['purchase_order_id']);

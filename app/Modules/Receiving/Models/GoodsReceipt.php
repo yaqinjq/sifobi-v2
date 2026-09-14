@@ -24,6 +24,7 @@ class GoodsReceipt extends Model
     public const SOURCE_WIP_CENTRAL_KITCHEN = 'WIP_CENTRAL_KITCHEN';
     public const SOURCE_PURCHASING_DRYGOOD = 'PURCHASING_DRYGOOD';
     public const SOURCE_SUPPLIER_LUAR = 'SUPPLIER_LUAR';
+    public const SOURCE_HISTORICAL_ADJUSTMENT = 'PENYESUAIAN_HISTORIS';
 
     public const STATUS_DRAFT = 'DRAFT';
     public const STATUS_SUBMITTED = 'SUBMITTED';
@@ -165,6 +166,7 @@ class GoodsReceipt extends Model
             self::SOURCE_WIP_CENTRAL_KITCHEN => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-orange-100 text-orange-800',
             self::SOURCE_PURCHASING_DRYGOOD => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-blue-100 text-blue-800',
             self::SOURCE_SUPPLIER_LUAR => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-purple-100 text-purple-800',
+            self::SOURCE_HISTORICAL_ADJUSTMENT => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-slate-200 text-slate-800',
         ][$this->source] ?? 'badge-draft');
     }
 
@@ -175,6 +177,7 @@ class GoodsReceipt extends Model
             self::SOURCE_WIP_CENTRAL_KITCHEN => 'WIP Central Kitchen',
             self::SOURCE_PURCHASING_DRYGOOD => 'Drygood (Purchasing)',
             self::SOURCE_SUPPLIER_LUAR => 'Supplier Luar',
+            self::SOURCE_HISTORICAL_ADJUSTMENT => 'Penyesuaian Historis',
         ][$this->source] ?? (string) $this->source);
     }
 }

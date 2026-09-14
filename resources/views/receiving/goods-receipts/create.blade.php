@@ -20,8 +20,10 @@
                                 Terima premix/WIP dari Central Kitchen.
                             @elseif($value === 'PURCHASING_DRYGOOD')
                                 Input drygood dari alur purchasing.
-                            @else
+                            @elseif($value === 'SUPPLIER_LUAR')
                                 Input supplier luar, dokumen manual, atau foto invoice.
+                            @else
+                                Koreksi/susulan data stok masa lalu yang belum tercatat (bukan penerimaan dari supplier sungguhan).
                             @endif
                         </p>
                         <a href="{{ route('receiving.goods-receipts.create', ['source' => $value]) }}" class="sf-btn-primary min-h-11 w-full">Pilih</a>

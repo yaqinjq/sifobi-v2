@@ -302,6 +302,10 @@
                     <input type="text" name="supplier_name" value="{{ old('supplier_name', $receipt->supplier_name) }}" class="sf-input text-base min-h-11" maxlength="150">
                 </div>
             </div>
+        @elseif($activeSource === 'PENYESUAIAN_HISTORIS')
+            <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600">
+                Dipakai untuk mencatat/mengoreksi stok masa lalu yang belum sempat tercatat &mdash; bukan penerimaan dari supplier sungguhan. Isi <strong>Catatan</strong> di bawah dengan jelas (mis. "Entri historis, dicatat mundur dari data manual 3 Juli").
+            </div>
         @else
             <label class="sf-label">Nama Pengirim</label>
             <input type="text" name="supplier_name" value="{{ old('supplier_name', $receipt->supplier_name) }}" class="sf-input text-base min-h-11" maxlength="150" placeholder="Central Kitchen / Purchasing">
@@ -459,8 +463,11 @@
         </div>
     </x-sf.card>
 
-    <x-sf.card title="Catatan">
-        <textarea name="notes" rows="3" class="sf-input text-base" placeholder="Catatan tambahan">{{ old('notes', $receipt->notes) }}</textarea>
+    <x-sf.card title="{{ $activeSource === 'PENYESUAIAN_HISTORIS' ? 'Catatan *' : 'Catatan' }}">
+        <textarea name="notes" rows="3" class="sf-input text-base"
+            placeholder="{{ $activeSource === 'PENYESUAIAN_HISTORIS' ? 'Wajib: jelaskan alasan/asal data penyesuaian ini' : 'Catatan tambahan' }}"
+            @required($activeSource === 'PENYESUAIAN_HISTORIS')
+        >{{ old('notes', $receipt->notes) }}</textarea>
     </x-sf.card>
 
     <div class="sticky bottom-0 z-30 -mx-4 px-4 py-3 bg-white border-t border-gray-100 lg:static lg:mx-0 lg:px-0 lg:border-0 lg:bg-transparent"
