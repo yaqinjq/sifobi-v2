@@ -72,3 +72,21 @@ test('mutation report export responds successfully', function (): void {
         ->get('/laporan/mutasi/export')
         ->assertOk();
 });
+
+test('kartu stok ringkasan renders without outlet_id by defaulting to first outlet', function (): void {
+    $user = User::query()->where('email', 'admin@sifobi.test')->firstOrFail();
+
+    $this->actingAs($user)
+        ->get(route('laporan.kartu-stok'))
+        ->assertOk()
+        ->assertSee('Kartu Stok');
+});
+
+test('kartu stok detail renders without outlet_id by defaulting to first outlet', function (): void {
+    $user = User::query()->where('email', 'admin@sifobi.test')->firstOrFail();
+    $item = \App\Modules\Inventory\Models\Item::query()->where('canonical_sku', 'MKO-AJINOMOTO-500GR')->firstOrFail();
+
+    $this->actingAs($user)
+        ->get(route('laporan.kartu-stok.detail', ['item' => $item->id]))
+        ->assertOk();
+});

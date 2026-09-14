@@ -300,7 +300,7 @@ class ReportController extends Controller
     {
         $tenantId = $this->tenantId($request);
         $filters = $this->enforceOutletScope($request, $request->validate([
-            'outlet_id' => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'outlet_id' => ['nullable', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
             'date_from' => ['nullable', 'date'],
             'date_to'   => ['nullable', 'date'],
             'q'         => ['nullable', 'string', 'max:255'],
@@ -329,7 +329,7 @@ class ReportController extends Controller
     {
         $tenantId = $this->tenantId($request);
         $filters = $this->enforceOutletScope($request, $request->validate([
-            'outlet_id' => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'outlet_id' => ['nullable', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
             'date_from' => ['nullable', 'date'],
             'date_to'   => ['nullable', 'date'],
             'q'         => ['nullable', 'string', 'max:255'],
@@ -352,7 +352,7 @@ class ReportController extends Controller
         abort_unless((int) $item->tenant_id === $tenantId, 403);
 
         $filters = $this->enforceOutletScope($request, $request->validate([
-            'outlet_id' => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'outlet_id' => ['nullable', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
             'date_from' => ['nullable', 'date'],
             'date_to'   => ['nullable', 'date'],
         ]));
@@ -378,10 +378,11 @@ class ReportController extends Controller
         abort_unless((int) $item->tenant_id === $tenantId, 403);
 
         $filters = $this->enforceOutletScope($request, $request->validate([
-            'outlet_id' => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'outlet_id' => ['nullable', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
             'date_from' => ['nullable', 'date'],
             'date_to'   => ['nullable', 'date'],
         ]));
+        $filters['outlet_id'] = $filters['outlet_id'] ?? $this->outlets($tenantId)->first()?->id;
         [$dateFrom, $dateTo] = $this->dateRange($filters);
 
         $card = $this->kartuStokCard($tenantId, (int) $filters['outlet_id'], $item->id, $dateFrom, $dateTo);
