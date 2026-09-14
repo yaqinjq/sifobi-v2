@@ -12,32 +12,49 @@
 </x-sf.page-header>
 
 <div
-    x-data="kartuStokTable(@js($rows->values()))"
+    x-data="kartuStokTable(@js($rows->values()), @js($filters['date_from'] ?? $dateFrom->toDateString()), @js($filters['date_to'] ?? $dateTo->toDateString()))"
     class="px-4 py-5 lg:px-6 lg:py-6 max-w-7xl mx-auto w-full space-y-4"
 >
     <x-sf.card>
-        <form method="GET" action="{{ route('laporan.kartu-stok') }}" class="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <select name="outlet_id" class="sf-input text-base min-h-11" required @disabled($outlets->count() <= 1)>
+        <form method="GET" action="{{ route('laporan.kartu-stok') }}" class="flex flex-wrap md:flex-nowrap items-center gap-2">
+            <select name="outlet_id" onchange="this.form.submit()" class="sf-input text-base min-h-11 flex-1 min-w-[160px]" required @disabled($outlets->count() <= 1)>
                 @foreach($outlets as $outlet)
                     <option value="{{ $outlet->id }}" @selected((string) ($filters['outlet_id'] ?? '') === (string) $outlet->id)>{{ $outlet->name }}</option>
                 @endforeach
             </select>
-            <input type="date" name="date_from" value="{{ $filters['date_from'] ?? $dateFrom->toDateString() }}" class="sf-input text-base min-h-11">
-            <input type="date" name="date_to" value="{{ $filters['date_to'] ?? $dateTo->toDateString() }}" class="sf-input text-base min-h-11">
-            <button type="submit" class="sf-btn-primary min-h-11 md:col-span-3">Terapkan Outlet &amp; Tanggal</button>
-        </form>
-    </x-sf.card>
 
-    <x-sf.card>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input type="search" x-model="search" placeholder="Cari item atau SKU (langsung tanpa reload)..." class="sf-input text-base min-h-11">
-            <select x-model="categoryFilter" class="sf-input text-base min-h-11">
+            <div class="relative shrink-0">
+                <button type="button" @click="dateOpen = !dateOpen"
+                        class="sf-btn-secondary min-h-11 px-3 flex items-center gap-2 text-sm whitespace-nowrap">
+                    <i class="ti ti-calendar" aria-hidden="true"></i>
+                    <span x-text="rangeLabel"></span>
+                </button>
+                <div x-show="dateOpen" x-cloak @click.outside="dateOpen = false"
+                     class="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-lg space-y-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Dari</label>
+                        <input type="date" name="date_from" x-model="dateFrom" class="sf-input text-sm min-h-10 w-full">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Sampai</label>
+                        <input type="date" name="date_to" x-model="dateTo" class="sf-input text-sm min-h-10 w-full">
+                    </div>
+                    <button type="submit" class="sf-btn-primary w-full min-h-10 text-sm">Terapkan</button>
+                </div>
+            </div>
+
+            <select x-model="categoryFilter" class="sf-input text-base min-h-11 flex-1 min-w-[140px]">
                 <option value="">Semua kategori</option>
                 <template x-for="cat in categories" :key="cat">
                     <option :value="cat" x-text="cat"></option>
                 </template>
             </select>
-        </div>
+
+            <div class="relative flex-1 min-w-[160px]">
+                <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true"></i>
+                <input type="search" x-model="search" placeholder="Cari item/SKU..." class="sf-input text-base min-h-11 w-full pl-9">
+            </div>
+        </form>
     </x-sf.card>
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -75,12 +92,24 @@
                 <table class="min-w-full divide-y divide-gray-100">
                     <thead class="bg-gray-50">
                         <tr class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            <th class="px-4 py-3 cursor-pointer select-none" @click="sortBy('item_name')">Item <span x-text="sortIndicator('item_name')"></span></th>
-                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('saldo_awal')">Saldo Awal <span x-text="sortIndicator('saldo_awal')"></span></th>
-                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('total_masuk')">Masuk <span x-text="sortIndicator('total_masuk')"></span></th>
-                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('total_keluar')">Keluar <span x-text="sortIndicator('total_keluar')"></span></th>
-                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('saldo_akhir')">Saldo Akhir <span x-text="sortIndicator('saldo_akhir')"></span></th>
-                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('jumlah_transaksi')">Transaksi <span x-text="sortIndicator('jumlah_transaksi')"></span></th>
+                            <th class="px-4 py-3 cursor-pointer select-none" @click="sortBy('item_name')">
+                                <span class="inline-flex items-center gap-1">Item <i class="ti" :class="sortIconClass('item_name')" aria-hidden="true"></i></span>
+                            </th>
+                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('saldo_awal')">
+                                <span class="inline-flex items-center gap-1">Saldo Awal <i class="ti" :class="sortIconClass('saldo_awal')" aria-hidden="true"></i></span>
+                            </th>
+                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('total_masuk')">
+                                <span class="inline-flex items-center gap-1">Masuk <i class="ti" :class="sortIconClass('total_masuk')" aria-hidden="true"></i></span>
+                            </th>
+                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('total_keluar')">
+                                <span class="inline-flex items-center gap-1">Keluar <i class="ti" :class="sortIconClass('total_keluar')" aria-hidden="true"></i></span>
+                            </th>
+                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('saldo_akhir')">
+                                <span class="inline-flex items-center gap-1">Saldo Akhir <i class="ti" :class="sortIconClass('saldo_akhir')" aria-hidden="true"></i></span>
+                            </th>
+                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('jumlah_transaksi')">
+                                <span class="inline-flex items-center gap-1">Transaksi <i class="ti" :class="sortIconClass('jumlah_transaksi')" aria-hidden="true"></i></span>
+                            </th>
                             <th class="px-4 py-3"></th>
                         </tr>
                     </thead>
@@ -117,13 +146,25 @@
 
 @push('scripts')
 <script>
-function kartuStokTable(rows) {
+function kartuStokTable(rows, initialDateFrom, initialDateTo) {
     return {
         rows: rows,
         search: '',
         categoryFilter: '',
         sortKey: 'item_name',
         sortDir: 'asc',
+        dateOpen: false,
+        dateFrom: initialDateFrom,
+        dateTo: initialDateTo,
+        get rangeLabel() {
+            const fmt = (value) => {
+                if (!value) return '';
+                const [y, m, d] = value.split('-');
+                return `${d}/${m}`;
+            };
+
+            return fmt(this.dateFrom) + ' - ' + fmt(this.dateTo);
+        },
         get categories() {
             return [...new Set(this.rows.map((r) => r.category_name))].sort();
         },
@@ -169,12 +210,12 @@ function kartuStokTable(rows) {
                 this.sortDir = 'asc';
             }
         },
-        sortIndicator(key) {
+        sortIconClass(key) {
             if (this.sortKey !== key) {
-                return '';
+                return 'ti-arrows-sort text-gray-300';
             }
 
-            return this.sortDir === 'asc' ? '▲' : '▼';
+            return this.sortDir === 'asc' ? 'ti-sort-ascending text-primary-700' : 'ti-sort-descending text-primary-700';
         },
         formatQty(value) {
             return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(parseFloat(value));
