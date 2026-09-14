@@ -21,6 +21,19 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Fresh install/testing menjalankan migration di atas dengan
+        // config/permission.php 'teams' => true SUDAH aktif sejak awal,
+        // jadi create_permission_tables.php di atas langsung membuat
+        // roles/model_has_permissions/model_has_roles dengan skema
+        // team-scoped (kolom team_id + primary key gabungan) tanpa perlu
+        // migration ini. ALTER di bawah akan gagal (duplicate column/
+        // duplicate primary key) kalau dipaksa jalan lagi di kondisi itu —
+        // jadi migration ini no-op di situ, cuma benar-benar bekerja saat
+        // upgrade dari skema lama (production, dibuat sebelum teams aktif).
+        if (Schema::hasColumn('roles', 'team_id')) {
+            return;
+        }
+
         Schema::table('roles', function (Blueprint $table): void {
             $table->unsignedBigInteger('team_id')->nullable()->after('id');
             $table->index('team_id', 'roles_team_foreign_key_index');
@@ -77,6 +90,14 @@ return new class extends Migration
 
     public function down(): void
     {
+        // Simetris dengan up(): kalau migration ini no-op saat up() (skema
+        // sudah team-scoped sejak dibuat create_permission_tables.php),
+        // down() juga harus no-op — supaya tidak menghapus kolom/primary
+        // key yang justru bukan migration ini yang membuatnya.
+        if (! in_array('roles_name_guard_name_unique', Schema::getIndexListing('roles'), true)) {
+            return;
+        }
+
         Schema::table('model_has_roles', function (Blueprint $table): void {
             if (DB::getDriverName() !== 'sqlite') {
                 $table->dropForeign(['role_id']);
