@@ -15,7 +15,7 @@
     x-data="kartuStokTable(@js($rows->values()), @js($filters['date_from'] ?? $dateFrom->toDateString()), @js($filters['date_to'] ?? $dateTo->toDateString()))"
     class="px-4 py-5 lg:px-6 lg:py-6 max-w-7xl mx-auto w-full space-y-4"
 >
-    <x-sf.card>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-[var(--shadow-card)] p-4">
         <form method="GET" action="{{ route('laporan.kartu-stok') }}" class="flex flex-wrap md:flex-nowrap items-center gap-2">
             <select name="outlet_id" onchange="this.form.submit()" class="sf-input text-base min-h-11 flex-1 min-w-[160px]" required @disabled($outlets->count() <= 1)>
                 @foreach($outlets as $outlet)
@@ -55,7 +55,7 @@
                 <input type="search" x-model="search" placeholder="Cari item/SKU..." class="sf-input text-base min-h-11 w-full pl-9">
             </div>
         </form>
-    </x-sf.card>
+    </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <x-sf.stat label="Total Item Bergerak" :value="$rows->count()" />
