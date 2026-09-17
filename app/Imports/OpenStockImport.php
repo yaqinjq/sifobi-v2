@@ -10,6 +10,7 @@ use App\Support\Decimal;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\Importable;
+use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\SkipsErrors;
 use Maatwebsite\Excel\Concerns\SkipsFailures;
 use Maatwebsite\Excel\Concerns\SkipsOnError;
@@ -22,7 +23,7 @@ use Maatwebsite\Excel\Validators\Failure;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use Throwable;
 
-class OpenStockImport implements SkipsOnError, SkipsOnFailure, ToCollection, WithBatchInserts, WithHeadingRow, WithValidation
+class OpenStockImport implements SkipsEmptyRows, SkipsOnError, SkipsOnFailure, ToCollection, WithBatchInserts, WithHeadingRow, WithValidation
 {
     use Importable;
     use SkipsErrors;

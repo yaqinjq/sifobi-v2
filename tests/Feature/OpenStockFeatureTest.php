@@ -358,6 +358,44 @@ test('open stock import creates draft rows from excel', function (): void {
         ->and($openStock->status)->toBe(OpenStock::STATUS_DRAFT);
 });
 
+test('open stock import silently skips trailing blank rows instead of reporting them as errors', function (): void {
+    $user = openStockUser('PIC_OUTLET');
+    $path = storage_path('framework/testing/open-stock-import-blank-rows.xlsx');
+    File::ensureDirectoryExists(dirname($path));
+
+    $rows = [
+        ['tanggal_stok_awal', 'item_sku', 'departemen_code', 'target', 'qty_whole', 'qty_loose', 'harga_per_unit', 'catatan'],
+        ['2026-06-29', 'MKO-AJINOMOTO-500GR', 'BAR', 'STOK_HARIAN_OUTLET', '2', '350', '15000', 'Sisa test'],
+    ];
+
+    for ($i = 0; $i < 50; $i++) {
+        $rows[] = ['', '', '', '', '', '', '', ''];
+    }
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->fromArray($rows);
+    (new Xlsx($spreadsheet))->save($path);
+
+    $upload = new UploadedFile(
+        $path,
+        'open-stock-import-blank-rows.xlsx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        null,
+        true
+    );
+
+    $this->actingAs($user)
+        ->post(route('operations.open-stocks.import.store'), [
+            'outlet_id' => $this->outlet->id,
+            'file' => $upload,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('import_result', function (array $result): bool {
+            return $result['inserted'] === 1 && $result['failed'] === 0;
+        });
+});
+
 test('open stock import rejects rows without harga_per_unit', function (): void {
     $user = openStockUser('PIC_OUTLET');
     $path = storage_path('framework/testing/open-stock-import-no-cost.xlsx');

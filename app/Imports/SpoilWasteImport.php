@@ -11,6 +11,7 @@ use App\Services\SpoilWasteService;
 use App\Support\Decimal;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\Importable;
+use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\SkipsErrors;
 use Maatwebsite\Excel\Concerns\SkipsFailures;
 use Maatwebsite\Excel\Concerns\SkipsOnError;
@@ -36,7 +37,7 @@ use Throwable;
  * di-approve juga lewat approve() — supaya tidak ada kerja dobel klik
  * approve satu-satu untuk ratusan baris.
  */
-class SpoilWasteImport implements SkipsOnError, SkipsOnFailure, ToCollection, WithChunkReading, WithHeadingRow, WithValidation
+class SpoilWasteImport implements SkipsEmptyRows, SkipsOnError, SkipsOnFailure, ToCollection, WithChunkReading, WithHeadingRow, WithValidation
 {
     use Importable;
     use SkipsErrors;
