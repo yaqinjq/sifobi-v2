@@ -462,6 +462,9 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::patch('/{session}/items/{item}', [OpnameController::class, 'updateItem'])
                 ->middleware('permission:input_opname')
                 ->name('update-item');
+            Route::post('/{session}/items/{item}/sync', [OpnameController::class, 'syncItem'])
+                ->middleware('permission:input_opname')
+                ->name('sync-item');
             Route::post('/{session}/submit', [OpnameController::class, 'submit'])
                 ->middleware('permission:input_opname')
                 ->name('submit');

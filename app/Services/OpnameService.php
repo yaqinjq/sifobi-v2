@@ -155,6 +155,54 @@ class OpnameService
         });
     }
 
+    /**
+     * Ambil ulang system_qty dari stock_balances TERKINI untuk 1 baris Opname.
+     *
+     * system_qty/system_qty_base sengaja dibekukan sekali saat sesi dibuat
+     * (lihat startSession()) supaya perbandingan fisik-vs-sistem tidak
+     * bergeser sendiri selagi tim masih menghitung. Tapi kalau ada koreksi
+     * data stok (mis. Open Stock di-void lalu di-post ulang dengan angka
+     * benar) SETELAH sesi Opname sudah terlanjur dibuat, baseline yang
+     * dibekukan itu jadi basi dan tidak akan pernah ikut update sendiri.
+     * Method ini jadi jalan keluarnya: sinkronkan ulang manual per item,
+     * tanpa perlu membatalkan/mengulang seluruh sesi.
+     */
+    public function syncItemBaseline(OpnameItem $opnameItem): OpnameItem
+    {
+        return DB::transaction(function () use ($opnameItem): OpnameItem {
+            $opnameItem = OpnameItem::query()
+                ->with(['session', 'item'])
+                ->lockForUpdate()
+                ->findOrFail($opnameItem->id);
+
+            if ($opnameItem->session->status !== OpnameSession::STATUS_DRAFT) {
+                throw ValidationException::withMessages([
+                    'status' => 'Sinkronisasi hanya bisa dilakukan saat sesi masih draft.',
+                ]);
+            }
+
+            $systemQty = $this->systemQty(
+                (int) $opnameItem->session->tenant_id,
+                (int) $opnameItem->session->outlet_id,
+                (int) $opnameItem->item_id
+            );
+
+            $variance = bcsub($systemQty, (string) $opnameItem->physical_qty_base, 6);
+            $cost = Decimal::toFixed($opnameItem->item?->standard_cost ?: $opnameItem->item?->last_purchase_price ?: 0, 4);
+            $varianceValue = bcmul(ltrim($variance, '-'), $cost, 4);
+
+            $opnameItem->update([
+                'system_qty' => $systemQty,
+                'system_qty_base' => $systemQty,
+                'variance_qty' => $variance,
+                'variance' => $variance,
+                'variance_value' => $varianceValue,
+            ]);
+
+            return $opnameItem->refresh()->load(['item.inventoryUnit', 'item.baseUnit', 'department']);
+        });
+    }
+
     public function submit(OpnameSession $session, int $userId): OpnameSession
     {
         $session = DB::transaction(function () use ($session, $userId): OpnameSession {

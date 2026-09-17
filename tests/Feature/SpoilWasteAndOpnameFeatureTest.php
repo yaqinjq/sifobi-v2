@@ -17,6 +17,7 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
@@ -223,4 +224,71 @@ test('daily opname creates session with items and posts adjustment on approval',
 
     expect($session->refresh()->status)->toBe(OpnameSession::STATUS_PROCESSED)
         ->and((string) $balance->qty_on_hand)->toBe('4000.000000');
+});
+
+test('opname baseline stays frozen after stock correction until manually synced', function (): void {
+    $staff = operationUser('STAFF_BAR');
+    seedDailyBalance($this, '5000');
+
+    $session = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => '2026-07-01',
+        'shift' => 'PAGI',
+    ], $staff->id);
+
+    $opnameItem = $session->items->firstWhere('item_id', $this->item->id);
+    expect((string) $opnameItem->system_qty_base)->toBe('5000.000000');
+
+    // Koreksi stok TERJADI SETELAH sesi Opname sudah dibuat (mis. Open Stock
+    // di-void lalu di-post ulang dengan angka benar) -- baseline yang sudah
+    // dibekukan di baris Opname harus TETAP 5000 sampai disinkronkan manual.
+    seedDailyBalance($this, '2000');
+
+    expect((string) $opnameItem->refresh()->system_qty_base)->toBe('5000.000000');
+
+    $synced = app(OpnameService::class)->syncItemBaseline($opnameItem);
+
+    expect((string) $synced->system_qty_base)->toBe('7000.000000');
+});
+
+test('sync item endpoint updates baseline via HTTP and is blocked once session leaves draft', function (): void {
+    $staff = operationUser('STAFF_BAR');
+    $pic = operationUser('PIC_OUTLET');
+    seedDailyBalance($this, '5000');
+
+    $session = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => '2026-07-02',
+        'shift' => 'PAGI',
+    ], $staff->id);
+
+    $opnameItem = $session->items->firstWhere('item_id', $this->item->id);
+    seedDailyBalance($this, '500');
+
+    $response = $this->actingAs($staff)
+        ->postJson(route('operations.opname.sync-item', [$session, $opnameItem]));
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and($response->json('system_qty_base'))->toBe('5500.000000');
+
+    expect((string) $opnameItem->refresh()->system_qty_base)->toBe('5500.000000');
+
+    foreach ($session->refresh()->items as $item) {
+        app(OpnameService::class)->updateItem($item, '0', '0');
+    }
+    $this->actingAs($staff)->post(route('operations.opname.submit', $session));
+
+    expect($session->refresh()->status)->toBe(OpnameSession::STATUS_SUBMITTED);
+
+    $beforeSync = (string) $opnameItem->refresh()->system_qty_base;
+
+    $response = $this->actingAs($pic)
+        ->postJson(route('operations.opname.sync-item', [$session, $opnameItem]));
+
+    expect($response->exception)->toBeInstanceOf(ValidationException::class)
+        ->and((string) $opnameItem->refresh()->system_qty_base)->toBe($beforeSync);
 });

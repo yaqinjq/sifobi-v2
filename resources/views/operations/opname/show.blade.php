@@ -103,6 +103,7 @@
                   data-item-name="{{ $item?->name ?? '' }}"
                   x-data="opnameItemCard({
                      url: @js(route('operations.opname.update-item', [$session, $opnameItem])),
+                     syncUrl: @js(route('operations.opname.sync-item', [$session, $opnameItem])),
                      suggestionUrl: @js(route('api.stock-suggestion', ['item_id' => $opnameItem->item_id, 'outlet_id' => $session->outlet_id])),
                      variance: @js((string) $opnameItem->variance),
                     varianceValue: @js((string) $opnameItem->variance_value),
@@ -110,6 +111,7 @@
                     qtyLoose: @js((string) $opnameItem->physical_qty_loose),
                     invRatio: @js($invRatio),
                     sysQtyBase: @js($sysQtyBase),
+                    sysQtyLive: @js($sysQtyLive),
                     sysQty: @js($sysQtyBase),
                     decimals: @js($decimals),
                      wasCounted: @js((bool) $opnameItem->is_counted)
@@ -156,6 +158,26 @@
                         <p class="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1">
                             ⚠️ Stok sistem = 0. Jika ada stok fisik, input jumlah yang sebenarnya.
                         </p>
+                    @endif
+
+                    @if($session->status === 'DRAFT')
+                        <div x-show="isBaselineStale" x-cloak class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                            <div class="flex items-start gap-2">
+                                <i class="ti ti-refresh-alert text-amber-600 shrink-0 mt-0.5 text-sm" aria-hidden="true"></i>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-semibold text-amber-800">Stok sistem sudah berubah sejak sesi ini dimulai</p>
+                                    <p class="text-xs text-amber-700 mt-0.5">
+                                        Baseline sesi: <span x-text="formatQty(sysQtyBase / (invRatio || 1))"></span> {{ $inventoryUnit }}
+                                        &rarr; Terkini: <span x-text="formatQty(sysQtyLive / (invRatio || 1))"></span> {{ $inventoryUnit }}
+                                    </p>
+                                    <button type="button" @click="syncBaseline()" :disabled="syncing"
+                                            class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-1.5 disabled:opacity-50">
+                                        <i class="ti ti-refresh text-sm" :class="syncing ? 'animate-spin' : ''" aria-hidden="true"></i>
+                                        <span x-text="syncing ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'"></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     @endif
                 </div>
 
@@ -339,6 +361,7 @@
 function opnameItemCard(config) {
     return {
         url: config.url,
+        syncUrl: config.syncUrl,
         suggestionUrl: config.suggestionUrl,
         variance: config.variance || '0.000000',
         varianceValue: config.varianceValue || '0.0000',
@@ -347,10 +370,39 @@ function opnameItemCard(config) {
         qtyLoose: parseFloat(config.qtyLoose) > 0 ? String(parseFloat(config.qtyLoose)) : '',
         invRatio: parseFloat(config.invRatio) || 1,
         sysQtyBase: parseFloat(config.sysQtyBase) || 0,
+        sysQtyLive: parseFloat(config.sysQtyLive) || 0,
         sysQty: parseFloat(config.sysQtyBase) || 0,
         decimals: config.decimals ?? 2,
         saved: false,
+        syncing: false,
         suggestion: null,
+        get isBaselineStale() {
+            return Math.abs(this.sysQtyLive - this.sysQtyBase) > 0.000001;
+        },
+        async syncBaseline() {
+            this.syncing = true;
+
+            try {
+                const response = await fetch(this.syncUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                });
+
+                if (!response.ok) return;
+
+                const data = await response.json();
+                this.sysQtyBase = parseFloat(data.system_qty_base) || 0;
+                this.sysQty = this.sysQtyBase;
+                this.sysQtyLive = this.sysQtyBase;
+                this.variance = data.variance;
+                this.varianceValue = data.variance_value;
+            } finally {
+                this.syncing = false;
+            }
+        },
         get physicalBase() {
             return (parseFloat(this.qtyWhole) || 0) * this.invRatio + (parseFloat(this.qtyLoose) || 0);
         },

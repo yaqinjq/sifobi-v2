@@ -282,6 +282,29 @@ class OpnameController extends Controller
         ]);
     }
 
+    public function syncItem(Request $request, OpnameSession $session, OpnameItem $item): JsonResponse
+    {
+        abort_unless((int) $item->opname_session_id === (int) $session->id, 404);
+
+        $userDepartmentId = $request->user()->department_id;
+        abort_unless(
+            is_null($userDepartmentId)
+                || is_null($item->department_id)
+                || (int) $item->department_id === (int) $userDepartmentId,
+            403,
+            'Anda tidak berwenang mengubah item departemen lain.'
+        );
+
+        $updated = $this->opnameService->syncItemBaseline($item);
+
+        return response()->json([
+            'success' => true,
+            'system_qty_base' => (string) $updated->system_qty_base,
+            'variance' => (string) $updated->variance,
+            'variance_value' => (string) $updated->variance_value,
+        ]);
+    }
+
     public function submit(Request $request, OpnameSession $session): RedirectResponse
     {
         $updated = $this->opnameService->submit($session, (int) $request->user()->id);
