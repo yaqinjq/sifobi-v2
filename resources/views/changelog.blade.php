@@ -8,12 +8,40 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.14 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.14 &mdash; 17 September 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Post Draft Open Stock secara massal</strong> &mdash; centang beberapa baris Draft sekaligus (atau "pilih semua") di halaman Open Stock, lalu Post dalam satu klik. Sebelumnya harus satu per satu, praktis mustahil untuk onboarding ratusan item</li>
+                    <li><strong>Sinkronkan ulang baseline Opname</strong> &mdash; kalau ada koreksi stok (mis. Open Stock di-void dan di-post ulang) setelah sesi Opname sudah dimulai, sekarang muncul notifikasi otomatis di item terkait dengan tombol "Sinkronkan Sekarang" untuk mengambil ulang angka "Stok Saat Ini" tanpa perlu membatalkan seluruh sesi</li>
+                    <li><strong>Kartu Stok</strong>: filter kategori dan pencarian item/SKU kini bekerja instan tanpa reload halaman, tiap kolom tabel bisa diurutkan A-Z/Z-A dengan klik header, dan filter tanggal dipadatkan jadi satu tombol ikon kalender supaya semua filter muat dalam satu baris</li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Import Excel (Open Stock, Item, Spoil &amp; Waste) tidak lagi gagal massal kalau file punya baris kosong sisa formatting &mdash; baris kosong sekarang dilewati otomatis, bukan dihitung sebagai baris gagal</li>
+                    <li>Menu Kartu Stok tidak lagi salah arah ke halaman lain saat diakses tanpa memilih outlet dulu</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.13 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.13 &mdash; 14 September 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
