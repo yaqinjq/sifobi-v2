@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Operations;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Operations\BulkPostOpenStockRequest;
 use App\Http\Requests\Operations\PostOpenStockRequest;
 use App\Http\Requests\Operations\StoreBulkOpenStockRequest;
 use App\Http\Requests\Operations\UpdateOpenStockRequest;
@@ -164,6 +165,39 @@ class OpenStockController extends Controller
         return redirect()
             ->route('operations.open-stocks.show', $openStock)
             ->with('success', 'Open Stock berhasil diposting ke ledger stok.');
+    }
+
+    public function bulkPost(BulkPostOpenStockRequest $request): RedirectResponse
+    {
+        $tenantId = $request->user()->tenant_id;
+        $ids = OpenStock::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->where('status', OpenStock::STATUS_DRAFT)
+            ->pluck('id')
+            ->all();
+
+        $result = $this->openStockService->bulkPost($ids, $request->user());
+
+        $message = "{$result['posted']} Open Stock berhasil diposting ke ledger stok.";
+
+        if ($result['failed'] === 0) {
+            return redirect()
+                ->route('operations.open-stocks.index')
+                ->with('success', $message);
+        }
+
+        $shown = array_slice($result['errors'], 0, 5);
+        $message .= " {$result['failed']} baris gagal: ".implode(' | ', $shown);
+
+        if (count($result['errors']) > count($shown)) {
+            $message .= ' (dan '.(count($result['errors']) - count($shown)).' lainnya)';
+        }
+
+        return redirect()
+            ->route('operations.open-stocks.index')
+            ->with('error', $message);
     }
 
     public function void(VoidOpenStockRequest $request, OpenStock $openStock): RedirectResponse

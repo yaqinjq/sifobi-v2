@@ -24,7 +24,10 @@
     ]);
 
     $formatQty = fn ($value, int $decimals = 3): string => number_format((float) ($value ?? 0), $decimals, '.', ',');
+    $draftIds = $openStocks->where('status', \App\Modules\Operations\Models\OpenStock::STATUS_DRAFT)->pluck('id')->values();
 @endphp
+
+<div x-data="{ selected: [] }">
 
 <form method="GET" action="{{ route('operations.open-stocks.index') }}"
       class="px-4 py-3 lg:px-6 flex flex-wrap gap-2">
@@ -67,11 +70,19 @@
         <a href="{{ route('operations.open-stocks.show', $openStock) }}"
            class="block sf-card p-4 active:scale-[.99] transition-transform">
             <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0 flex-1">
-                    <p class="font-semibold text-gray-900 truncate">
-                        {{ $item?->name ?? '-' }}
-                    </p>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $item?->canonical_sku ?? '-' }}</p>
+                <div class="min-w-0 flex-1 flex items-start gap-2">
+                    @if($openStock->status === 'DRAFT')
+                        @can('post_open_stock')
+                            <input type="checkbox" x-model="selected" value="{{ $openStock->id }}"
+                                   @click.stop class="mt-1 rounded border-gray-300 text-primary-700 shrink-0">
+                        @endcan
+                    @endif
+                    <div class="min-w-0">
+                        <p class="font-semibold text-gray-900 truncate">
+                            {{ $item?->name ?? '-' }}
+                        </p>
+                        <p class="text-xs text-gray-400 mt-0.5">{{ $item?->canonical_sku ?? '-' }}</p>
+                    </div>
                 </div>
                 @if($openStock->status === 'POSTED')
                     <span class="badge-posted shrink-0">POSTED</span>
@@ -164,6 +175,16 @@
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-100">
+                            @can('post_open_stock')
+                                <th class="px-4 py-3 w-10">
+                                    @if($draftIds->isNotEmpty())
+                                        <input type="checkbox"
+                                               class="rounded border-gray-300 text-primary-700"
+                                               :checked="selected.length === {{ $draftIds->count() }} && {{ $draftIds->count() }} > 0"
+                                               @change="selected = $event.target.checked ? @js($draftIds) : []">
+                                    @endif
+                                </th>
+                            @endcan
                             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">No</th>
                             <th class="text-left px-4 py-3">
                                 <a href="{{ $sortUrl('date') }}" class="group flex items-center gap-1 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-primary-700 transition-colors">
@@ -278,6 +299,14 @@
                                     : ($item?->inventoryUnit?->abbreviation ?? $item?->inventoryUnit?->code ?? '');
                             @endphp
                             <tr class="hover:bg-gray-50/60 transition-colors">
+                                @can('post_open_stock')
+                                    <td class="px-4 py-3">
+                                        @if($openStock->status === 'DRAFT')
+                                            <input type="checkbox" x-model="selected" value="{{ $openStock->id }}"
+                                                   class="rounded border-gray-300 text-primary-700">
+                                        @endif
+                                    </td>
+                                @endcan
                                 <td class="px-4 py-3 text-gray-400 text-xs">{{ ($openStocks->firstItem() ?? 1) + $idx }}</td>
                                 <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ $openStock->business_date?->format('d/m/Y') ?? '-' }}</td>
                                 <td class="px-4 py-3 text-gray-700">
@@ -357,5 +386,26 @@
             {{ $openStocks->links() }}
         </div>
     @endif
+
+    @can('post_open_stock')
+        <div x-show="selected.length > 0" x-cloak
+             class="fixed inset-x-0 bottom-16 z-30 border-t border-gray-200 bg-white px-4 py-3 shadow-lg md:bottom-0 md:px-6">
+            <form method="POST" action="{{ route('operations.open-stocks.bulk-post') }}"
+                  class="mx-auto flex max-w-7xl items-center justify-between gap-3"
+                  @submit="if (! confirm('Post ' + selected.length + ' Open Stock draft terpilih ke ledger stok?')) { $event.preventDefault(); }">
+                @csrf
+                <template x-for="id in selected" :key="id">
+                    <input type="hidden" name="ids[]" :value="id">
+                </template>
+                <p class="text-sm text-gray-600">
+                    <span class="font-semibold text-gray-900" x-text="selected.length"></span> draft terpilih
+                </p>
+                <button type="submit" class="sf-btn-primary min-h-11 px-4">
+                    <i class="ti ti-upload text-base" aria-hidden="true"></i>
+                    Post Draft Terpilih
+                </button>
+            </form>
+        </div>
+    @endcan
 </div>
 @endsection

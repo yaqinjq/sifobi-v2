@@ -173,6 +173,44 @@ class OpenStockService
     }
 
     /**
+     * Post multiple drafts one-by-one, each in its own transaction — a failure
+     * on one row (mis. duplikat sudah POSTED untuk kombinasi yang sama) tidak
+     * boleh membatalkan baris lain yang valid.
+     *
+     * @param  list<int>  $openStockIds
+     * @return array{posted: int, failed: int, errors: list<string>}
+     */
+    public function bulkPost(array $openStockIds, User $user): array
+    {
+        $posted = 0;
+        $errors = [];
+
+        $openStocks = OpenStock::query()
+            ->with('item')
+            ->whereIn('id', $openStockIds)
+            ->get();
+
+        foreach ($openStocks as $openStock) {
+            try {
+                $this->post($openStock, $user);
+                $posted++;
+            } catch (ValidationException $exception) {
+                $label = $openStock->item?->name ?? "#{$openStock->id}";
+                $errors[] = "{$label}: ".collect($exception->errors())->flatten()->implode(' ');
+            } catch (\Throwable $throwable) {
+                $label = $openStock->item?->name ?? "#{$openStock->id}";
+                $errors[] = "{$label}: {$throwable->getMessage()}";
+            }
+        }
+
+        return [
+            'posted' => $posted,
+            'failed' => count($errors),
+            'errors' => $errors,
+        ];
+    }
+
+    /**
      * Void a POSTED open stock — creates a VOID_REVERSAL in the stock ledger.
      * The open_stock status becomes VOID. The original mutation is never deleted.
      */

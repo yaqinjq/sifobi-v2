@@ -693,6 +693,79 @@ test('ambiguous decimal with dot then comma is rejected', function (): void {
         ->assertSessionHasErrors('items.0.qty_whole');
 });
 
+test('bulk post updates multiple drafts to POSTED and updates stock balance', function (): void {
+    $user = openStockUser('PIC_OUTLET');
+    $item2 = Item::query()->where('canonical_sku', 'MKO-GULA-PASIR')->firstOrFail();
+    $department = Department::query()->where('code', 'BAR')->firstOrFail();
+
+    $this->actingAs($user)->post('/operations/open-stocks', openStockPayload());
+    $this->actingAs($user)->post('/operations/open-stocks', [
+        'outlet_id' => $this->outlet->id,
+        'stock_target' => OpenStock::TARGET_OUTLET_DAILY,
+        'business_date' => '2026-06-28',
+        'items' => [[
+            'item_id' => $item2->id,
+            'department_id' => $department->id,
+            'qty_whole' => '5',
+            'qty_loose' => '0',
+            'cost_per_unit' => '8000',
+        ]],
+    ]);
+
+    $drafts = OpenStock::query()->where('status', OpenStock::STATUS_DRAFT)->pluck('id')->all();
+    expect($drafts)->toHaveCount(2);
+
+    $this->actingAs($user)
+        ->post(route('operations.open-stocks.bulk-post'), ['ids' => $drafts])
+        ->assertRedirect(route('operations.open-stocks.index'));
+
+    expect(OpenStock::query()->where('status', OpenStock::STATUS_POSTED)->count())->toBe(2);
+
+    $balance = StockBalance::query()
+        ->where('item_id', $this->item->id)
+        ->where('outlet_id', $this->outlet->id)
+        ->first();
+
+    expect($balance)->not->toBeNull();
+});
+
+test('bulk post partially fails on duplicate but still posts the valid drafts', function (): void {
+    $user = openStockUser('PIC_OUTLET');
+    $item2 = Item::query()->where('canonical_sku', 'MKO-GULA-PASIR')->firstOrFail();
+    $department = Department::query()->where('code', 'BAR')->firstOrFail();
+
+    // Item pertama sudah POSTED lebih dulu untuk tanggal ini.
+    $this->actingAs($user)->post('/operations/open-stocks', openStockPayload());
+    $alreadyPosted = OpenStock::query()->firstOrFail();
+    $this->actingAs($user)->post("/operations/open-stocks/{$alreadyPosted->id}/post");
+
+    // Draft duplikat untuk item+outlet+target+tanggal yang SAMA (skenario nyata: user re-input).
+    $this->actingAs($user)->post('/operations/open-stocks', openStockPayload(['qty_loose' => '99']));
+    $duplicateDraft = OpenStock::query()->where('status', OpenStock::STATUS_DRAFT)->firstOrFail();
+
+    // Draft item lain yang valid, tidak konflik.
+    $this->actingAs($user)->post('/operations/open-stocks', [
+        'outlet_id' => $this->outlet->id,
+        'stock_target' => OpenStock::TARGET_OUTLET_DAILY,
+        'business_date' => '2026-06-28',
+        'items' => [[
+            'item_id' => $item2->id,
+            'department_id' => $department->id,
+            'qty_whole' => '5',
+            'qty_loose' => '0',
+            'cost_per_unit' => '8000',
+        ]],
+    ]);
+    $validDraft = OpenStock::query()->where('item_id', $item2->id)->firstOrFail();
+
+    $this->actingAs($user)
+        ->post(route('operations.open-stocks.bulk-post'), ['ids' => [$duplicateDraft->id, $validDraft->id]])
+        ->assertRedirect(route('operations.open-stocks.index'));
+
+    expect($validDraft->refresh()->status)->toBe(OpenStock::STATUS_POSTED)
+        ->and($duplicateDraft->refresh()->status)->toBe(OpenStock::STATUS_DRAFT);
+});
+
 test('ambiguous decimal with comma then dot is rejected', function (): void {
     $user = openStockUser('PIC_OUTLET');
 

@@ -544,6 +544,10 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             ->middleware('permission:post_open_stock')
             ->name('open-stocks.post');
 
+        Route::post('/open-stocks/bulk-post', [OpenStockController::class, 'bulkPost'])
+            ->middleware('permission:post_open_stock')
+            ->name('open-stocks.bulk-post');
+
         Route::post('/open-stocks/{openStock}/void', [OpenStockController::class, 'void'])
             ->middleware('permission:post_open_stock')
             ->name('open-stocks.void');
