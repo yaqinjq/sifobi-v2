@@ -693,6 +693,42 @@ test('ambiguous decimal with dot then comma is rejected', function (): void {
         ->assertSessionHasErrors('items.0.qty_whole');
 });
 
+test('open stock index respects per_page and falls back to default on invalid value', function (): void {
+    $user = openStockUser('PIC_OUTLET');
+    $item2 = Item::query()->where('canonical_sku', 'MKO-GULA-PASIR')->firstOrFail();
+    $department = Department::query()->where('code', 'BAR')->firstOrFail();
+
+    for ($i = 1; $i <= 15; $i++) {
+        $date = sprintf('2026-01-%02d', $i);
+        $this->actingAs($user)->post('/operations/open-stocks', [
+            'outlet_id' => $this->outlet->id,
+            'stock_target' => OpenStock::TARGET_OUTLET_DAILY,
+            'business_date' => $date,
+            'items' => [
+                ['item_id' => $this->item->id, 'department_id' => $department->id, 'qty_whole' => '1', 'qty_loose' => '0', 'cost_per_unit' => '1000'],
+                ['item_id' => $item2->id, 'department_id' => $department->id, 'qty_whole' => '1', 'qty_loose' => '0', 'cost_per_unit' => '1000'],
+            ],
+        ]);
+    }
+
+    expect(OpenStock::query()->count())->toBe(30);
+
+    $this->actingAs($user)
+        ->get(route('operations.open-stocks.index', ['per_page' => 1000]))
+        ->assertOk()
+        ->assertViewHas('openStocks', fn ($openStocks) => $openStocks->count() === 30);
+
+    $this->actingAs($user)
+        ->get(route('operations.open-stocks.index'))
+        ->assertOk()
+        ->assertViewHas('openStocks', fn ($openStocks) => $openStocks->count() === 25 && $openStocks->total() === 30);
+
+    $this->actingAs($user)
+        ->get(route('operations.open-stocks.index', ['per_page' => 999999]))
+        ->assertOk()
+        ->assertViewHas('openStocks', fn ($openStocks) => $openStocks->count() === 25);
+});
+
 test('bulk post updates multiple drafts to POSTED and updates stock balance', function (): void {
     $user = openStockUser('PIC_OUTLET');
     $item2 = Item::query()->where('canonical_sku', 'MKO-GULA-PASIR')->firstOrFail();

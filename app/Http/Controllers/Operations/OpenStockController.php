@@ -44,6 +44,10 @@ class OpenStockController extends Controller
             : 'date';
         $direction = $request->string('direction')->toString() === 'asc' ? 'asc' : 'desc';
 
+        $perPageOptions = [25, 50, 100, 1000];
+        $perPage = (int) $request->input('per_page', 25);
+        $perPage = in_array($perPage, $perPageOptions, true) ? $perPage : 25;
+
         $query = OpenStock::query()
             ->with(['outlet', 'department', 'item.baseUnit', 'item.inventoryUnit', 'item.purchaseUnit', 'unit', 'postedBy', 'createdBy'])
             ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
@@ -85,13 +89,15 @@ class OpenStockController extends Controller
 
         $openStocks = $query
             ->orderBy('open_stocks.id', 'desc')
-            ->paginate(25)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('operations.open-stocks.index', [
             'openStocks' => $openStocks,
             'sort' => $sort,
             'direction' => $direction,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 
