@@ -80,6 +80,15 @@ class RoleController extends Controller
         $oldPermissions = $role->permissions->pluck('name')->toArray();
         $newPermissions = $request->input('permissions', []);
 
+        $blocked = $this->blockedProtectedPermissions($request, $oldPermissions, $newPermissions);
+
+        if ($blocked !== []) {
+            $labels = $this->protectedPermissionLabels($blocked);
+
+            return back()->with('error',
+                'Hanya SUPER_ADMIN yang boleh memberikan permission berikut: '.implode(', ', $labels).'. Perubahan tidak disimpan.');
+        }
+
         $role->syncPermissions($newPermissions);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -112,6 +121,64 @@ class RoleController extends Controller
         $teamId = app(PermissionRegistrar::class)->getPermissionsTeamId();
 
         abort_unless((int) $role->team_id === (int) $teamId, 404);
+    }
+
+    /**
+     * Permission ini sengaja "terkunci" -- cuma SUPER_ADMIN yang boleh
+     * MEMBERIKANNYA ke role manapun (termasuk role custom baru). Sebelum
+     * ini, update() cuma memvalidasi permission itu ADA di database, tidak
+     * mengecek SIAPA yang boleh memberikannya -- jadi siapa pun dengan
+     * manage_users bisa bikin role custom, centang semua permission
+     * "sensitif" ini (termasuk manage_users itu sendiri), lalu pakai role
+     * itu sendiri untuk dapat kekuatan setingkat SUPER_ADMIN. Larangan
+     * assign role SUPER_ADMIN (lihat UserController::assertMayAssignRole)
+     * jadi tidak berarti apa-apa karena bisa dilewati lewat jalur ini.
+     *
+     * @return list<string>
+     */
+    private function protectedPermissions(): array
+    {
+        return [
+            'manage_settings',
+            'manage_brands_outlets',
+            'manage_integrations',
+            'manage_stock_configs',
+            'manage_calendar_events',
+            'manage_users',
+            'manage_core',
+        ];
+    }
+
+    /**
+     * Cuma permission terkunci yang BARU ditambahkan (belum ada di role itu
+     * sebelumnya) yang diblokir -- menghapus atau membiarkan yang sudah ada
+     * tetap diperbolehkan, supaya non-SUPER_ADMIN masih bisa mengelola role
+     * yang kebetulan sudah punya permission ini dari sebelumnya.
+     *
+     * @param  array<int, string>  $oldPermissions
+     * @param  array<int, string>  $newPermissions
+     * @return list<string>
+     */
+    private function blockedProtectedPermissions(Request $request, array $oldPermissions, array $newPermissions): array
+    {
+        if ($request->user()->hasRole('SUPER_ADMIN')) {
+            return [];
+        }
+
+        $newlyAdded = array_diff($newPermissions, $oldPermissions);
+
+        return array_values(array_intersect($newlyAdded, $this->protectedPermissions()));
+    }
+
+    /**
+     * @param  list<string>  $permissionNames
+     * @return list<string>
+     */
+    private function protectedPermissionLabels(array $permissionNames): array
+    {
+        $allLabels = array_merge(...array_values($this->permissionGroups()));
+
+        return array_map(fn (string $name): string => $allLabels[$name] ?? $name, $permissionNames);
     }
 
     public function destroy(Role $role): RedirectResponse
