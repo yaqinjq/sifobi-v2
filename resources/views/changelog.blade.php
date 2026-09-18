@@ -24,6 +24,13 @@
                     <li>Dropdown <strong>"Tampilkan X per halaman"</strong> sekarang ada di semua halaman berpaginasi (Open Stock, Opname, Penerimaan Barang, Spoil &amp; Waste, Transfer Stok, Purchase Order, Manajemen User, Menu &amp; Resep, Master Data Item, Data Item Wipro, Member, Riwayat Shift POS, Notifikasi, Audit Log, Kalkulator HPP, dan laporan-laporan) &mdash; pilih 25/50/100/Semua di sebelah tombol halaman</li>
                 </ul>
             </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Keamanan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Ditutup celah eskalasi privilese: sebelumnya user dengan akses Manajemen User bisa membuat role custom lalu memberi role itu permission sensitif (Akses Core System, Kelola User &amp; Role, Pengaturan Umum, dll) dan memakainya sendiri untuk mendapat kekuatan setingkat Super Admin. Ketujuh permission ini sekarang cuma bisa diberikan oleh Super Admin</li>
+                </ul>
+            </div>
         </div>
     </x-sf.card>
 
