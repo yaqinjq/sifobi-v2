@@ -817,7 +817,7 @@
     </x-sf.card>
 
     <div class="text-center text-xs text-gray-400 pb-4">
-        SIFOBI v2.14 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
+        SIFOBI v2.15 &mdash; Panduan ini diperbarui: {{ now()->format('d M Y') }}
         &middot; <a href="{{ route('changelog') }}" class="text-primary-600 hover:underline">Lihat Changelog</a>
     </div>
 
