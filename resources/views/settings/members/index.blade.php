@@ -30,7 +30,10 @@
                     </a>
                 @endforeach
             </div>
-            <div class="mt-3">{{ $members->links() }}</div>
+            <div class="mt-3 flex items-center justify-between gap-2 flex-wrap">
+                <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
+                {{ $members->links() }}
+            </div>
         @endif
     </x-sf.card>
 </div>

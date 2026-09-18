@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Brand;
 use App\Modules\Core\Models\CalendarEvent;
@@ -14,16 +15,20 @@ use Illuminate\View\View;
 
 class CalendarEventController extends Controller
 {
+    use HasPerPageSelector;
+
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 30);
 
         return view('settings.calendar-events.index', [
             'events' => CalendarEvent::query()
                 ->with(['outlet', 'brand'])
                 ->where('tenant_id', $tenantId)
                 ->orderByDesc('event_date')
-                ->paginate(30),
+                ->paginate($perPage)
+                ->withQueryString(),
             'outlets' => Outlet::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')
@@ -35,6 +40,8 @@ class CalendarEventController extends Controller
                 ->orderBy('name')
                 ->get(),
             'eventTypes' => CalendarEvent::TYPES,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 

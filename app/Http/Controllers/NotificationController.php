@@ -2,20 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class NotificationController extends Controller
 {
+    use HasPerPageSelector;
+
     public function index(Request $request): View
     {
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
+
         $notifications = $request->user()
             ->notifications()
             ->latest()
-            ->paginate(20);
+            ->paginate($perPage)
+            ->withQueryString();
 
-        return view('notifications.index', compact('notifications'));
+        return view('notifications.index', compact('notifications', 'perPage', 'perPageOptions'));
     }
 
     public function open(Request $request, string $id): RedirectResponse

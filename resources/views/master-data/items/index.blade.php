@@ -454,7 +454,8 @@
                 </div>
             </div>
 
-            <div class="mt-4">
+            <div class="mt-4 flex items-center justify-between gap-2 flex-wrap">
+                <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
                 {{ $items->links() }}
             </div>
         @endif
@@ -530,7 +531,8 @@
             @endforelse
         </div>
 
-        <div class="px-4 pb-4">
+        <div class="px-4 pb-4 flex items-center justify-between gap-2 flex-wrap">
+            <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
             {{ $items->links() }}
         </div>
     </div>

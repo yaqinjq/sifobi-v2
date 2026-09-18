@@ -130,7 +130,10 @@
             @endforelse
         </div>
 
-        <div class="pt-4">{{ $events->links() }}</div>
+        <div class="pt-4 flex items-center justify-between gap-2 flex-wrap">
+            <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
+            {{ $events->links() }}
+        </div>
     </x-sf.card>
 
     <x-sf.card title="+ Tambah Event">

@@ -9,6 +9,7 @@ use App\Exports\Reports\PenerimaanExport;
 use App\Exports\Reports\SpoilExport;
 use App\Exports\Reports\StokMenipisExport;
 use App\Exports\Reports\StokSummaryExport;
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
@@ -26,6 +27,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ReportController extends Controller
 {
+    use HasPerPageSelector;
+
     public function index(): View
     {
         return view('laporan.index');
@@ -36,6 +39,7 @@ class ReportController extends Controller
         $tenantId = $this->tenantId($request);
         $filters = $this->enforceOutletScope($request, $this->validateMutationFilters($request, $tenantId));
         [$dateFrom, $dateTo] = $this->dateRange($filters);
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 50);
 
         $base = $this->mutationQuery($tenantId, $filters, $dateFrom, $dateTo);
         $summary = (clone $base)
@@ -62,7 +66,7 @@ class ReportController extends Controller
                 'u.abbreviation as unit',
             ])
             ->orderByDesc('sm.performed_at')
-            ->paginate(50)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('laporan.mutasi', [
@@ -72,6 +76,8 @@ class ReportController extends Controller
             'items' => $this->items($tenantId),
             'mutationTypes' => $this->mutationTypes(),
             'filters' => $filters,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 
@@ -80,6 +86,7 @@ class ReportController extends Controller
         $tenantId = $this->tenantId($request);
         $filters = $this->enforceOutletScope($request, $this->validateSpoilFilters($request, $tenantId));
         [$dateFrom, $dateTo] = $this->dateRange($filters);
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 50);
 
         $base = $this->spoilQuery($tenantId, $filters, $dateFrom, $dateTo);
         $summary = (clone $base)
@@ -108,7 +115,7 @@ class ReportController extends Controller
                 'u.abbreviation as unit',
             ])
             ->orderByDesc('sw.recorded_at')
-            ->paginate(50)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('laporan.spoil', [
@@ -117,6 +124,8 @@ class ReportController extends Controller
             'outlets' => $this->outlets($tenantId),
             'departments' => Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
             'filters' => $filters,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 
@@ -125,6 +134,7 @@ class ReportController extends Controller
         $tenantId = $this->tenantId($request);
         $filters = $this->enforceOutletScope($request, $this->validateReceivingFilters($request, $tenantId));
         [$dateFrom, $dateTo] = $this->dateRange($filters);
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 50);
 
         $base = $this->receivingQuery($tenantId, $filters, $dateFrom, $dateTo);
         $summary = (clone $base)
@@ -155,7 +165,7 @@ class ReportController extends Controller
             ])
             ->orderByDesc('gr.receipt_date')
             ->orderByDesc('gr.id')
-            ->paginate(50)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('laporan.penerimaan', [
@@ -164,6 +174,8 @@ class ReportController extends Controller
             'outlets' => $this->outlets($tenantId),
             'sources' => $this->receivingSources(),
             'filters' => $filters,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 

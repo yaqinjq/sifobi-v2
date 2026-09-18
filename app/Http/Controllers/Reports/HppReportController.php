@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Reports;
 
 use App\Exports\Reports\HppExport;
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Brand;
 use App\Modules\Production\Models\Menu;
@@ -14,18 +15,23 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class HppReportController extends Controller
 {
+    use HasPerPageSelector;
+
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
         $filters = $this->filters($request);
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
 
-        $recipes = $this->recipes($tenantId, $filters)->paginate(20)->withQueryString();
+        $recipes = $this->recipes($tenantId, $filters)->paginate($perPage)->withQueryString();
 
         return view('laporan.hpp', [
             'recipes' => $recipes,
             'brands'  => Brand::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
             'menus'   => Menu::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
             'filters' => $filters,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 

@@ -191,7 +191,10 @@
             </div>
         @endif
     </x-sf.card>
-    <div>{{ $history->links() }}</div>
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+        <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
+        {{ $history->links() }}
+    </div>
 </div>
 @endsection
 

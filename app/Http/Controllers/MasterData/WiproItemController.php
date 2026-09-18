@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\MasterData;
 
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\ItemCategory;
@@ -11,11 +12,14 @@ use Illuminate\View\View;
 
 class WiproItemController extends Controller
 {
+    use HasPerPageSelector;
+
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
         $search = $request->string('q')->toString();
         $categoryFilter = $request->string('category_id')->toString();
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
 
         $query = Item::query()
             ->with(['category', 'baseUnit'])
@@ -33,7 +37,7 @@ class WiproItemController extends Controller
             $query->where('item_category_id', $categoryFilter);
         }
 
-        $items = $query->orderBy('name')->paginate(20)->withQueryString();
+        $items = $query->orderBy('name')->paginate($perPage)->withQueryString();
 
         $categories = ItemCategory::query()
             ->where('tenant_id', $tenantId)
@@ -46,6 +50,8 @@ class WiproItemController extends Controller
             'search' => $search,
             'categories' => $categories,
             'categoryFilter' => $categoryFilter,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 

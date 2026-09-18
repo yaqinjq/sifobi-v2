@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Core\Models\ActivityLogEntry;
@@ -11,9 +12,12 @@ use Illuminate\View\View;
 
 class AuditLogController extends Controller
 {
+    use HasPerPageSelector;
+
     public function index(Request $request): View
     {
         $tenantId = (int) $request->user()->tenant_id;
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 30);
 
         $entries = ActivityLogEntry::query()
             ->where('tenant_id', $tenantId)
@@ -25,7 +29,7 @@ class AuditLogController extends Controller
             ->when($request->get('date_from'), fn ($q, $from) => $q->whereDate('created_at', '>=', $from))
             ->when($request->get('date_to'), fn ($q, $to) => $q->whereDate('created_at', '<=', $to))
             ->latest('id')
-            ->paginate(30)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('settings.audit-log.index', [
@@ -33,6 +37,8 @@ class AuditLogController extends Controller
             'logNames' => $this->logNames(),
             'actors' => $this->recentActors($tenantId),
             'filters' => $request->only(['causer_id', 'log_name', 'event', 'q', 'date_from', 'date_to']),
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 

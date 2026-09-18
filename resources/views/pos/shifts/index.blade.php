@@ -87,7 +87,10 @@
                     </a>
                 @endforeach
             </div>
-            <div class="mt-3">{{ $history->links() }}</div>
+            <div class="mt-3 flex items-center justify-between gap-2 flex-wrap">
+                <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
+                {{ $history->links() }}
+            </div>
         @endif
     </x-sf.card>
 </div>

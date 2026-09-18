@@ -130,6 +130,9 @@
         </x-sf.card>
     </div>
 
-    {{ $receivings->links() }}
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+        <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
+        {{ $receivings->links() }}
+    </div>
 </div>
 @endsection

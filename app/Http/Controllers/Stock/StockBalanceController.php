@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Stock;
 
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
@@ -17,10 +18,13 @@ use Throwable;
 
 class StockBalanceController extends Controller
 {
+    use HasPerPageSelector;
+
     public function index(Request $request): View
     {
         $tenantId = (int) $request->user()->tenant_id;
         abort_unless($tenantId, 403);
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 30);
 
         $outlets = Outlet::query()
             ->where('tenant_id', $tenantId)
@@ -81,7 +85,7 @@ class StockBalanceController extends Controller
 
         $balances = $query
             ->orderBy(Item::select('name')->whereColumn('items.id', 'stock_balances.item_id'))
-            ->paginate(30)
+            ->paginate($perPage)
             ->withQueryString();
 
         $itemIds = $balances->getCollection()->pluck('item_id')->unique()->values();
@@ -147,6 +151,8 @@ class StockBalanceController extends Controller
             'stockTarget' => $stockTarget,
             'stockTargets' => $this->stockTargets(),
             'canChangeOutlet' => $canChangeOutlet,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 

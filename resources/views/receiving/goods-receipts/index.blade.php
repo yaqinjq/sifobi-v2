@@ -146,6 +146,9 @@
     </x-sf.card>
     </div>
 
-    {{ $receipts->links() }}
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+        <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
+        {{ $receipts->links() }}
+    </div>
 </div>
 @endsection

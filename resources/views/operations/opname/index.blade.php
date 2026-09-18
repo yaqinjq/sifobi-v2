@@ -98,6 +98,9 @@
         </x-sf.card>
     </div>
 
-    {{ $sessions->links() }}
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+        <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
+        {{ $sessions->links() }}
+    </div>
 </div>
 @endsection

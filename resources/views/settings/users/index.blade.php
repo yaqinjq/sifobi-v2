@@ -105,7 +105,10 @@
                           actionLabel="Tambah User" />
     @endforelse
 
-    {{ $users->links() }}
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+        <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
+        {{ $users->links() }}
+    </div>
 </div>
 
 <div class="hidden md:block p-6 pb-8">
@@ -191,7 +194,8 @@
             </table>
         </div>
 
-        <div class="border-t border-gray-100 px-4 py-3">
+        <div class="border-t border-gray-100 px-4 py-3 flex items-center justify-between gap-2 flex-wrap">
+            <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
             {{ $users->links() }}
         </div>
     </div>

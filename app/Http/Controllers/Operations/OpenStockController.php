@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Operations;
 
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operations\BulkPostOpenStockRequest;
 use App\Http\Requests\Operations\PostOpenStockRequest;
@@ -21,6 +22,8 @@ use Illuminate\View\View;
 
 class OpenStockController extends Controller
 {
+    use HasPerPageSelector;
+
     public function __construct(private readonly OpenStockService $openStockService)
     {
     }
@@ -44,9 +47,7 @@ class OpenStockController extends Controller
             : 'date';
         $direction = $request->string('direction')->toString() === 'asc' ? 'asc' : 'desc';
 
-        $perPageOptions = [25, 50, 100, 1000];
-        $perPage = (int) $request->input('per_page', 25);
-        $perPage = in_array($perPage, $perPageOptions, true) ? $perPage : 25;
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 25);
 
         $query = OpenStock::query()
             ->with(['outlet', 'department', 'item.baseUnit', 'item.inventoryUnit', 'item.purchaseUnit', 'unit', 'postedBy', 'createdBy'])

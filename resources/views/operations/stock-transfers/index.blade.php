@@ -63,11 +63,12 @@
                 @endforeach
             </div>
 
-            @if($transfers->hasPages())
-                <div class="px-4 py-3 border-t border-gray-100">
+            <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
+                <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
+                @if($transfers->hasPages())
                     {{ $transfers->links() }}
-                </div>
-            @endif
+                @endif
+            </div>
         @endif
     </x-sf.card>
 </div>

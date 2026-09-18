@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Operations;
 
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
@@ -20,6 +21,8 @@ use Illuminate\View\View;
 
 class OpnameController extends Controller
 {
+    use HasPerPageSelector;
+
     public function __construct(private readonly OpnameService $opnameService)
     {
     }
@@ -27,6 +30,7 @@ class OpnameController extends Controller
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
 
         $sessions = OpnameSession::query()
             ->where('tenant_id', $tenantId)
@@ -37,11 +41,13 @@ class OpnameController extends Controller
             ->when($request->filled('date'), fn ($query) => $query->whereDate('opname_date', $request->date('date')))
             ->latest('opname_date')
             ->latest('id')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('operations.opname.index', [
             'sessions' => $sessions,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 

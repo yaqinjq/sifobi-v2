@@ -138,16 +138,7 @@
     @endforelse
 
     <div class="pt-2 flex items-center justify-between gap-2 flex-wrap">
-        <label class="flex items-center gap-1.5 text-xs text-gray-500">
-            Tampilkan
-            <select onchange="const u = new URL(window.location); u.searchParams.set('per_page', this.value); u.searchParams.delete('page'); window.location.href = u.toString();"
-                    class="sf-input py-1.5 text-xs w-auto min-h-9">
-                @foreach($perPageOptions as $option)
-                    <option value="{{ $option }}" @selected($perPage === $option)>{{ $option >= 1000 ? 'Semua' : $option }}</option>
-                @endforeach
-            </select>
-            per halaman
-        </label>
+        <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
         @if($openStocks->hasPages())
             {{ $openStocks->links() }}
         @endif
@@ -393,16 +384,7 @@
         </div>
 
         <div class="mt-4 flex items-center justify-between gap-2 flex-wrap">
-            <label class="flex items-center gap-1.5 text-xs text-gray-500">
-                Tampilkan
-                <select onchange="const u = new URL(window.location); u.searchParams.set('per_page', this.value); u.searchParams.delete('page'); window.location.href = u.toString();"
-                        class="sf-input py-1.5 text-xs w-auto min-h-9">
-                    @foreach($perPageOptions as $option)
-                        <option value="{{ $option }}" @selected($perPage === $option)>{{ $option >= 1000 ? 'Semua' : $option }}</option>
-                    @endforeach
-                </select>
-                per halaman
-            </label>
+            <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
             {{ $openStocks->links() }}
         </div>
     @endif

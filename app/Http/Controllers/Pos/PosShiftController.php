@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Pos;
 
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Pos\Models\PosShift;
@@ -13,12 +14,15 @@ use Illuminate\View\View;
 
 class PosShiftController extends Controller
 {
+    use HasPerPageSelector;
+
     public function __construct(private readonly PosShiftService $service) {}
 
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
         $user = $request->user();
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 10);
 
         $outlets = Outlet::query()->where('tenant_id', $tenantId)->orderBy('name')->get(['id', 'name', 'code']);
         $outletId = (int) ($request->integer('outlet_id') ?: ($user->outlet_id ?: $outlets->first()?->id));
@@ -31,10 +35,10 @@ class PosShiftController extends Controller
             ->where('status', '!=', PosShift::STATUS_OPEN)
             ->with('openedBy')
             ->latest('opened_at')
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('pos.shifts.index', compact('outlets', 'outletId', 'currentShift', 'history'));
+        return view('pos.shifts.index', compact('outlets', 'outletId', 'currentShift', 'history', 'perPage', 'perPageOptions'));
     }
 
     public function store(Request $request): RedirectResponse

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Operations;
 
 use App\Exceptions\InsufficientStockException;
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
@@ -21,6 +22,8 @@ use Illuminate\View\View;
 
 class SpoilWasteController extends Controller
 {
+    use HasPerPageSelector;
+
     public function __construct(private readonly SpoilWasteService $spoilWasteService)
     {
     }
@@ -28,6 +31,7 @@ class SpoilWasteController extends Controller
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
 
         $query = SpoilWaste::query()
             ->with(['outlet', 'department', 'item', 'unit', 'createdBy'])
@@ -45,7 +49,7 @@ class SpoilWasteController extends Controller
                     ->orWhere('canonical_sku', 'like', $search));
             })
             ->latest('recorded_at')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('operations.spoil-wastes.index', [
@@ -55,6 +59,8 @@ class SpoilWasteController extends Controller
                 ->where('is_duplicate_photo', true)
                 ->where('status', SpoilWaste::STATUS_PENDING)
                 ->count(),
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 

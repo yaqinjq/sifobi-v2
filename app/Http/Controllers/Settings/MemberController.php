@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Member;
 use Illuminate\Http\Request;
@@ -9,10 +10,13 @@ use Illuminate\View\View;
 
 class MemberController extends Controller
 {
+    use HasPerPageSelector;
+
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
         $search = $request->string('search')->toString();
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
 
         $members = Member::query()
             ->where('tenant_id', $tenantId)
@@ -20,10 +24,10 @@ class MemberController extends Controller
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('phone', 'like', "%{$search}%")))
             ->orderByDesc('points_balance')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('settings.members.index', compact('members', 'search'));
+        return view('settings.members.index', compact('members', 'search', 'perPage', 'perPageOptions'));
     }
 
     public function show(Request $request, Member $member): View

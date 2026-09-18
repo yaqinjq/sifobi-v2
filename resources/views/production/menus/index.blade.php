@@ -53,6 +53,9 @@
         @endif
     </x-sf.card>
 
-    <div>{{ $menus->links() }}</div>
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+        <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
+        {{ $menus->links() }}
+    </div>
 </div>
 @endsection

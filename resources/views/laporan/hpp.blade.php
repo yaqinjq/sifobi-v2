@@ -58,6 +58,9 @@
         </x-sf.card>
     @endforelse
 
-    <div>{{ $recipes->links() }}</div>
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+        <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
+        {{ $recipes->links() }}
+    </div>
 </div>
 @endsection

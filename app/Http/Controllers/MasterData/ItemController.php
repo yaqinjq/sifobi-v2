@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\MasterData;
 
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MasterData\StoreItemRequest;
 use App\Http\Requests\MasterData\UpdateItemRequest;
@@ -22,9 +23,12 @@ use Illuminate\View\View;
 
 class ItemController extends Controller
 {
+    use HasPerPageSelector;
+
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 25);
         $search = $request->string('q')->toString();
         $typeFilter = $request->string('type')->toString();
         $statusFilter = $request->string('status')->toString();
@@ -87,7 +91,7 @@ class ItemController extends Controller
 
         $items = $query
             ->orderBy($sort, $direction)
-            ->paginate(25)
+            ->paginate($perPage)
             ->withQueryString();
 
         $outlets = Outlet::query()
@@ -135,6 +139,8 @@ class ItemController extends Controller
             'departments' => $departments,
             'jenises' => $jenises,
             'categories' => $categories,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 

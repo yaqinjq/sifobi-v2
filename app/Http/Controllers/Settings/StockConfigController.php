@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
@@ -15,11 +16,14 @@ use Illuminate\View\View;
 
 class StockConfigController extends Controller
 {
+    use HasPerPageSelector;
+
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
         $outletId = $request->integer('outlet_id') ?: null;
         $search = trim($request->string('q')->toString());
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 30);
 
         $configs = ItemStockConfig::query()
             ->with(['item.baseUnit', 'outlet', 'unit'])
@@ -30,7 +34,7 @@ class StockConfigController extends Controller
                 ->orWhere('canonical_sku', 'like', "%{$search}%")))
             ->orderBy('outlet_id')
             ->orderBy('item_id')
-            ->paginate(30)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('settings.stock-configs.index', [
@@ -52,6 +56,8 @@ class StockConfigController extends Controller
                 ->get(),
             'outletId' => $outletId,
             'search' => $search,
+            'perPage' => $perPage,
+            'perPageOptions' => $perPageOptions,
         ]);
     }
 

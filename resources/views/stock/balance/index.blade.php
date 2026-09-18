@@ -175,7 +175,8 @@
         </x-sf.card>
     </div>
 
-    <div>
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+        <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
         {{ $balances->links() }}
     </div>
 

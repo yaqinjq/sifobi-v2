@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Stock;
 
+use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
@@ -17,11 +18,14 @@ use Illuminate\View\View;
 
 class StockTransferController extends Controller
 {
+    use HasPerPageSelector;
+
     public function __construct(private readonly StockTransferService $service) {}
 
     public function index(Request $request): View
     {
         $tenantId  = $this->tenantId($request);
+        [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
 
         $transfers = StockTransfer::query()
             ->where('tenant_id', $tenantId)
@@ -34,10 +38,10 @@ class StockTransferController extends Controller
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')->upper()->toString()))
             ->latest('transfer_date')
             ->latest('id')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('operations.stock-transfers.index', compact('transfers'));
+        return view('operations.stock-transfers.index', compact('transfers', 'perPage', 'perPageOptions'));
     }
 
     public function create(Request $request): View
