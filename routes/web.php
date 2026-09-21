@@ -320,6 +320,8 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             ->only(['edit', 'update'])
             ->parameters(['wipro-items' => 'item'])
             ->names('master-data.wipro-items');
+        Route::post('master-data/wipro-items/bulk-activate-opname', [\App\Http\Controllers\MasterData\WiproItemController::class, 'bulkActivateForOpname'])
+            ->name('master-data.wipro-items.bulk-activate-opname');
     });
 
     Route::middleware('permission:view_master_data')->group(function (): void {

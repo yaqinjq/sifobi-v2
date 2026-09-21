@@ -663,6 +663,18 @@
             </div>
 
             <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2">Mengaktifkan Item Wipro untuk Opname</p>
+                <p class="text-xs text-gray-600 mb-2">Secara default, item dari katalog Wipro (menu <strong>Master Data → Data Item Wipro</strong>) TIDAK ikut muncul di Opname — item ini cuma dipakai untuk Purchase Order ke Central Kitchen. Kalau ada item Wipro yang secara fisik memang dihitung juga di outlet (mis. bumbu/sirup yang dipakai KITCHEN atau BAR), bisa diaktifkan:</p>
+                <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Buka <strong>Master Data → Data Item Wipro</strong></li>
+                    <li>Centang item yang memang dihitung fisik di outlet (checkbox muncul di kolom paling kiri tabel, cuma untuk item yang belum aktif)</li>
+                    <li>Di bagian bawah layar, pilih <strong>Departemen</strong> tujuan (KITCHEN, BAR, atau SERVICE tergantung item), lalu klik <strong>"Aktifkan untuk Opname"</strong></li>
+                    <li>Item langsung muncul di sesi Opname departemen tsb untuk semua outlet, lengkap dengan kategorinya (otomatis ikut logika filter &amp; urutan "Sesuai Form")</li>
+                </ol>
+                <p class="text-xs text-gray-500 mt-2">Item yang sudah diaktifkan tidak akan pernah ke-reset lagi meski katalog Wipro di-upload ulang (lihat kotak "Disesuaikan manual" di tabel) — cukup dilakukan sekali per item. Tidak semua item Wipro perlu diaktifkan, hanya yang memang dihitung fisik saja.</p>
+            </div>
+
+            <div class="border-t border-gray-100 pt-3">
                 <p class="font-semibold text-gray-800 mb-2">Jika Integrasi Gagal</p>
                 <ul class="space-y-1.5 text-xs text-gray-600 list-disc list-inside">
                     <li>Halaman detail PO menampilkan pesan error dan tombol <strong>"Kirim Ulang"</strong></li>

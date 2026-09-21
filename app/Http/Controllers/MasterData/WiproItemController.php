@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers\MasterData;
 
+use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\MasterData\BulkActivateWiproItemForOpnameRequest;
+use App\Modules\Core\Models\Department;
+use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\ItemCategory;
+use App\Modules\Inventory\Models\ItemOutlet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class WiproItemController extends Controller
 {
+    use HasBulkAction;
     use HasPerPageSelector;
 
     public function index(Request $request): View
@@ -22,7 +28,7 @@ class WiproItemController extends Controller
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
 
         $query = Item::query()
-            ->with(['category', 'baseUnit'])
+            ->with(['category', 'baseUnit', 'primaryDepartment'])
             ->where('tenant_id', $tenantId)
             ->where('item_source', 'WIPRO');
 
@@ -52,7 +58,77 @@ class WiproItemController extends Controller
             'categoryFilter' => $categoryFilter,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
+            'opnameDepartments' => Department::query()
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'ACTIVE')
+                ->orderBy('name')
+                ->get(),
         ]);
+    }
+
+    /**
+     * Aktifkan item Wipro terpilih supaya ikut muncul di Opname:
+     * 1. Isi track_stock=true + primary_department_id (dua kolom yang sudah
+     *    ada di skema tapi tidak pernah diisi oleh WiproCatalogImport).
+     * 2. Daftarkan kategori item ke Department::itemCategories() supaya
+     *    langsung muncul juga di filter Kategori & urutan "Sesuai Form".
+     * 3. Pastikan ada baris item_outlets (aktif) untuk setiap outlet tenant
+     *    ini -- OpnameService::itemsForOpname() memfilter berdasarkan tabel
+     *    ini KALAU outlet tsb sudah punya baris item_outlets lain (mis. dari
+     *    data lama/legacy migration); tanpa baris ini item Wipro yang baru
+     *    diaktifkan tidak akan pernah muncul di Opname outlet tsb walau
+     *    track_stock & departemennya sudah benar.
+     *
+     * track_stock=true otomatis kena proteksi "isCustomized" di
+     * WiproCatalogImport, jadi aman dari ke-reset saat import katalog
+     * berikutnya -- lihat app/Imports/WiproCatalogImport.php.
+     */
+    public function bulkActivateForOpname(BulkActivateWiproItemForOpnameRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+
+        $department = Department::query()
+            ->where('tenant_id', $tenantId)
+            ->findOrFail($request->input('department_id'));
+
+        $items = Item::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->where('item_source', 'WIPRO')
+            ->get();
+
+        $outletIds = Outlet::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'ACTIVE')
+            ->pluck('id');
+
+        $result = $this->runBulkAction(
+            $items,
+            function (Item $item) use ($department, $tenantId, $outletIds): void {
+                $item->update([
+                    'track_stock' => true,
+                    'primary_department_id' => $department->id,
+                ]);
+
+                if ($item->item_category_id) {
+                    $department->itemCategories()->syncWithoutDetaching([$item->item_category_id]);
+                }
+
+                foreach ($outletIds as $outletId) {
+                    ItemOutlet::query()->updateOrCreate(
+                        ['tenant_id' => $tenantId, 'item_id' => $item->id, 'outlet_id' => $outletId],
+                        ['is_active' => true]
+                    );
+                }
+            },
+            fn (Item $item) => $item->name
+        );
+
+        return $this->bulkActionRedirect(
+            'master-data.wipro-items.index',
+            $result,
+            "{$result['processed']} item Wipro diaktifkan untuk Opname di departemen {$department->name}."
+        );
     }
 
     public function edit(Request $request, Item $item): View

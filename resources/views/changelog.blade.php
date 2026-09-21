@@ -8,12 +8,29 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.17 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.17 &mdash; 21 September 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Item Wipro (Central Kitchen) sekarang bisa ikut di-Opname</strong> &mdash; menu Master Data &gt; Data Item Wipro punya aksi massal baru "Aktifkan untuk Opname": centang item yang memang dihitung fisik di outlet (mis. bumbu/sirup dipakai KITCHEN atau BAR), pilih departemen tujuannya, langsung muncul di Opname lengkap dengan kategori & urutan "Sesuai Form" &mdash; tanpa duplikasi data (tetap 1 record item yang sama dipakai PO/GR/Opname) dan tanpa mengubah alur sinkronisasi katalog Wipro yang sudah ada</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.16 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.16 &mdash; 21 September 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

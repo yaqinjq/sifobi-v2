@@ -10,7 +10,8 @@
     setViewMode(mode) {
         this.viewMode = mode;
         localStorage.setItem('sifobi_wipro_items_view_mode', mode);
-    }
+    },
+    selected: []
 }">
 <x-sf.page-header title="Data Item Wipro" subtitle="Item dari katalog Wipro — cuma untuk Purchase Order" back="{{ route('master-data.items.index') }}">
     <x-slot:actions>
@@ -51,6 +52,12 @@
     <div class="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-xs text-amber-700 mb-4">
         Item di sini disinkron otomatis dari katalog Wipro (nama, satuan, status aktif tidak bisa diubah manual —
         akan ikut sinkronisasi berikutnya). Yang bisa Anda lengkapi cuma foto & keterangan.
+    </div>
+    <div class="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-xs text-blue-800 mb-4">
+        Item Wipro yang memang secara fisik dihitung di outlet (mis. dipakai departemen KITCHEN atau BAR) bisa
+        diaktifkan supaya ikut muncul di halaman Opname — centang item yang dimaksud di tabel di bawah, pilih
+        departemennya, lalu klik <strong>"Aktifkan untuk Opname"</strong> di bagian bawah layar. Setelah aktif,
+        item tidak akan hilang lagi meski katalog Wipro di-import ulang.
     </div>
 
     <form method="GET" class="flex flex-wrap gap-3 items-center border-b border-gray-100 bg-white p-3 rounded-2xl mb-4">
@@ -93,6 +100,7 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            <th class="px-4 py-3 w-10"></th>
                             <th class="px-4 py-3">Foto</th>
                             <th class="px-4 py-3">SKU</th>
                             <th class="px-4 py-3">Nama</th>
@@ -109,6 +117,13 @@
                             @endphp
                             <tr class="odd:bg-white even:bg-gray-50/60">
                                 <td class="px-4 py-3">
+                                    @can('manage_items')
+                                        @unless($item->track_stock)
+                                            <input type="checkbox" x-model="selected" value="{{ $item->id }}" class="rounded border-gray-300 text-primary-700">
+                                        @endunless
+                                    @endcan
+                                </td>
+                                <td class="px-4 py-3">
                                     <div class="h-10 w-10 rounded-xl bg-gray-100 overflow-hidden flex items-center justify-center">
                                         @if($photoUrl)
                                             <img src="{{ $photoUrl }}" alt="{{ $item->name }}" class="h-full w-full object-cover">
@@ -122,6 +137,11 @@
                                     <p class="font-semibold text-gray-900">{{ $item->name }}</p>
                                     @if($isCustomized)
                                         <span class="badge-blue text-[10px]">Disesuaikan manual</span>
+                                    @endif
+                                    @if($item->track_stock)
+                                        <span class="badge-active text-[10px]">
+                                            Aktif Opname{{ $item->primaryDepartment ? ' — '.$item->primaryDepartment->name : '' }}
+                                        </span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-gray-600">{{ $item->category?->name ?? '-' }}</td>
@@ -180,6 +200,22 @@
             {{ $items->links() }}
         </div>
     @endif
+
+    @can('manage_items')
+        <x-sf.bulk-action-bar
+            route="{{ route('master-data.wipro-items.bulk-activate-opname') }}"
+            confirm-message="Aktifkan __COUNT__ item Wipro terpilih untuk Opname pada departemen yang dipilih?"
+            button-label="Aktifkan untuk Opname"
+            button-icon="ti-clipboard-check"
+        >
+            <select name="department_id" class="sf-input text-sm w-auto min-h-11" required onclick="event.stopPropagation()">
+                <option value="">Pilih departemen...</option>
+                @foreach($opnameDepartments as $department)
+                    <option value="{{ $department->id }}">{{ $department->name }}</option>
+                @endforeach
+            </select>
+        </x-sf.bulk-action-bar>
+    @endcan
 </div>
 </div>
 @endsection
