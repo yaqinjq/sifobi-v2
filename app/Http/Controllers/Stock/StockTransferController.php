@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Stock;
 
+use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Stock\BulkSubmitStockTransferRequest;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Stock\Models\StockTransfer;
@@ -18,6 +20,7 @@ use Illuminate\View\View;
 
 class StockTransferController extends Controller
 {
+    use HasBulkAction;
     use HasPerPageSelector;
 
     public function __construct(private readonly StockTransferService $service) {}
@@ -118,6 +121,30 @@ class StockTransferController extends Controller
 
         return redirect()->route('operations.stock-transfers.show', $transfer)
             ->with('success', 'Transfer stok berhasil disubmit untuk approval.');
+    }
+
+    public function bulkSubmit(BulkSubmitStockTransferRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $userId = (int) $request->user()->id;
+
+        $transfers = StockTransfer::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->where('status', StockTransfer::STATUS_DRAFT)
+            ->get();
+
+        $result = $this->runBulkAction(
+            $transfers,
+            fn (StockTransfer $transfer) => $this->service->submit($transfer, $userId),
+            fn (StockTransfer $transfer) => "#{$transfer->id}"
+        );
+
+        return $this->bulkActionRedirect(
+            'operations.stock-transfers.index',
+            $result,
+            "{$result['processed']} transfer stok berhasil disubmit."
+        );
     }
 
     public function approve(Request $request, StockTransfer $transfer): RedirectResponse

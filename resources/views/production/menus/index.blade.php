@@ -21,6 +21,7 @@
         </a>
     </div>
 
+    <div x-data="{ selected: [] }">
     <x-sf.card title="Daftar Menu">
         @if($menus->isEmpty())
             <div class="text-center py-8 text-gray-400">
@@ -30,6 +31,10 @@
             <div class="divide-y divide-gray-50">
                 @foreach($menus as $menu)
                     <a href="{{ route('production.menus.show', $menu) }}" class="flex items-center justify-between gap-3 px-3 py-3 hover:bg-gray-50 transition-colors">
+                        @can('manage_recipes')
+                            <input type="checkbox" x-model="selected" value="{{ $menu->id }}"
+                                   @click.stop class="rounded border-gray-300 text-primary-700 shrink-0">
+                        @endcan
                         <div class="flex items-center gap-3 min-w-0">
                             @if($menu->photoUrl())
                                 <img src="{{ $menu->photoUrl() }}" alt="{{ $menu->name }}" class="w-10 h-10 rounded-xl object-cover shrink-0">
@@ -51,7 +56,17 @@
                 @endforeach
             </div>
         @endif
+
+        @can('manage_recipes')
+            <x-sf.bulk-action-bar
+                route="{{ route('production.menus.bulk-destroy') }}"
+                confirm-message="Hapus __COUNT__ menu terpilih? Menu yang masih punya riwayat resep akan dinonaktifkan, bukan dihapus permanen."
+                button-label="Hapus Terpilih"
+                button-icon="ti-trash"
+            />
+        @endcan
     </x-sf.card>
+    </div>
 
     <div class="flex items-center justify-between gap-2 flex-wrap">
         <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />

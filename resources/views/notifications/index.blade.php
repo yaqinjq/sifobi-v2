@@ -14,7 +14,7 @@
     </x-slot:actions>
 </x-sf.page-header>
 
-<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-5">
+<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-5" x-data="{ selected: [] }">
     <x-sf.card :padding="false">
         @if($notifications->isEmpty())
             <div class="text-center py-8 text-gray-400">
@@ -35,6 +35,10 @@
                     @endphp
                     <a href="{{ route('notifications.open', $notification->id) }}"
                        class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors {{ $unread ? 'bg-primary-50' : '' }}">
+                        @if($unread)
+                            <input type="checkbox" x-model="selected" value="{{ $notification->id }}"
+                                   @click.stop class="mt-1 rounded border-gray-300 text-primary-700 shrink-0">
+                        @endif
                         <span class="mt-1.5 w-2 h-2 rounded-full shrink-0 {{ $unread ? 'bg-primary-600' : 'bg-transparent' }}"></span>
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2 flex-wrap">
@@ -54,5 +58,12 @@
             {{ $notifications->links() }}
         </div>
     </x-sf.card>
+
+    <x-sf.bulk-action-bar
+        route="{{ route('notifications.bulk-mark-read') }}"
+        confirm-message="Tandai __COUNT__ notifikasi terpilih sebagai sudah dibaca?"
+        button-label="Tandai Dibaca"
+        button-icon="ti-checks"
+    />
 </div>
 @endsection

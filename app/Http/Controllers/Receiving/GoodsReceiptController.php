@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Receiving;
 
+use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Receiving\BulkSubmitGoodsReceiptRequest;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\Unit;
@@ -22,6 +24,7 @@ use Illuminate\View\View;
 
 class GoodsReceiptController extends Controller
 {
+    use HasBulkAction;
     use HasPerPageSelector;
 
     public function __construct(private readonly GoodsReceiptService $goodsReceiptService)
@@ -56,12 +59,18 @@ class GoodsReceiptController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        $submittableIds = $receipts->getCollection()
+            ->whereIn('status', [GoodsReceipt::STATUS_DRAFT, GoodsReceipt::STATUS_REJECTED])
+            ->pluck('id')
+            ->values();
+
         return view('receiving.goods-receipts.index', [
             'receipts' => $receipts,
             'sources' => $this->sources(),
             'statuses' => $this->statuses(),
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
+            'submittableIds' => $submittableIds,
         ]);
     }
 
@@ -187,6 +196,31 @@ class GoodsReceiptController extends Controller
         return redirect()
             ->route('receiving.goods-receipts.show', $updated)
             ->with('success', 'Penerimaan berhasil disubmit untuk review.');
+    }
+
+    public function bulkSubmit(BulkSubmitGoodsReceiptRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $userId = (int) $request->user()->id;
+
+        $receipts = GoodsReceipt::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->whereIn('status', [GoodsReceipt::STATUS_DRAFT, GoodsReceipt::STATUS_REJECTED])
+            ->get();
+
+        $result = $this->runBulkAction(
+            $receipts,
+            fn (GoodsReceipt $receipt) => $this->goodsReceiptService->submit($receipt, $userId),
+            fn (GoodsReceipt $receipt) => $receipt->code ?? "#{$receipt->id}"
+        );
+
+        return $this->bulkActionRedirect(
+            'receiving.goods-receipts.index',
+            $result,
+            "{$result['processed']} penerimaan berhasil disubmit."
+        );
     }
 
     public function approve(Request $request, GoodsReceipt $receipt): RedirectResponse

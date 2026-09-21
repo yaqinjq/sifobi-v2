@@ -70,6 +70,7 @@
     </div>
 
     {{-- List --}}
+    <div x-data="{ selected: [] }">
     <x-sf.card>
         @if($pos->isEmpty())
             <div class="text-center py-12 text-gray-400">
@@ -91,6 +92,13 @@
                 @foreach($pos as $po)
                     <a href="{{ route('procurement.purchase-orders.show', $po) }}"
                        class="flex items-start gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors">
+
+                        @if($po->status === 'SUBMITTED')
+                            @can('approve_po')
+                                <input type="checkbox" x-model="selected" value="{{ $po->id }}"
+                                       @click.stop class="mt-3 rounded border-gray-300 text-primary-700 shrink-0">
+                            @endcan
+                        @endif
 
                         {{-- Icon status kiri --}}
                         <div class="mt-0.5 shrink-0">
@@ -182,6 +190,16 @@
             </div>
         @endif
     </x-sf.card>
+
+    @can('approve_po')
+        <x-sf.bulk-action-bar
+            route="{{ route('procurement.purchase-orders.bulk-approve') }}"
+            confirm-message="Approve __COUNT__ PO terpilih?"
+            button-label="Approve Terpilih"
+            button-icon="ti-checks"
+        />
+    @endcan
+    </div>
 
 </div>
 @endsection

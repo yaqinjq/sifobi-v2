@@ -21,7 +21,7 @@
     ];
 @endphp
 
-<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4">
+<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4" x-data="{ selected: [] }">
     <x-sf.card>
         <form method="GET" action="{{ route('receiving.goods-receipts.index') }}" class="grid grid-cols-1 md:grid-cols-5 gap-3">
             <select name="source" class="sf-input text-base min-h-11">
@@ -88,6 +88,15 @@
             <table class="min-w-full divide-y divide-gray-100">
                 <thead class="bg-gray-50">
                     <tr class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        @can('submit_goods_receipt')
+                            <th class="px-4 py-3 w-10">
+                                @if($submittableIds->isNotEmpty())
+                                    <input type="checkbox" class="rounded border-gray-300 text-primary-700"
+                                           :checked="selected.length === {{ $submittableIds->count() }} && {{ $submittableIds->count() }} > 0"
+                                           @change="selected = $event.target.checked ? @js($submittableIds) : []">
+                                @endif
+                            </th>
+                        @endcan
                         <th class="px-4 py-3">No</th>
                         <th class="px-4 py-3">Kode</th>
                         <th class="px-4 py-3">Tanggal</th>
@@ -103,6 +112,13 @@
                 <tbody class="divide-y divide-gray-100 text-sm">
                     @forelse($receipts as $receipt)
                         <tr class="{{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
+                            @can('submit_goods_receipt')
+                                <td class="px-4 py-3">
+                                    @if(in_array($receipt->status, ['DRAFT', 'REJECTED'], true))
+                                        <input type="checkbox" x-model="selected" value="{{ $receipt->id }}" class="rounded border-gray-300 text-primary-700">
+                                    @endif
+                                </td>
+                            @endcan
                             <td class="px-4 py-3 text-gray-500">{{ $receipts->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3 font-semibold text-gray-900">{{ $receipt->code ?? $receipt->receipt_number }}</td>
                             <td class="px-4 py-3 text-gray-600">{{ optional($receipt->receipt_date)->format('d M Y') }}</td>
@@ -137,7 +153,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="px-4 py-10 text-center text-sm text-gray-500">Belum ada penerimaan.</td>
+                            <td colspan="11" class="px-4 py-10 text-center text-sm text-gray-500">Belum ada penerimaan.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -150,5 +166,14 @@
         <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
         {{ $receipts->links() }}
     </div>
+
+    @can('submit_goods_receipt')
+        <x-sf.bulk-action-bar
+            route="{{ route('receiving.goods-receipts.bulk-submit') }}"
+            confirm-message="Submit __COUNT__ penerimaan draft/ditolak terpilih untuk review?"
+            button-label="Submit Terpilih"
+            button-icon="ti-send"
+        />
+    @endcan
 </div>
 @endsection

@@ -192,6 +192,16 @@
                 <i class="ti ti-chevron-right sh-arrow" aria-hidden="true"></i>
             </a>
         @endcan
+        @can('manage_stock_configs')
+            <a href="{{ route('settings.department-category-mapping.import-form') }}" class="sh-item">
+                <div class="sh-icon sh-icon-purple"><i class="ti ti-sitemap" aria-hidden="true"></i></div>
+                <div class="sh-text">
+                    <p class="sh-name">Mapping departemen & kategori opname</p>
+                    <p class="sh-desc">Atur kategori dan urutan tampil item per departemen untuk Opname</p>
+                </div>
+                <i class="ti ti-chevron-right sh-arrow" aria-hidden="true"></i>
+            </a>
+        @endcan
     </div>
 
     @can('manage_users')

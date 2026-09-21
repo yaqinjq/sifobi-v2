@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Procurement;
 
+use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Procurement\BulkApprovePurchaseOrderRequest;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
@@ -20,6 +22,7 @@ use Illuminate\View\View;
 
 class PurchaseOrderController extends Controller
 {
+    use HasBulkAction;
     use HasPerPageSelector;
 
     public function __construct(private readonly PurchaseOrderService $service) {}
@@ -296,6 +299,30 @@ class PurchaseOrderController extends Controller
         return redirect()
             ->route('procurement.purchase-orders.show', $purchaseOrder)
             ->with('success', 'PO berhasil disetujui.');
+    }
+
+    public function bulkApprove(BulkApprovePurchaseOrderRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $userId = (int) $request->user()->id;
+
+        $purchaseOrders = PurchaseOrder::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->where('status', PurchaseOrder::STATUS_SUBMITTED)
+            ->get();
+
+        $result = $this->runBulkAction(
+            $purchaseOrders,
+            fn (PurchaseOrder $po) => $this->service->approve($po, $userId),
+            fn (PurchaseOrder $po) => $po->po_number ?? "#{$po->id}"
+        );
+
+        return $this->bulkActionRedirect(
+            'procurement.purchase-orders.index',
+            $result,
+            "{$result['processed']} PO berhasil disetujui."
+        );
     }
 
     public function reject(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse

@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Production;
 
+use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Production\BulkDestroyMenuRequest;
 use App\Modules\Core\Models\Brand;
 use App\Modules\Production\Models\Menu;
 use App\Modules\Production\Models\MenuCategory;
@@ -15,6 +17,7 @@ use Illuminate\View\View;
 
 class MenuController extends Controller
 {
+    use HasBulkAction;
     use HasPerPageSelector;
 
     public function index(Request $request): View
@@ -158,6 +161,52 @@ class MenuController extends Controller
 
         abort_unless((int) $menu->tenant_id === $tenantId, 403);
 
+        $hardDeleted = $this->deleteOrDeactivate($menu);
+
+        return redirect()
+            ->route('production.menus.index')
+            ->with('success', $hardDeleted
+                ? 'Menu berhasil dihapus.'
+                : 'Menu dinonaktifkan (masih punya riwayat resep, tidak bisa dihapus permanen).');
+    }
+
+    public function bulkDestroy(BulkDestroyMenuRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+
+        $menus = Menu::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->get();
+
+        $hardDeleted = 0;
+        $deactivated = 0;
+
+        $result = $this->runBulkAction(
+            $menus,
+            function (Menu $menu) use (&$hardDeleted, &$deactivated): void {
+                if ($this->deleteOrDeactivate($menu)) {
+                    $hardDeleted++;
+                } else {
+                    $deactivated++;
+                }
+            },
+            fn (Menu $menu) => $menu->name
+        );
+
+        $message = "{$hardDeleted} menu dihapus permanen, {$deactivated} dinonaktifkan (masih punya riwayat resep).";
+
+        return $this->bulkActionRedirect('production.menus.index', $result, $message);
+    }
+
+    /**
+     * Hard-delete Menu jika belum pernah dipakai di resep manapun, kalau
+     * sudah cuma dinonaktifkan -- logika APA ADANYA dari destroy() lama,
+     * dipakai bareng oleh destroy() satuan dan bulkDestroy() supaya tidak
+     * ada 2 tempat yang bisa berbeda perilaku.
+     */
+    private function deleteOrDeactivate(Menu $menu): bool
+    {
         if ($menu->canHardDelete()) {
             if ($menu->photo_path) {
                 Storage::disk('public')->delete($menu->photo_path);
@@ -165,16 +214,12 @@ class MenuController extends Controller
 
             $menu->delete();
 
-            return redirect()
-                ->route('production.menus.index')
-                ->with('success', 'Menu berhasil dihapus.');
+            return true;
         }
 
         $menu->update(['is_active' => false]);
 
-        return redirect()
-            ->route('production.menus.index')
-            ->with('success', 'Menu dinonaktifkan (masih punya riwayat resep, tidak bisa dihapus permanen).');
+        return false;
     }
 
     private function tenantId(Request $request): int

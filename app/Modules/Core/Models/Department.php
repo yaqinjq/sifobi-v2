@@ -3,6 +3,7 @@
 namespace App\Modules\Core\Models;
 
 use App\Modules\Inventory\Models\Item;
+use App\Modules\Inventory\Models\ItemCategory;
 use App\Modules\Procurement\Models\PurchaseOrder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -28,7 +29,12 @@ class Department extends Model
             'item_departments',
             'department_id',
             'item_id'
-        )->withTimestamps();
+        )->withPivot('sort_order')->withTimestamps();
+    }
+
+    public function itemCategories(): BelongsToMany
+    {
+        return $this->belongsToMany(ItemCategory::class, 'department_item_categories')->withTimestamps();
     }
 
     /** Returns the PO types allowed for this department (null = all active types). */

@@ -27,6 +27,7 @@ use App\Http\Controllers\Settings\RoleController;
 use App\Http\Controllers\Settings\BrandController;
 use App\Http\Controllers\Settings\CalendarEventController;
 use App\Http\Controllers\Settings\DefaultConversionController;
+use App\Http\Controllers\Settings\DepartmentCategoryMappingController;
 use App\Http\Controllers\Settings\DepartmentController;
 use App\Http\Controllers\Settings\IntegrationController;
 use App\Http\Controllers\Settings\WiproCatalogController;
@@ -155,6 +156,7 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
     Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/{id}/open', [\App\Http\Controllers\NotificationController::class, 'open'])->name('notifications.open');
     Route::post('/notifications/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
+    Route::post('/notifications/bulk-mark-read', [\App\Http\Controllers\NotificationController::class, 'bulkMarkRead'])->name('notifications.bulk-mark-read');
 
     Route::get('/admin/core', CoreHealthController::class)->middleware('permission:manage_core')->name('admin.core');
 
@@ -209,6 +211,8 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                     ->names('users');
                 Route::patch('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])
                     ->name('users.toggle-status');
+                Route::post('users/bulk-toggle-status', [UserController::class, 'bulkToggleStatus'])
+                    ->name('users.bulk-toggle-status');
                 Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])
                     ->name('users.reset-password');
 
@@ -254,11 +258,29 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             ->only(['index', 'store', 'update', 'destroy'])
             ->middleware('permission:manage_stock_configs')
             ->names('stock-configs');
+        Route::post('stock-configs/bulk-destroy', [StockConfigController::class, 'bulkDestroy'])
+            ->middleware('permission:manage_stock_configs')
+            ->name('stock-configs.bulk-destroy');
 
         Route::resource('calendar-events', CalendarEventController::class)
             ->only(['index', 'store', 'update', 'destroy'])
             ->middleware('permission:manage_calendar_events')
             ->names('calendar-events');
+        Route::post('calendar-events/bulk-destroy', [CalendarEventController::class, 'bulkDestroy'])
+            ->middleware('permission:manage_calendar_events')
+            ->name('calendar-events.bulk-destroy');
+
+        Route::prefix('department-category-mapping')
+            ->name('department-category-mapping.')
+            ->middleware('permission:manage_stock_configs')
+            ->group(function (): void {
+                Route::get('/', [DepartmentCategoryMappingController::class, 'importForm'])
+                    ->name('import-form');
+                Route::post('/', [DepartmentCategoryMappingController::class, 'import'])
+                    ->name('import');
+                Route::get('/template', [DepartmentCategoryMappingController::class, 'importTemplate'])
+                    ->name('import-template');
+            });
     });
 
     Route::get('api/stock-suggestion', [SmartOrderController::class, 'suggest'])
@@ -287,6 +309,8 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             ->name('master-data.items.aliases.destroy');
         Route::patch('master-data/items/{item}/toggle-active', [ItemController::class, 'toggleStatus'])
             ->name('master-data.items.toggle-active');
+        Route::post('master-data/items/bulk-toggle-active', [ItemController::class, 'bulkToggleStatus'])
+            ->name('master-data.items.bulk-toggle-active');
 
         Route::resource('master-data/items', ItemController::class)
             ->except(['index', 'show'])
@@ -364,6 +388,9 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::delete('goods-receipts/{receipt}', [GoodsReceiptController::class, 'destroy'])
                 ->middleware('permission:create_goods_receipt')
                 ->name('goods-receipts.destroy');
+            Route::post('goods-receipts/bulk-submit', [GoodsReceiptController::class, 'bulkSubmit'])
+                ->middleware('permission:submit_goods_receipt')
+                ->name('goods-receipts.bulk-submit');
             Route::post('goods-receipts/{receipt}/submit', [GoodsReceiptController::class, 'submit'])
                 ->middleware('permission:submit_goods_receipt')
                 ->name('goods-receipts.submit');
@@ -426,6 +453,9 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
         Route::get('/spoil-wastes/{spoil}', [SpoilWasteController::class, 'show'])
             ->middleware('permission:record_spoil')
             ->name('spoil-wastes.show');
+        Route::post('/spoil-wastes/bulk-approve', [SpoilWasteController::class, 'bulkApprove'])
+            ->middleware('permission:approve_spoil')
+            ->name('spoil-wastes.bulk-approve');
         Route::post('/spoil-wastes/{spoil}/approve', [SpoilWasteController::class, 'approve'])
             ->middleware('permission:approve_spoil')
             ->name('spoil-wastes.approve');
@@ -456,6 +486,18 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::post('/', [OpnameController::class, 'store'])
                 ->middleware('permission:input_opname')
                 ->name('store');
+            Route::get('/create-historical', [OpnameController::class, 'createHistorical'])
+                ->middleware('permission:input_opname')
+                ->name('create-historical');
+            Route::post('/historical', [OpnameController::class, 'storeHistorical'])
+                ->middleware('permission:input_opname')
+                ->name('store-historical');
+            Route::post('/bulk-submit', [OpnameController::class, 'bulkSubmit'])
+                ->middleware('permission:input_opname')
+                ->name('bulk-submit');
+            Route::post('/bulk-approve', [OpnameController::class, 'bulkApprove'])
+                ->middleware('permission:approve_opname')
+                ->name('bulk-approve');
             Route::get('/{session}', [OpnameController::class, 'show'])
                 ->middleware('permission:input_opname')
                 ->name('show');
@@ -488,6 +530,9 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                 Route::get('/{transfer}', [StockTransferController::class, 'show'])
                     ->middleware('permission:create_stock_transfers')
                     ->name('show');
+                Route::post('/bulk-submit', [StockTransferController::class, 'bulkSubmit'])
+                    ->middleware('permission:create_stock_transfers')
+                    ->name('bulk-submit');
                 Route::post('/{transfer}/submit', [StockTransferController::class, 'submit'])
                     ->middleware('permission:create_stock_transfers')
                     ->name('submit');
@@ -519,6 +564,9 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             ->name('open-stocks.import.store');
 
         Route::get('/open-stocks', [OpenStockController::class, 'index'])->name('open-stocks.index');
+
+        Route::get('/open-stocks/export', [OpenStockController::class, 'export'])
+            ->name('open-stocks.export');
 
         Route::get('/open-stocks/create', [OpenStockController::class, 'create'])
             ->middleware('permission:input_open_stock')
@@ -576,6 +624,10 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
 
             Route::post('/{purchaseOrder}/submit', [PurchaseOrderController::class, 'submit'])->name('submit');
 
+            Route::post('/bulk-approve', [PurchaseOrderController::class, 'bulkApprove'])
+                ->middleware('permission:approve_po')
+                ->name('bulk-approve');
+
             Route::post('/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])
                 ->middleware('permission:approve_po')
                 ->name('approve');
@@ -609,6 +661,7 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::get('/menus/{menu}/edit', [MenuController::class, 'edit'])->name('menus.edit');
             Route::put('/menus/{menu}', [MenuController::class, 'update'])->name('menus.update');
             Route::delete('/menus/{menu}', [MenuController::class, 'destroy'])->name('menus.destroy');
+            Route::post('/menus/bulk-destroy', [MenuController::class, 'bulkDestroy'])->name('menus.bulk-destroy');
 
             Route::get('/menus/{menu}/recipes/create', [RecipeController::class, 'create'])->name('recipes.create');
             Route::post('/menus/{menu}/recipes', [RecipeController::class, 'store'])->name('recipes.store');
@@ -632,6 +685,7 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::post('/hpp-calculator', [\App\Http\Controllers\Production\HppCalculatorController::class, 'store'])->name('hpp-calculator.store');
             Route::get('/hpp-calculator/{hppCalculation}', [\App\Http\Controllers\Production\HppCalculatorController::class, 'show'])->name('hpp-calculator.show');
             Route::delete('/hpp-calculator/{hppCalculation}', [\App\Http\Controllers\Production\HppCalculatorController::class, 'destroy'])->name('hpp-calculator.destroy');
+            Route::post('/hpp-calculator/bulk-destroy', [\App\Http\Controllers\Production\HppCalculatorController::class, 'bulkDestroy'])->name('hpp-calculator.bulk-destroy');
         });
 
     // ── POS + Layout Tempat Usaha ────────────────────────────────────────

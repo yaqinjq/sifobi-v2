@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Production;
 
+use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Production\BulkDestroyHppCalculationRequest;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Production\Models\HppCalculation;
 use Illuminate\Http\RedirectResponse;
@@ -13,6 +15,7 @@ use Illuminate\View\View;
 
 class HppCalculatorController extends Controller
 {
+    use HasBulkAction;
     use HasPerPageSelector;
 
     public function index(Request $request): View
@@ -102,6 +105,28 @@ class HppCalculatorController extends Controller
         return redirect()
             ->route('production.hpp-calculator.index')
             ->with('success', 'Riwayat perhitungan dihapus.');
+    }
+
+    public function bulkDestroy(BulkDestroyHppCalculationRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+
+        $calculations = HppCalculation::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->get();
+
+        $result = $this->runBulkAction(
+            $calculations,
+            fn (HppCalculation $calc) => $calc->delete(),
+            fn (HppCalculation $calc) => "#{$calc->id}"
+        );
+
+        return $this->bulkActionRedirect(
+            'production.hpp-calculator.index',
+            $result,
+            "{$result['processed']} riwayat perhitungan berhasil dihapus."
+        );
     }
 
     private function tenantId(Request $request): int

@@ -161,6 +161,22 @@ test('pic outlet can submit draft for review', function (): void {
         ->and($receipt->review_status)->toBe(GoodsReceipt::REVIEW_NEED_REVIEW);
 });
 
+test('bulk submit moves only draft and rejected receipts to submitted', function (): void {
+    $user = goodsReceiptUser('PIC_OUTLET');
+
+    $this->actingAs($user)->post(route('receiving.goods-receipts.store'), goodsReceiptPayload());
+    $this->actingAs($user)->post(route('receiving.goods-receipts.store'), goodsReceiptPayload());
+
+    $receipts = GoodsReceipt::query()->get();
+    expect($receipts)->toHaveCount(2);
+
+    $this->actingAs($user)
+        ->post(route('receiving.goods-receipts.bulk-submit'), ['ids' => $receipts->pluck('id')->all()])
+        ->assertRedirect(route('receiving.goods-receipts.index'));
+
+    expect($receipts->fresh()->pluck('status')->unique()->all())->toBe([GoodsReceipt::STATUS_SUBMITTED]);
+});
+
 test('approve posts goods receipt to stock ledger and balance', function (): void {
     $creator = goodsReceiptUser('PIC_OUTLET');
     $approver = goodsReceiptUser('MANAGER_AREA');

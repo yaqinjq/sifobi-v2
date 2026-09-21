@@ -111,6 +111,7 @@
                 Operasi → Open Stock → pilih outlet → isi qty per item → Submit.</p>
                 <p class="text-gray-600 mt-2"><strong>HPP/harga per unit sekarang wajib diisi</strong> di semua cara input (form satuan, form batch/bulk, maupun import Excel) &mdash; dipakai untuk hitung nilai stok di laporan Finance. Tanpa HPP, submit akan ditolak.</p>
                 <p class="text-gray-600 mt-2">Semua cara input (termasuk import Excel) menghasilkan status <strong>Draft</strong> dulu, belum masuk ke stok. Setelah itu wajib <strong>Post</strong> supaya benar-benar tercatat. Untuk banyak baris sekaligus (mis. hasil import), centang baris-baris Draft yang mau diaktifkan lalu klik <strong>"Post Draft Terpilih"</strong> di bagian bawah layar &mdash; tidak perlu klik satu-satu.</p>
+                <p class="text-gray-600 mt-2">Untuk role tinggi yang mengelola banyak outlet (SUPER_ADMIN, GENERAL_FINANCE, dll), halaman Open Stock punya filter <strong>Brand</strong>, <strong>Outlet</strong>, dan <strong>Departemen</strong> di baris atas tabel &mdash; user yang sudah terikat ke 1 outlet tidak melihat filter Brand/Outlet karena datanya otomatis sudah sesuai outlet sendiri. Tombol <strong>Export</strong> di sebelah filter akan mengunduh Excel sesuai filter yang sedang aktif (kalau filter Departemen = Bar, hasil export juga cuma Bar).</p>
             </div>
         </div>
     </x-sf.card>
@@ -375,18 +376,81 @@
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm text-gray-700">
             <p class="text-xs text-gray-500">Dilakukan setiap hari (atau sesuai jadwal item) untuk menjaga akurasi stok.</p>
-            <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
-                <li>Buka <strong>Operasi → Opname Stok</strong></li>
-                <li>Pilih outlet dan tanggal opname</li>
-                <li>Isi jumlah stok aktual yang dihitung secara fisik untuk setiap item</li>
-                <li>Sistem menghitung selisih (aktual vs ledger) secara otomatis</li>
-                <li>Submit opname → selisih dicatat ke ledger sebagai adjustment</li>
-            </ol>
-            <div class="rounded-xl bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-800">
-                Frekuensi opname per item diatur di Master Data (DAILY / WEEKLY / MONTHLY). Hanya item yang jadwalnya jatuh hari itu yang muncul.
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">1. Mulai Opname Harian</p>
+                <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Buka <strong>Operasi → Opname Stok → "+ Mulai Opname"</strong></li>
+                    <li>Staff/PIC yang sudah punya outlet dan departemen tetap (mis. STAFF_BAR) akan melihat Outlet dan Departemen sudah otomatis terisi (tidak perlu pilih apa-apa) &mdash; tinggal isi Shift dan Catatan kalau perlu</li>
+                    <li>User tanpa departemen tetap (mis. PIC_OUTLET, MANAGER_AREA, SUPER_ADMIN) tetap harus memilih Departemen mana yang mau di-opname</li>
+                    <li>Tanggal opname harian SELALU hari ini dan tidak bisa diubah dari form ini &mdash; kalau ada opname tanggal lampau yang terlewat, pakai tombol <strong>"Input Historis"</strong> di halaman daftar Opname</li>
+                    <li>Isi jumlah stok aktual yang dihitung secara fisik untuk setiap item, sistem menghitung selisih otomatis</li>
+                    <li>Submit opname → menunggu approval dari atasan → setelah di-approve, selisih dicatat ke ledger sebagai adjustment</li>
+                </ol>
             </div>
+
+            <div class="rounded-xl bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-800">
+                <strong>Kenapa sekarang per-departemen?</strong> Dulu, kalau tim BAR dan tim KITCHEN sama-sama opname di tanggal yang sama, di halaman daftar Opname atasan akan terlihat seperti "opname berkali-kali" untuk tanggal yang sama, padahal itu departemen yang berbeda &mdash; membingungkan dan kelihatan tidak rapi. Sekarang tiap departemen punya sesi opname-nya sendiri (kolom <strong>Departemen</strong> di daftar Opname menunjukkan dengan jelas sesi mana milik departemen mana), jadi BAR dan KITCHEN bisa opname bersamaan tanpa saling memblokir dan tanpa bikin bingung siapa pun yang mengontrol laporannya.
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">2. Input Historis (opname yang terlewat)</p>
+                <p class="text-xs text-gray-600">Kalau ada tanggal yang lupa di-opname, klik <strong>"Input Historis"</strong> di halaman daftar Opname (bukan tombol "Mulai Opname" biasa). Form ini punya field Tanggal yang bisa diisi tanggal lampau, dan Catatan/Alasan wajib diisi untuk menjelaskan kenapa opname tanggal itu baru diinput sekarang &mdash; supaya tetap ada jejak audit yang jelas.</p>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">3. Filter & Mode Tampilan</p>
+                <p class="text-xs text-gray-600 mb-2">Di halaman daftar Opname, role tinggi (SUPER_ADMIN, GENERAL_FINANCE, dll) bisa filter Brand, Outlet, dan Departemen. Di halaman detail 1 sesi opname, tersedia filter <strong>Kategori</strong> (cuma menampilkan kategori yang relevan untuk departemen sesi tsb &mdash; bukan semua kategori master, diatur lewat menu Settings &gt; "Mapping Departemen & Kategori Opname") dan pilihan <strong>Urutkan</strong>:</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div class="rounded-lg bg-gray-50 px-3 py-2">
+                        <p class="font-medium text-gray-700">Urutkan: A-Z</p>
+                        <p class="text-gray-500 mt-0.5">Urutan abjad nama item (default).</p>
+                    </div>
+                    <div class="rounded-lg bg-gray-50 px-3 py-2">
+                        <p class="font-medium text-gray-700">Urutkan: Sesuai Form</p>
+                        <p class="text-gray-500 mt-0.5">Mengikuti urutan Kategori &amp; Sub Kategori dari file mapping yang diupload admin &mdash; menyesuaikan urutan form fisik yang dipegang tim di lapangan.</p>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-600 mt-2 mb-2">Ada 4 pilihan mode tampilan (tombol Card/List/Per Kategori/Zoom di atas daftar item):</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div class="rounded-lg bg-gray-50 px-3 py-2">
+                        <p class="font-medium text-gray-700">Card</p>
+                        <p class="text-gray-500 mt-0.5">Tampilan kartu 2 kolom (default), info lengkap per item.</p>
+                    </div>
+                    <div class="rounded-lg bg-gray-50 px-3 py-2">
+                        <p class="font-medium text-gray-700">List</p>
+                        <p class="text-gray-500 mt-0.5">Tampilan 1 kolom memanjang, lebih padat untuk scroll cepat.</p>
+                    </div>
+                    <div class="rounded-lg bg-gray-50 px-3 py-2">
+                        <p class="font-medium text-gray-700">Per Kategori</p>
+                        <p class="text-gray-500 mt-0.5">Item dikelompokkan per kategori/sub-kategori dengan judul pemisah, otomatis diurutkan "Sesuai Form".</p>
+                    </div>
+                    <div class="rounded-lg bg-gray-50 px-3 py-2">
+                        <p class="font-medium text-gray-700">Zoom <span class="text-gray-400">(khusus desktop)</span></p>
+                        <p class="text-gray-500 mt-0.5">Grid ringkas foto semua item → klik 1 item untuk fokus hitung dengan animasi transisi halus, ada tombol navigasi item berikutnya/sebelumnya. Tidak tersedia di HP.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">4. Aksi Massal (Bulk Action)</p>
+                <p class="text-xs text-gray-600">Di halaman daftar Opname, centang beberapa sesi <strong>Draft</strong> sekaligus lalu klik <strong>"Submit Terpilih"</strong>, atau centang beberapa sesi <strong>Submitted</strong> lalu klik <strong>"Approve Terpilih"</strong> (khusus yang punya akses approve) &mdash; tidak perlu buka satu-satu.</p>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">5. Setup Mapping Kategori & Urutan Form (khusus Admin)</p>
+                <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Buka <strong>Settings → Mapping Departemen & Kategori Opname</strong></li>
+                    <li>Klik <strong>"Unduh Template"</strong>, isi kolom <em>departemen</em>, <em>kategori</em>, <em>urutan</em>, dan <em>sub_kategori</em> sesuai contoh dan petunjuk di sheet "PETUNJUK"</li>
+                    <li>Upload file yang sudah diisi lewat form "Upload File" di halaman yang sama</li>
+                    <li>Kategori dan Sub Kategori yang belum ada akan dibuat otomatis, dan langsung ter-mapping ke departemen terkait &mdash; hasilnya langsung muncul di filter Kategori dan mode urutan "Sesuai Form" pada halaman Opname</li>
+                    <li>Import ulang file yang sama aman dilakukan kapan saja untuk memperbarui urutan &mdash; tidak akan membuat data dobel</li>
+                </ol>
+                <p class="text-xs text-gray-500 mt-2">Assign item ke suatu Sub Kategori tetap lewat <strong>Master Data Item</strong> seperti biasa &mdash; file mapping ini cuma mengatur struktur &amp; urutan kategorinya, bukan daftar item.</p>
+            </div>
+
             <div class="rounded-xl bg-green-50 border border-green-100 px-3 py-2 text-xs text-green-800">
-                Di tampilan desktop, tiap item sekarang menampilkan foto (kalau ada) supaya lebih mudah dikenali dan tidak salah pilih barang yang mirip.
+                Foto item sekarang tampil juga di HP (sebelumnya cuma tampil di desktop), supaya lebih mudah dikenali dan tidak salah pilih barang yang mirip.
             </div>
             <div class="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800">
                 Angka "Stok Saat Ini" dibekukan sejak sesi Opname pertama kali dibuat, supaya tidak berubah-ubah sendiri selagi Anda masih menghitung fisik. Kalau ada koreksi data stok (mis. Open Stock yang dibatalkan lalu diposting ulang) SETELAH sesi ini dimulai, akan muncul kotak kuning "Stok sistem sudah berubah" di item terkait &mdash; klik <strong>"Sinkronkan Sekarang"</strong> untuk mengambil angka terbaru tanpa perlu membatalkan seluruh sesi.
@@ -495,6 +559,13 @@
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm text-gray-700">
+            <div class="rounded-xl bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-800">
+                Semua fitur filter, export, dan aksi massal (bulk action) yang ditambahkan di halaman-halaman operasional memakai permission yang SUDAH ADA sebelumnya (mis. filter/export Open Stock ikut <code class="bg-white px-1 rounded">input_open_stock</code>/<code class="bg-white px-1 rounded">post_open_stock</code>, bulk approve Opname ikut <code class="bg-white px-1 rounded">approve_opname</code>) &mdash; tidak ada permission baru yang perlu di-setting ulang untuk role yang sudah ada, KECUALI menu baru <strong>Settings &gt; Mapping Departemen &amp; Kategori Opname</strong> yang memakai permission <code class="bg-white px-1 rounded">manage_stock_configs</code> (role yang sudah punya akses "Konfigurasi Stok" otomatis juga punya akses menu ini).
+            </div>
+            <div class="rounded-xl bg-gray-50 border border-gray-100 px-3 py-2 text-xs text-gray-700">
+                <p class="font-semibold text-gray-800 mb-1">Aksi massal (centang beberapa baris sekaligus) kini tersedia di:</p>
+                Open Stock (Post), Opname (Submit/Approve), Penerimaan Barang (Submit), Transfer Stok (Submit), Spoil &amp; Waste (Approve), Purchase Order (Approve), Manajemen User (Aktifkan/Nonaktifkan), Master Data Item (Aktifkan/Nonaktifkan), Menu &amp; Resep (Hapus), Kalkulator HPP (Hapus riwayat), Kalender Event (Hapus), Konfigurasi Stok (Hapus), dan Notifikasi (Tandai dibaca). Tombol aksi massal muncul di bagian bawah layar begitu ada baris yang dicentang.
+            </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-xs border-separate" style="border-spacing: 0">
                     <thead>

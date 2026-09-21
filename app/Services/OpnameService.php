@@ -32,29 +32,37 @@ class OpnameService
         return DB::transaction(function () use ($data, $userId): OpnameSession {
             $tenantId = (int) $data['tenant_id'];
             $outletId = (int) $data['outlet_id'];
+            $departmentId = isset($data['department_id']) && $data['department_id'] !== null
+                ? (int) $data['department_id']
+                : null;
             $opnameDate = Carbon::parse($data['opname_date'])->toDateString();
             $type = $data['type'] ?? OpnameSession::TYPE_DAILY;
 
             $this->assertOutletBelongsToTenant($outletId, $tenantId);
 
+            // department_id ikut jadi bagian dari kunci unik sesi -- ini yang
+            // memungkinkan BAR dan KITCHEN sama-sama punya sesi opname harian
+            // berjalan (DRAFT/SUBMITTED) di outlet & tanggal yang sama tanpa
+            // saling memblokir/menumpuk seolah-olah opname diulang berkali-kali.
             $openSessionExists = OpnameSession::query()
                 ->where('tenant_id', $tenantId)
                 ->where('outlet_id', $outletId)
                 ->whereDate('opname_date', $opnameDate)
                 ->where('type', $type)
+                ->where('department_id', $departmentId)
                 ->whereIn('status', [OpnameSession::STATUS_DRAFT, OpnameSession::STATUS_SUBMITTED])
                 ->exists();
 
             if ($openSessionExists) {
                 throw ValidationException::withMessages([
-                    'opname_date' => 'Masih ada sesi opname draft/submitted untuk outlet dan tanggal ini.',
+                    'opname_date' => 'Masih ada sesi opname draft/submitted untuk outlet, departemen, dan tanggal ini.',
                 ]);
             }
 
             $session = OpnameSession::query()->create([
                 'tenant_id' => $tenantId,
                 'outlet_id' => $outletId,
-                'department_id' => $data['department_id'] ?? null,
+                'department_id' => $departmentId,
                 'type' => $type,
                 'opname_type' => $type,
                 'opname_date' => $opnameDate,
@@ -66,15 +74,42 @@ class OpnameService
                 'started_by' => $userId,
             ]);
 
-            foreach ($this->itemsForOpname($tenantId, $outletId, $type) as $item) {
+            foreach ($this->itemsForOpname($tenantId, $outletId, $type, $departmentId) as $item) {
                 $systemQty = $this->systemQty($tenantId, $outletId, (int) $item->id);
+
+                // Sesi sudah di-scope ke satu departemen -- item yang masuk ke
+                // sini sudah pasti milik departemen tsb (lihat itemsForOpname()),
+                // jadi cukup satu baris per item, tidak perlu pecah per departemen.
+                if ($departmentId) {
+                    $session->items()->create([
+                        'tenant_id'          => $tenantId,
+                        'item_id'            => $item->id,
+                        'unit_id'            => $item->inventory_unit_id ?: $item->base_unit_id,
+                        'department_id'      => $departmentId,
+                        'system_qty'         => $systemQty,
+                        'system_qty_base'    => $systemQty,
+                        'counted_qty'        => '0.000000',
+                        'physical_qty_whole' => '0.000000',
+                        'physical_qty_loose' => '0.000000',
+                        'physical_qty_base'  => '0.000000',
+                        'variance_qty'       => $systemQty,
+                        'variance'           => $systemQty,
+                        'variance_value'     => '0.0000',
+                        'is_counted'         => false,
+                    ]);
+
+                    continue;
+                }
+
                 $departments = $item->relationLoaded('departments') ? $item->departments : collect();
 
                 if ($item->primaryDepartment) {
                     $departments = $departments->push($item->primaryDepartment)->unique('id');
                 }
 
-                // Item dipakai lebih dari satu departemen — buat baris per departemen
+                // Sesi lintas-departemen (department_id null, mis. opname
+                // historis/bulanan seluruh outlet) -- pertahankan perilaku lama:
+                // item dipakai lebih dari satu departemen -> buat baris per departemen.
                 if ($departments->count() > 1) {
                     foreach ($departments as $dept) {
                         $session->items()->create([
@@ -115,7 +150,7 @@ class OpnameService
                 }
             }
 
-            return $session->load(['outlet', 'items.item.inventoryUnit', 'items.item.baseUnit']);
+            return $session->load(['outlet', 'department', 'items.item.inventoryUnit', 'items.item.baseUnit']);
         });
     }
 
@@ -334,9 +369,71 @@ class OpnameService
         return $session;
     }
 
-    public function countDailyItems(int $tenantId, int $outletId): int
+    /**
+     * @param  list<int>  $sessionIds
+     * @return array{processed: int, failed: int, errors: list<string>}
+     */
+    public function bulkSubmit(array $sessionIds, int $userId): array
     {
-        return $this->itemsForOpname($tenantId, $outletId, OpnameSession::TYPE_DAILY)->count();
+        $processed = 0;
+        $errors = [];
+
+        $sessions = OpnameSession::query()->with('outlet')->whereIn('id', $sessionIds)->get();
+
+        foreach ($sessions as $session) {
+            $label = $session->outlet?->name.' - '.optional($session->opname_date)->format('d/m/Y');
+
+            try {
+                $this->submit($session, $userId);
+                $processed++;
+            } catch (ValidationException $exception) {
+                $errors[] = "{$label}: ".collect($exception->errors())->flatten()->implode(' ');
+            } catch (\Throwable $throwable) {
+                $errors[] = "{$label}: {$throwable->getMessage()}";
+            }
+        }
+
+        return [
+            'processed' => $processed,
+            'failed' => count($errors),
+            'errors' => $errors,
+        ];
+    }
+
+    /**
+     * @param  list<int>  $sessionIds
+     * @return array{processed: int, failed: int, errors: list<string>}
+     */
+    public function bulkApprove(array $sessionIds, int $userId): array
+    {
+        $processed = 0;
+        $errors = [];
+
+        $sessions = OpnameSession::query()->with('outlet')->whereIn('id', $sessionIds)->get();
+
+        foreach ($sessions as $session) {
+            $label = $session->outlet?->name.' - '.optional($session->opname_date)->format('d/m/Y');
+
+            try {
+                $this->approve($session, $userId);
+                $processed++;
+            } catch (ValidationException $exception) {
+                $errors[] = "{$label}: ".collect($exception->errors())->flatten()->implode(' ');
+            } catch (\Throwable $throwable) {
+                $errors[] = "{$label}: {$throwable->getMessage()}";
+            }
+        }
+
+        return [
+            'processed' => $processed,
+            'failed' => count($errors),
+            'errors' => $errors,
+        ];
+    }
+
+    public function countDailyItems(int $tenantId, int $outletId, ?int $departmentId = null): int
+    {
+        return $this->itemsForOpname($tenantId, $outletId, OpnameSession::TYPE_DAILY, $departmentId)->count();
     }
 
     private function assertOutletBelongsToTenant(int $outletId, int $tenantId): void
@@ -356,7 +453,7 @@ class OpnameService
     /**
      * @return Collection<int, Item>
      */
-    private function itemsForOpname(int $tenantId, int $outletId, string $type): Collection
+    private function itemsForOpname(int $tenantId, int $outletId, string $type, ?int $departmentId = null): Collection
     {
         $frequency = $type === OpnameSession::TYPE_MONTHLY ? 'MONTHLY' : 'DAILY';
 
@@ -380,6 +477,17 @@ class OpnameService
 
         if ($itemIds->isNotEmpty()) {
             $query->whereIn('id', $itemIds->all());
+        }
+
+        // Sesi opname yang di-scope ke satu departemen cuma boleh memuat item
+        // milik departemen tsb (primary atau ikut relasi departments many-to-many)
+        // -- ini akar perbaikan supaya BAR tidak lagi melihat/menghitung item
+        // milik KITCHEN, begitu juga sebaliknya.
+        if ($departmentId) {
+            $query->where(function ($q) use ($departmentId): void {
+                $q->where('primary_department_id', $departmentId)
+                    ->orWhereHas('departments', fn ($dq) => $dq->where('departments.id', $departmentId));
+            });
         }
 
         return $query->get();

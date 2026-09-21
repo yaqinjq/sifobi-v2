@@ -8,12 +8,60 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.16 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.16 &mdash; 21 September 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru &mdash; Open Stock</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Filter <strong>Brand</strong>, <strong>Outlet</strong>, dan <strong>Departemen</strong> di halaman Open Stock untuk role tinggi (SUPER_ADMIN, GENERAL_FINANCE, dll) yang mengelola banyak outlet</li>
+                    <li>Fitur <strong>Export</strong> Excel yang mengikuti filter aktif (termasuk kolom HPP/nilai stok untuk yang punya akses <code class="bg-gray-100 px-1 rounded">view_stock_value</code>)</li>
+                    <li>Ikon ditambahkan pada tombol "Import Excel"</li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru &mdash; Opname</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Sesi opname sekarang per-departemen</strong> &mdash; tim BAR dan KITCHEN bisa opname bersamaan di tanggal yang sama tanpa saling memblokir dan tanpa terlihat "menumpuk"/berulang di daftar Opname. Kolom Departemen ditambahkan di daftar Opname supaya langsung jelas sesi mana milik departemen mana</li>
+                    <li><strong>Outlet dan Departemen otomatis terkunci</strong> di form Mulai Opname untuk staff/PIC yang sudah punya penempatan tetap &mdash; tidak perlu pilih apa-apa lagi. Dropdown cuma muncul untuk role yang memang belum terikat departemen tertentu</li>
+                    <li>Tanggal opname harian sekarang selalu hari ini (tidak bisa diubah dari form biasa); alur baru <strong>"Input Historis"</strong> disediakan terpisah untuk mencatat opname tanggal lampau yang terlewat, dengan kolom alasan wajib diisi</li>
+                    <li>Filter <strong>Brand/Outlet/Departemen/Kategori</strong> ditambahkan; filter Kategori sekarang cuma menampilkan kategori yang relevan untuk departemen sesi tsb (bukan semua kategori master), diatur lewat menu baru <strong>Settings &gt; Mapping Departemen &amp; Kategori Opname</strong> (upload Excel)</li>
+                    <li>Pilihan <strong>urutan tampil item "Sesuai Form"</strong> &mdash; mengikuti urutan Kategori/Sub Kategori dari file mapping, bukan abjad</li>
+                    <li>4 <strong>mode tampilan</strong> baru: Card (default), List, Per Kategori, dan Zoom (khusus desktop, transisi animasi ringan pakai View Transitions bawaan browser)</li>
+                    <li><strong>Aksi massal</strong>: centang beberapa sesi Draft untuk Submit sekaligus, atau beberapa sesi Submitted untuk Approve sekaligus</li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru &mdash; Aksi Massal di Halaman Lain</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Centang beberapa baris sekaligus kini tersedia juga di: Penerimaan Barang (Submit), Transfer Stok (Submit), Spoil &amp; Waste (Approve), Purchase Order (Approve), Manajemen User (Aktifkan/Nonaktifkan), Master Data Item (Aktifkan/Nonaktifkan), Menu &amp; Resep (Hapus), Kalkulator HPP (Hapus riwayat), Kalender Event (Hapus), Konfigurasi Stok (Hapus), dan Notifikasi (Tandai dibaca)</li>
+                </ul>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Tombol "+ Input Stok Awal" di Open Stock tidak lagi menampilkan ikon dobel (ikon plus dan tanda "+" sekaligus)</li>
+                    <li>Foto item Opname sekarang tampil juga di tampilan mobile (sebelumnya cuma tampil di desktop)</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.15 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.15 &mdash; 18 September 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

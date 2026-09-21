@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Operations;
 
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Operations\BulkApproveOpnameRequest;
+use App\Http\Requests\Operations\BulkSubmitOpnameRequest;
+use App\Modules\Core\Models\Brand;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\ItemCategory;
@@ -30,72 +33,220 @@ class OpnameController extends Controller
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
+        $userOutletId = $request->user()->outlet_id;
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
 
         $sessions = OpnameSession::query()
             ->where('tenant_id', $tenantId)
-            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
-            ->with(['outlet', 'createdBy', 'approvedBy'])
+            ->when($userOutletId, fn ($q) => $q->where('outlet_id', $userOutletId))
+            ->with(['outlet', 'department', 'createdBy', 'approvedBy'])
             ->withCount('items')
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->upper()->toString()))
             ->when($request->filled('date'), fn ($query) => $query->whereDate('opname_date', $request->date('date')))
+            ->when(! $userOutletId && $request->filled('outlet_id'), fn ($query) => $query->where('outlet_id', $request->integer('outlet_id')))
+            ->when(! $userOutletId && $request->filled('brand_id'), fn ($query) => $query->whereHas(
+                'outlet',
+                fn ($q) => $q->where('brand_id', $request->integer('brand_id'))
+            ))
+            ->when($request->filled('department_id'), fn ($query) => $query->where('department_id', $request->integer('department_id')))
             ->latest('opname_date')
             ->latest('id')
             ->paginate($perPage)
             ->withQueryString();
 
+        $canFilterOutlet = ! $userOutletId;
+
         return view('operations.opname.index', [
             'sessions' => $sessions,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
+            'canFilterOutlet' => $canFilterOutlet,
+            'filterOutlets' => $canFilterOutlet ? Outlet::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
+            'filterBrands' => $canFilterOutlet ? Brand::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
+            'filterDepartments' => Department::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get(),
         ]);
     }
 
     public function create(Request $request): View
     {
         $tenantId = $this->tenantId($request);
-        $outletId = (int) ($request->user()->outlet_id ?: Outlet::query()->where('tenant_id', $tenantId)->value('id'));
+        $user = $request->user();
+        $outletId = (int) ($user->outlet_id ?: Outlet::query()->where('tenant_id', $tenantId)->value('id'));
+        $departmentId = $user->department_id ? (int) $user->department_id : null;
 
         return view('operations.opname.create', [
             'outlets' => Outlet::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')
-                ->when($request->user()->outlet_id, fn ($q) => $q->where('id', $request->user()->outlet_id))
+                ->when($user->outlet_id, fn ($q) => $q->where('id', $user->outlet_id))
+                ->orderBy('name')
+                ->get(),
+            'departments' => Department::query()
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'ACTIVE')
+                ->when($user->department_id, fn ($q) => $q->where('id', $user->department_id))
                 ->orderBy('name')
                 ->get(),
             'defaultOutletId' => $outletId,
-            'dailyItemCount' => $outletId ? $this->opnameService->countDailyItems($tenantId, $outletId) : 0,
+            'defaultDepartmentId' => $departmentId,
+            'canChangeOutlet' => ! $user->outlet_id,
+            'canChangeDepartment' => ! $user->department_id,
+            'dailyItemCount' => ($outletId && $departmentId) ? $this->opnameService->countDailyItems($tenantId, $outletId, $departmentId) : null,
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $tenantId = $this->tenantId($request);
-        $validated = $request->validate([
-            'outlet_id' => [
-                'required',
-                'integer',
-                Rule::exists('outlets', 'id')->where('tenant_id', $tenantId),
-            ],
-            'opname_date' => ['required', 'date'],
+        $user = $request->user();
+
+        $rules = [
             'shift' => ['nullable', Rule::in(['PAGI', 'SORE', 'MALAM'])],
             'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
+        ];
 
-        $session = $this->opnameService->startSession(array_merge($validated, [
+        if (! $user->outlet_id) {
+            $rules['outlet_id'] = ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)];
+        }
+
+        if (! $user->department_id) {
+            $rules['department_id'] = ['required', 'integer', Rule::exists('departments', 'id')->where('tenant_id', $tenantId)];
+        }
+
+        $validated = $request->validate($rules);
+
+        $session = $this->opnameService->startSession([
             'tenant_id' => $tenantId,
+            'outlet_id' => $user->outlet_id ?: (int) $validated['outlet_id'],
+            'department_id' => $user->department_id ?: (int) $validated['department_id'],
+            'opname_date' => now()->toDateString(),
+            'shift' => $validated['shift'] ?? null,
+            'notes' => $validated['notes'] ?? null,
             'type' => OpnameSession::TYPE_DAILY,
-        ]), (int) $request->user()->id);
+        ], (int) $user->id);
 
         return redirect()
             ->route('operations.opname.show', $session)
             ->with('success', 'Sesi opname berhasil dibuat.');
     }
 
+    public function createHistorical(Request $request): View
+    {
+        $tenantId = $this->tenantId($request);
+        $user = $request->user();
+
+        return view('operations.opname.create-historical', [
+            'outlets' => Outlet::query()
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'ACTIVE')
+                ->when($user->outlet_id, fn ($q) => $q->where('id', $user->outlet_id))
+                ->orderBy('name')
+                ->get(),
+            'departments' => Department::query()
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'ACTIVE')
+                ->when($user->department_id, fn ($q) => $q->where('id', $user->department_id))
+                ->orderBy('name')
+                ->get(),
+            'defaultOutletId' => (int) ($user->outlet_id ?: Outlet::query()->where('tenant_id', $tenantId)->value('id')),
+            'defaultDepartmentId' => $user->department_id ? (int) $user->department_id : null,
+            'canChangeOutlet' => ! $user->outlet_id,
+            'canChangeDepartment' => ! $user->department_id,
+        ]);
+    }
+
+    public function storeHistorical(Request $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $user = $request->user();
+
+        $rules = [
+            'opname_date' => ['required', 'date', 'before_or_equal:today'],
+            'shift' => ['nullable', Rule::in(['PAGI', 'SORE', 'MALAM'])],
+            'notes' => ['required', 'string', 'min:5', 'max:2000'],
+        ];
+
+        if (! $user->outlet_id) {
+            $rules['outlet_id'] = ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)];
+        }
+
+        if (! $user->department_id) {
+            $rules['department_id'] = ['required', 'integer', Rule::exists('departments', 'id')->where('tenant_id', $tenantId)];
+        }
+
+        $validated = $request->validate($rules);
+
+        $session = $this->opnameService->startSession([
+            'tenant_id' => $tenantId,
+            'outlet_id' => $user->outlet_id ?: (int) $validated['outlet_id'],
+            'department_id' => $user->department_id ?: (int) $validated['department_id'],
+            'opname_date' => $validated['opname_date'],
+            'shift' => $validated['shift'] ?? null,
+            'notes' => $validated['notes'],
+            'type' => OpnameSession::TYPE_DAILY,
+        ], (int) $user->id);
+
+        return redirect()
+            ->route('operations.opname.show', $session)
+            ->with('success', 'Sesi opname historis berhasil dibuat.');
+    }
+
+    public function bulkSubmit(BulkSubmitOpnameRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $ids = OpnameSession::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->where('status', OpnameSession::STATUS_DRAFT)
+            ->pluck('id')
+            ->all();
+
+        $result = $this->opnameService->bulkSubmit($ids, (int) $request->user()->id);
+
+        return $this->bulkRedirect($result, "{$result['processed']} sesi opname berhasil disubmit untuk approval.");
+    }
+
+    public function bulkApprove(BulkApproveOpnameRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $ids = OpnameSession::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->where('status', OpnameSession::STATUS_SUBMITTED)
+            ->pluck('id')
+            ->all();
+
+        $result = $this->opnameService->bulkApprove($ids, (int) $request->user()->id);
+
+        return $this->bulkRedirect($result, "{$result['processed']} sesi opname berhasil diproses ke stock ledger.");
+    }
+
+    /**
+     * @param  array{processed: int, failed: int, errors: list<string>}  $result
+     */
+    private function bulkRedirect(array $result, string $message): RedirectResponse
+    {
+        if ($result['failed'] === 0) {
+            return redirect()->route('operations.opname.index')->with('success', $message);
+        }
+
+        $shown = array_slice($result['errors'], 0, 5);
+        $message .= " {$result['failed']} gagal: ".implode(' | ', $shown);
+
+        if (count($result['errors']) > count($shown)) {
+            $message .= ' (dan '.(count($result['errors']) - count($shown)).' lainnya)';
+        }
+
+        return redirect()->route('operations.opname.index')->with('error', $message);
+    }
+
     public function show(Request $request, OpnameSession $session): View
     {
         $session->load([
             'outlet',
+            'department',
             'createdBy',
             'submittedBy',
             'approvedBy',
@@ -106,10 +257,24 @@ class OpnameController extends Controller
 
         $search = $request->string('q')->toString();
         $categoryId = $request->string('category_id')->toString();
+        $sortMode = in_array($request->string('sort_mode')->toString(), ['az', 'form'], true)
+            ? $request->string('sort_mode')->toString()
+            : 'az';
+        $viewMode = in_array($request->string('view_mode')->toString(), ['card', 'list', 'category', 'zoom'], true)
+            ? $request->string('view_mode')->toString()
+            : 'card';
         $allowedPerPage = ['20', '50', '100', 'all'];
         $perPage = in_array($request->string('per_page')->toString(), $allowedPerPage, true)
             ? $request->string('per_page')->toString()
             : '20';
+
+        // Mode "Sesuai Form", "Per Kategori", dan "Zoom" butuh mengurutkan/
+        // mengelompokkan lintas SELURUH item sesi (bukan cuma 1 halaman) --
+        // makanya mode-mode ini otomatis menampilkan semua item tanpa
+        // pagination.
+        if ($sortMode === 'form' || in_array($viewMode, ['category', 'zoom'], true)) {
+            $perPage = 'all';
+        }
 
         // null = tidak dibatasi departemen (mis. PIC_OUTLET/MANAGER_AREA/ADMIN
         // yang memang harus lihat semua departemen outlet).
@@ -124,7 +289,7 @@ class OpnameController extends Controller
             ->with([
                 'item.inventoryUnit',
                 'item.baseUnit',
-                'item.category',
+                'item.category.parent',
                 'item.jenis',
                 'item.primaryDepartment',
                 'item.departments',
@@ -140,7 +305,14 @@ class OpnameController extends Controller
         }
 
         if ($categoryId !== '') {
-            $query->whereHas('item', fn ($q) => $q->where('item_category_id', (int) $categoryId));
+            // Filter kategori bisa berupa kategori utama (ikut sub kategori di
+            // dalamnya) atau langsung sub kategori -- item sebenarnya di-tag
+            // di level sub kategori, sedangkan dropdown filter menampilkan
+            // keduanya (lihat categoryOptionsForSession()).
+            $categoryIds = ItemCategory::query()
+                ->where(fn ($q) => $q->where('id', (int) $categoryId)->orWhere('parent_id', (int) $categoryId))
+                ->pluck('id');
+            $query->whereHas('item', fn ($q) => $q->whereIn('item_category_id', $categoryIds));
         }
 
         if ($perPage === 'all') {
@@ -149,6 +321,21 @@ class OpnameController extends Controller
         } else {
             $paginator = $query->orderBy('id')->paginate((int) $perPage)->withQueryString();
             $items = $paginator->getCollection();
+        }
+
+        if ($sortMode === 'form') {
+            $items = $items->sortBy(fn (OpnameItem $opnameItem): string => $this->formSortKey($opnameItem))->values();
+        }
+
+        $groupedItems = null;
+
+        if ($viewMode === 'category') {
+            $groupedItems = $items
+                ->sortBy(fn (OpnameItem $opnameItem): string => $this->formSortKey($opnameItem))
+                ->values()
+                ->groupBy(fn (OpnameItem $opnameItem): string => $opnameItem->item?->category?->parent?->name
+                    ?? $opnameItem->item?->category?->name
+                    ?? 'Tanpa Kategori');
         }
 
         $departmentScope = fn ($q) => $q->where(
@@ -231,11 +418,7 @@ class OpnameController extends Controller
             ->flip()
             ->all();
 
-        $categories = ItemCategory::query()
-            ->where('tenant_id', $this->tenantId($request))
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        $categories = $this->categoryOptionsForSession($request, $session);
 
         return view('operations.opname.show', [
             'session' => $session,
@@ -243,6 +426,9 @@ class OpnameController extends Controller
             'paginator' => $paginator,
             'search' => $search,
             'categoryId' => $categoryId,
+            'sortMode' => $sortMode,
+            'viewMode' => $viewMode,
+            'groupedItems' => $groupedItems,
             'perPage' => $perPage,
             'categories' => $categories,
             'roleFilter' => $departmentLabel,
@@ -250,6 +436,59 @@ class OpnameController extends Controller
             'total' => $total,
             'sharedItemIds' => $sharedItemIds,
         ]);
+    }
+
+    /**
+     * Kunci urutan "Sesuai Form": kategori utama (sort_order+nama) lalu sub
+     * kategori (sort_order), lalu nama item -- dipakai oleh sort_mode=form
+     * DAN view_mode=category (supaya pengelompokan tetap rapi tanpa terikat
+     * pada sort_mode yang sedang aktif).
+     */
+    private function formSortKey(OpnameItem $opnameItem): string
+    {
+        $leaf = $opnameItem->item?->category;
+        $parent = $leaf?->parent ?? $leaf;
+        $childOrder = ($leaf && $leaf->parent_id) ? $leaf->sort_order : 0;
+
+        return sprintf(
+            '%05d|%s|%05d|%s',
+            $parent?->sort_order ?? 0,
+            $parent?->name ?? '',
+            $childOrder,
+            $opnameItem->item?->name ?? ''
+        );
+    }
+
+    /**
+     * Kategori & sub kategori untuk dropdown filter -- kalau sesi sudah
+     * di-scope ke satu departemen (lihat Fase 2), hanya kategori yang
+     * di-mapping ke departemen tsb (lewat Department::itemCategories(),
+     * diisi via Settings > Mapping Departemen & Kategori) yang muncul,
+     * bukan semua kategori master. Kalau sesi lintas-departemen (department
+     * null, mis. opname historis lama), tampilkan semua kategori seperti
+     * sebelumnya.
+     *
+     * @return \Illuminate\Support\Collection<int, ItemCategory>
+     */
+    private function categoryOptionsForSession(Request $request, OpnameSession $session): \Illuminate\Support\Collection
+    {
+        if ($session->department_id) {
+            $topLevel = $session->department?->itemCategories()
+                ->where('is_active', true)
+                ->with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
+                ->orderBy('name')
+                ->get() ?? collect();
+        } else {
+            $topLevel = ItemCategory::query()
+                ->where('tenant_id', $this->tenantId($request))
+                ->whereNull('parent_id')
+                ->where('is_active', true)
+                ->with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
+                ->orderBy('name')
+                ->get();
+        }
+
+        return $topLevel->flatMap(fn (ItemCategory $category) => collect([$category])->merge($category->children));
     }
 
     public function updateItem(Request $request, OpnameSession $session, OpnameItem $item): JsonResponse

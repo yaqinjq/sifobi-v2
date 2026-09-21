@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\BulkToggleUserStatusRequest;
 use App\Models\User;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
@@ -18,6 +20,7 @@ use Spatie\Permission\PermissionRegistrar;
 
 class UserController extends Controller
 {
+    use HasBulkAction;
     use HasPerPageSelector;
 
     public function index(Request $request): View
@@ -176,6 +179,30 @@ class UserController extends Controller
         $label = $nextStatus === 'ACTIVE' ? 'diaktifkan' : 'dinonaktifkan';
 
         return back()->with('success', "User {$user->name} berhasil {$label}.");
+    }
+
+    public function bulkToggleStatus(BulkToggleUserStatusRequest $request): RedirectResponse
+    {
+        $tenantId = (int) $request->user()->tenant_id;
+        $targetStatus = $request->string('status')->upper()->toString();
+        $currentStatus = $targetStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+
+        $users = User::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->where('id', '!=', $request->user()->id)
+            ->where('status', $currentStatus)
+            ->get();
+
+        $result = $this->runBulkAction(
+            $users,
+            fn (User $user) => $user->update(['status' => $targetStatus]),
+            fn (User $user) => $user->name
+        );
+
+        $label = $targetStatus === 'ACTIVE' ? 'diaktifkan' : 'dinonaktifkan';
+
+        return $this->bulkActionRedirect('settings.users.index', $result, "{$result['processed']} user berhasil {$label}.");
     }
 
     public function resetPassword(Request $request, User $user): RedirectResponse

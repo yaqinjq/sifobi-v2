@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Operations;
 
 use App\Exceptions\InsufficientStockException;
+use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Operations\BulkApproveSpoilWasteRequest;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
@@ -22,6 +24,7 @@ use Illuminate\View\View;
 
 class SpoilWasteController extends Controller
 {
+    use HasBulkAction;
     use HasPerPageSelector;
 
     public function __construct(private readonly SpoilWasteService $spoilWasteService)
@@ -52,6 +55,11 @@ class SpoilWasteController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        $pendingIds = $query->getCollection()
+            ->where('status', SpoilWaste::STATUS_PENDING)
+            ->pluck('id')
+            ->values();
+
         return view('operations.spoil-wastes.index', [
             'spoilWastes' => $query,
             'duplicateCount' => SpoilWaste::query()
@@ -61,6 +69,7 @@ class SpoilWasteController extends Controller
                 ->count(),
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
+            'pendingIds' => $pendingIds,
         ]);
     }
 
@@ -126,6 +135,31 @@ class SpoilWasteController extends Controller
         return redirect()
             ->route('operations.spoil-wastes.show', $updated)
             ->with('success', 'Spoil berhasil di-approve.');
+    }
+
+    public function bulkApprove(BulkApproveSpoilWasteRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $userId = (int) $request->user()->id;
+
+        $spoilWastes = SpoilWaste::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->where('status', SpoilWaste::STATUS_PENDING)
+            ->get();
+
+        $result = $this->runBulkAction(
+            $spoilWastes,
+            fn (SpoilWaste $spoil) => $this->spoilWasteService->approve($spoil, $userId, 'Bulk approve.'),
+            fn (SpoilWaste $spoil) => "#{$spoil->id}"
+        );
+
+        return $this->bulkActionRedirect(
+            'operations.spoil-wastes.index',
+            $result,
+            "{$result['processed']} spoil/waste berhasil di-approve."
+        );
     }
 
     public function reject(Request $request, SpoilWaste $spoil): RedirectResponse

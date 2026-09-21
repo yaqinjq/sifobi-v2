@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\BulkDestroyStockConfigRequest;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\ItemStockConfig;
@@ -16,6 +18,7 @@ use Illuminate\View\View;
 
 class StockConfigController extends Controller
 {
+    use HasBulkAction;
     use HasPerPageSelector;
 
     public function index(Request $request): View
@@ -99,6 +102,24 @@ class StockConfigController extends Controller
         DB::transaction(fn () => $stockConfig->delete());
 
         return back()->with('success', 'Konfigurasi stok berhasil dihapus.');
+    }
+
+    public function bulkDestroy(BulkDestroyStockConfigRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+
+        $configs = ItemStockConfig::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->get();
+
+        $result = $this->runBulkAction(
+            $configs,
+            fn (ItemStockConfig $config) => DB::transaction(fn () => $config->delete()),
+            fn (ItemStockConfig $config) => "#{$config->id}"
+        );
+
+        return $this->bulkActionRedirect('settings.stock-configs.index', $result, "{$result['processed']} konfigurasi stok berhasil dihapus.");
     }
 
     /**

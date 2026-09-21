@@ -180,6 +180,42 @@ test('rejecting spoil creates void reversal and restores balance', function (): 
         ->and((string) $balance->qty_on_hand)->toBe('5000.000000');
 });
 
+test('bulk approve only processes pending spoil waste rows', function (): void {
+    Storage::fake('public');
+    $staff = operationUser('STAFF_BAR');
+    $pic = operationUser('PIC_OUTLET');
+    seedDailyBalance($this, '5000');
+
+    $spoil1 = app(SpoilWasteService::class)->record([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->department->id,
+        'item_id' => $this->item->id,
+        'unit_id' => $this->unit,
+        'qty' => '1',
+        'recorded_date' => '2026-07-01',
+        'reason_category' => SpoilWaste::REASON_RUSAK,
+    ], $staff->id);
+
+    $spoil2 = app(SpoilWasteService::class)->record([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->department->id,
+        'item_id' => $this->item->id,
+        'unit_id' => $this->unit,
+        'qty' => '1',
+        'recorded_date' => '2026-07-01',
+        'reason_category' => SpoilWaste::REASON_RUSAK,
+    ], $staff->id);
+
+    $this->actingAs($pic)
+        ->post(route('operations.spoil-wastes.bulk-approve'), ['ids' => [$spoil1->id, $spoil2->id]])
+        ->assertRedirect(route('operations.spoil-wastes.index'));
+
+    expect($spoil1->refresh()->status)->toBe(SpoilWaste::STATUS_APPROVED)
+        ->and($spoil2->refresh()->status)->toBe(SpoilWaste::STATUS_APPROVED);
+});
+
 test('daily opname creates session with items and posts adjustment on approval', function (): void {
     $staff = operationUser('STAFF_BAR');
     $pic = operationUser('PIC_OUTLET');

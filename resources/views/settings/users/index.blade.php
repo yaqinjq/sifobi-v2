@@ -111,12 +111,13 @@
     </div>
 </div>
 
-<div class="hidden md:block p-6 pb-8">
+<div class="hidden md:block p-6 pb-8" x-data="{ selectedActive: [], selectedInactive: [] }">
     <div class="sf-card overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-100">
                 <thead class="bg-gray-50">
                     <tr>
+                        <th class="px-4 py-3 w-10"></th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">User</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Role</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Outlet</th>
@@ -129,6 +130,15 @@
                     @forelse($users as $user)
                         @php $isActive = strtoupper((string) $user->status) === 'ACTIVE'; @endphp
                         <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3">
+                                @if($user->id !== auth()->id())
+                                    @if($isActive)
+                                        <input type="checkbox" x-model="selectedActive" value="{{ $user->id }}" class="rounded border-gray-300 text-primary-700">
+                                    @else
+                                        <input type="checkbox" x-model="selectedInactive" value="{{ $user->id }}" class="rounded border-gray-300 text-primary-700">
+                                    @endif
+                                @endif
+                            </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-3">
                                     <img src="{{ $user->avatar_url }}" class="w-9 h-9 rounded-full object-cover shrink-0" alt="{{ $user->name }}">
@@ -185,7 +195,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-12 text-center text-sm text-gray-500">
+                            <td colspan="7" class="px-4 py-12 text-center text-sm text-gray-500">
                                 Belum ada user.
                             </td>
                         </tr>
@@ -199,5 +209,25 @@
             {{ $users->links() }}
         </div>
     </div>
+
+    <x-sf.bulk-action-bar
+        selected-var="selectedActive"
+        route="{{ route('settings.users.bulk-toggle-status') }}"
+        confirm-message="Nonaktifkan __COUNT__ user terpilih?"
+        button-label="Nonaktifkan Terpilih"
+        button-icon="ti-user-off"
+    >
+        <input type="hidden" name="status" value="INACTIVE">
+    </x-sf.bulk-action-bar>
+
+    <x-sf.bulk-action-bar
+        selected-var="selectedInactive"
+        route="{{ route('settings.users.bulk-toggle-status') }}"
+        confirm-message="Aktifkan __COUNT__ user terpilih?"
+        button-label="Aktifkan Terpilih"
+        button-icon="ti-user-check"
+    >
+        <input type="hidden" name="status" value="ACTIVE">
+    </x-sf.bulk-action-bar>
 </div>
 @endsection

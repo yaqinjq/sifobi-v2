@@ -165,6 +165,7 @@
         </form>
     </div>
 
+    <div x-data="{ selected: [] }">
     <x-sf.card title="Riwayat Perhitungan">
         @if($history->isEmpty())
             <div class="text-center py-8 text-gray-400">
@@ -173,7 +174,8 @@
         @else
             <div class="divide-y divide-gray-50">
                 @foreach($history as $calc)
-                    <div class="flex items-center justify-between gap-3 px-3 py-3">
+                    <div class="flex items-center gap-3 px-3 py-3">
+                        <input type="checkbox" x-model="selected" value="{{ $calc->id }}" class="rounded border-gray-300 text-primary-700 shrink-0">
                         <a href="{{ route('production.hpp-calculator.show', $calc) }}" class="min-w-0 flex-1 hover:text-primary-700">
                             <p class="font-semibold text-gray-900 truncate">{{ $calc->product_name }}</p>
                             <p class="text-xs text-gray-500">
@@ -191,6 +193,14 @@
             </div>
         @endif
     </x-sf.card>
+
+    <x-sf.bulk-action-bar
+        route="{{ route('production.hpp-calculator.bulk-destroy') }}"
+        confirm-message="Hapus __COUNT__ riwayat perhitungan terpilih?"
+        button-label="Hapus Terpilih"
+        button-icon="ti-trash"
+    />
+    </div>
     <div class="flex items-center justify-between gap-2 flex-wrap">
         <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
         {{ $history->links() }}

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasPerPageSelector;
+use App\Http\Requests\BulkMarkNotificationsReadRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -40,5 +41,18 @@ class NotificationController extends Controller
         $request->user()->unreadNotifications->markAsRead();
 
         return back()->with('success', 'Semua notifikasi ditandai sudah dibaca.');
+    }
+
+    public function bulkMarkRead(BulkMarkNotificationsReadRequest $request): RedirectResponse
+    {
+        $notifications = $request->user()
+            ->notifications()
+            ->whereIn('id', $request->input('ids', []))
+            ->whereNull('read_at')
+            ->get();
+
+        $notifications->markAsRead();
+
+        return back()->with('success', "{$notifications->count()} notifikasi ditandai sudah dibaca.");
     }
 }

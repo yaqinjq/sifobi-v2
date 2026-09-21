@@ -9,7 +9,7 @@
     back="{{ auth()->user()->can('manage_settings') ? route('settings.index') : route('dashboard') }}"
 />
 
-<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-5">
+<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-5" x-data="{ selected: [] }">
     @if($errors->any())
         <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {{ $errors->first() }}
@@ -48,6 +48,10 @@
         <div class="divide-y divide-gray-100">
             @forelse($configs as $config)
                 <div class="py-4" x-data="{ editing: false }">
+                    <label class="flex items-center gap-2 mb-2 text-xs font-medium text-gray-500">
+                        <input type="checkbox" x-model="selected" value="{{ $config->id }}" class="rounded border-gray-300 text-primary-700">
+                        Pilih
+                    </label>
                     <form method="POST" action="{{ route('settings.stock-configs.update', $config) }}"
                           class="grid grid-cols-1 lg:grid-cols-[1.6fr_1.2fr_repeat(3,0.8fr)_0.8fr_auto] gap-3 items-center">
                         @csrf
@@ -135,6 +139,13 @@
             {{ $configs->links() }}
         </div>
     </x-sf.card>
+
+    <x-sf.bulk-action-bar
+        route="{{ route('settings.stock-configs.bulk-destroy') }}"
+        confirm-message="Hapus __COUNT__ konfigurasi stok terpilih?"
+        button-label="Hapus Terpilih"
+        button-icon="ti-trash"
+    />
 
     <x-sf.card title="+ Tambah Konfigurasi">
         <form method="POST" action="{{ route('settings.stock-configs.store') }}"

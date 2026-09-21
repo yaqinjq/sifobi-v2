@@ -31,6 +31,32 @@
 
 <form method="GET" action="{{ route('operations.open-stocks.index') }}"
       class="px-4 py-3 lg:px-6 flex flex-wrap gap-2">
+    @if($canFilterOutlet)
+        <select name="brand_id" onchange="this.form.submit()"
+                class="sf-input py-2 text-sm flex-shrink-0 w-auto min-h-11">
+            <option value="">Semua Brand</option>
+            @foreach($filterBrands as $brand)
+                <option value="{{ $brand->id }}" @selected((string) request('brand_id') === (string) $brand->id)>{{ $brand->name }}</option>
+            @endforeach
+        </select>
+
+        <select name="outlet_id" onchange="this.form.submit()"
+                class="sf-input py-2 text-sm flex-shrink-0 w-auto min-h-11">
+            <option value="">Semua Outlet</option>
+            @foreach($filterOutlets as $outlet)
+                <option value="{{ $outlet->id }}" @selected((string) request('outlet_id') === (string) $outlet->id)>{{ $outlet->name }}</option>
+            @endforeach
+        </select>
+    @endif
+
+    <select name="department_id" onchange="this.form.submit()"
+            class="sf-input py-2 text-sm flex-shrink-0 w-auto min-h-11">
+        <option value="">Semua Departemen</option>
+        @foreach($filterDepartments as $department)
+            <option value="{{ $department->id }}" @selected((string) request('department_id') === (string) $department->id)>{{ $department->name }}</option>
+        @endforeach
+    </select>
+
     <select name="status" onchange="this.form.submit()"
             class="sf-input py-2 text-sm flex-shrink-0 w-auto min-h-11">
         <option value="">Semua Status</option>
@@ -50,10 +76,16 @@
                class="sf-input py-2 text-sm pl-9 min-h-11">
     </div>
 
-    @if(request()->hasAny(['status', 'date', 'q', 'sort', 'direction']))
+    @if(request()->hasAny(['brand_id', 'outlet_id', 'department_id', 'status', 'date', 'q', 'sort', 'direction']))
         <a href="{{ route('operations.open-stocks.index') }}"
            class="sf-btn-secondary py-2 text-sm min-h-11">Reset</a>
     @endif
+
+    <a href="{{ route('operations.open-stocks.export', request()->query()) }}"
+       class="sf-btn-secondary py-2 text-sm min-h-11">
+        <i class="ti ti-file-spreadsheet text-base" aria-hidden="true"></i>
+        Export
+    </a>
 </form>
 
 <div class="border-t border-gray-100 mx-4 lg:mx-6"></div>
@@ -133,7 +165,7 @@
             title="Belum ada Open Stock"
             description="Mulai dengan input stok awal pertama untuk outlet ini."
             :action="auth()->user()->can('input_open_stock') ? route('operations.open-stocks.create') : null"
-            actionLabel="+ Input Stok Awal"
+            actionLabel="Input Stok Awal"
         />
     @endforelse
 
@@ -153,10 +185,13 @@
         </div>
         @can('input_open_stock')
             <div class="flex items-center gap-2">
-                <a href="{{ route('operations.open-stocks.import') }}" class="sf-btn-secondary">Import Excel</a>
+                <a href="{{ route('operations.open-stocks.import') }}" class="sf-btn-secondary">
+                    <i class="ti ti-upload text-base" aria-hidden="true"></i>
+                    Import Excel
+                </a>
                 <a href="{{ route('operations.open-stocks.create') }}" class="sf-btn-primary">
                     <i class="ti ti-plus text-base" aria-hidden="true"></i>
-                    + Input Stok Awal
+                    Input Stok Awal
                 </a>
             </div>
         @endcan
@@ -168,7 +203,7 @@
             title="Belum ada Open Stock"
             description="Mulai dengan input stok awal pertama untuk outlet ini."
             :action="auth()->user()->can('input_open_stock') ? route('operations.open-stocks.create') : null"
-            actionLabel="+ Input Stok Awal"
+            actionLabel="Input Stok Awal"
         />
     @else
         <div class="sf-card overflow-hidden">

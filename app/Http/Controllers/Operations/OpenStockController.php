@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Operations;
 
+use App\Exports\Reports\OpenStockExport;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operations\BulkPostOpenStockRequest;
@@ -10,15 +11,19 @@ use App\Http\Requests\Operations\StoreBulkOpenStockRequest;
 use App\Http\Requests\Operations\UpdateOpenStockRequest;
 use App\Http\Requests\Operations\VoidOpenStockRequest;
 use App\Models\User;
+use App\Modules\Core\Models\Brand;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Operations\Models\OpenStock;
 use App\Services\OpenStockService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class OpenStockController extends Controller
 {
@@ -49,26 +54,7 @@ class OpenStockController extends Controller
 
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 25);
 
-        $query = OpenStock::query()
-            ->with(['outlet', 'department', 'item.baseUnit', 'item.inventoryUnit', 'item.purchaseUnit', 'unit', 'postedBy', 'createdBy'])
-            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
-            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id));
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status')->upper()->toString());
-        }
-
-        if ($request->filled('date')) {
-            $query->whereDate('business_date', $request->input('date'));
-        }
-
-        if ($request->filled('q')) {
-            $search = $request->string('q')->toString();
-            $query->whereHas('item', fn ($q) => $q
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('canonical_sku', 'like', "%{$search}%")
-            );
-        }
+        $query = $this->filteredQuery($request);
 
         if ($sort === 'item_name') {
             $query->join('items', 'items.id', '=', 'open_stocks.item_id')
@@ -93,13 +79,108 @@ class OpenStockController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        $canFilterOutlet = ! $request->user()->outlet_id;
+
         return view('operations.open-stocks.index', [
             'openStocks' => $openStocks,
             'sort' => $sort,
             'direction' => $direction,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
+            'canFilterOutlet' => $canFilterOutlet,
+            'filterOutlets' => $canFilterOutlet ? $this->filterOutlets($tenantId) : collect(),
+            'filterBrands' => $canFilterOutlet ? $this->filterBrands($tenantId) : collect(),
+            'filterDepartments' => $this->filterDepartments($tenantId),
         ]);
+    }
+
+    public function export(Request $request): BinaryFileResponse
+    {
+        $rows = $this->filteredQuery($request)
+            ->orderBy('open_stocks.business_date', 'desc')
+            ->orderBy('open_stocks.id', 'desc')
+            ->get();
+
+        return Excel::download(
+            new OpenStockExport($rows, $request->user()->can('view_stock_value')),
+            'OpenStock-'.now()->format('Ymd-His').'.xlsx'
+        );
+    }
+
+    private function filteredQuery(Request $request): Builder
+    {
+        $tenantId = $request->user()->tenant_id;
+        $userOutletId = $request->user()->outlet_id;
+
+        $query = OpenStock::query()
+            ->with(['outlet', 'department', 'item.baseUnit', 'item.inventoryUnit', 'item.purchaseUnit', 'unit', 'postedBy', 'createdBy'])
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->when($userOutletId, fn ($q) => $q->where('outlet_id', $userOutletId));
+
+        if (! $userOutletId && $request->filled('outlet_id')) {
+            $query->where('open_stocks.outlet_id', $request->integer('outlet_id'));
+        }
+
+        if (! $userOutletId && $request->filled('brand_id')) {
+            $brandId = $request->integer('brand_id');
+            $query->whereHas('outlet', fn ($q) => $q->where('brand_id', $brandId));
+        }
+
+        if ($request->filled('department_id')) {
+            $query->where('open_stocks.department_id', $request->integer('department_id'));
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status')->upper()->toString());
+        }
+
+        if ($request->filled('date')) {
+            $query->whereDate('business_date', $request->input('date'));
+        }
+
+        if ($request->filled('q')) {
+            $search = $request->string('q')->toString();
+            $query->whereHas('item', fn ($q) => $q
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('canonical_sku', 'like', "%{$search}%")
+            );
+        }
+
+        return $query;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, Outlet>
+     */
+    private function filterOutlets(?int $tenantId): \Illuminate\Support\Collection
+    {
+        return Outlet::query()
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, Brand>
+     */
+    private function filterBrands(?int $tenantId): \Illuminate\Support\Collection
+    {
+        return Brand::query()
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, Department>
+     */
+    private function filterDepartments(?int $tenantId): \Illuminate\Support\Collection
+    {
+        return Department::query()
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->where('status', 'ACTIVE')
+            ->orderBy('name')
+            ->get();
     }
 
     public function create(Request $request): View

@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\BulkDestroyCalendarEventRequest;
 use App\Modules\Core\Models\Brand;
 use App\Modules\Core\Models\CalendarEvent;
 use App\Modules\Core\Models\Outlet;
@@ -15,6 +17,7 @@ use Illuminate\View\View;
 
 class CalendarEventController extends Controller
 {
+    use HasBulkAction;
     use HasPerPageSelector;
 
     public function index(Request $request): View
@@ -79,6 +82,24 @@ class CalendarEventController extends Controller
         DB::transaction(fn () => $calendarEvent->delete());
 
         return back()->with('success', 'Kalender event berhasil dihapus.');
+    }
+
+    public function bulkDestroy(BulkDestroyCalendarEventRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+
+        $events = CalendarEvent::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->get();
+
+        $result = $this->runBulkAction(
+            $events,
+            fn (CalendarEvent $event) => DB::transaction(fn () => $event->delete()),
+            fn (CalendarEvent $event) => $event->name
+        );
+
+        return $this->bulkActionRedirect('settings.calendar-events.index', $result, "{$result['processed']} kalender event berhasil dihapus.");
     }
 
     /**

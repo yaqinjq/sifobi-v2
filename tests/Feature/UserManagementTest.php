@@ -70,3 +70,35 @@ test('admin cannot deactivate own account', function (): void {
 
     expect($this->admin->refresh()->status)->toBe('ACTIVE');
 });
+
+test('bulk toggle status deactivates selected active users but skips own account', function (): void {
+    $outlet = Outlet::query()->where('tenant_id', $this->admin->tenant_id)->firstOrFail();
+
+    $user1 = User::factory()->create(['tenant_id' => $this->admin->tenant_id, 'outlet_id' => $outlet->id, 'status' => 'ACTIVE']);
+    $user2 = User::factory()->create(['tenant_id' => $this->admin->tenant_id, 'outlet_id' => $outlet->id, 'status' => 'ACTIVE']);
+
+    $this->actingAs($this->admin)
+        ->post(route('settings.users.bulk-toggle-status'), [
+            'status' => 'INACTIVE',
+            'ids' => [$user1->id, $user2->id, $this->admin->id],
+        ])
+        ->assertRedirect(route('settings.users.index'));
+
+    expect($user1->refresh()->status)->toBe('INACTIVE')
+        ->and($user2->refresh()->status)->toBe('INACTIVE')
+        ->and($this->admin->refresh()->status)->toBe('ACTIVE');
+});
+
+test('bulk toggle status activates selected inactive users', function (): void {
+    $outlet = Outlet::query()->where('tenant_id', $this->admin->tenant_id)->firstOrFail();
+    $user1 = User::factory()->create(['tenant_id' => $this->admin->tenant_id, 'outlet_id' => $outlet->id, 'status' => 'INACTIVE']);
+
+    $this->actingAs($this->admin)
+        ->post(route('settings.users.bulk-toggle-status'), [
+            'status' => 'ACTIVE',
+            'ids' => [$user1->id],
+        ])
+        ->assertRedirect(route('settings.users.index'));
+
+    expect($user1->refresh()->status)->toBe('ACTIVE');
+});

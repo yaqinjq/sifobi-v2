@@ -28,6 +28,7 @@
     </div>
 
     {{-- Table --}}
+    <div x-data="{ selected: [] }">
     <x-sf.card>
         @if($transfers->isEmpty())
             <div class="text-center py-12 text-gray-400">
@@ -41,6 +42,12 @@
                 @foreach($transfers as $transfer)
                 <a href="{{ route('operations.stock-transfers.show', $transfer) }}"
                    class="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors">
+                    @if($transfer->status === 'DRAFT')
+                        @can('create_stock_transfers')
+                            <input type="checkbox" x-model="selected" value="{{ $transfer->id }}"
+                                   @click.stop class="rounded border-gray-300 text-primary-700 shrink-0">
+                        @endcan
+                    @endif
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-0.5">
                             <p class="text-sm font-semibold text-gray-800 truncate">
@@ -71,5 +78,15 @@
             </div>
         @endif
     </x-sf.card>
+
+    @can('create_stock_transfers')
+        <x-sf.bulk-action-bar
+            route="{{ route('operations.stock-transfers.bulk-submit') }}"
+            confirm-message="Submit __COUNT__ transfer draft terpilih untuk approval?"
+            button-label="Submit Terpilih"
+            button-icon="ti-send"
+        />
+    @endcan
+    </div>
 </div>
 @endsection

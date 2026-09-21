@@ -279,7 +279,7 @@ class RoleController extends Controller
                 'manage_settings'         => 'Pengaturan Umum',
                 'manage_brands_outlets'   => 'Kelola Outlet',
                 'manage_integrations'     => 'Integrasi API',
-                'manage_stock_configs'    => 'Konfigurasi Stok',
+                'manage_stock_configs'    => 'Konfigurasi Stok & Mapping Kategori Opname',
                 'manage_calendar_events'  => 'Kalender Acara',
             ],
             'Manajemen User & Role' => [

@@ -18,21 +18,43 @@
             <div class="space-y-4">
                 <div>
                     <label class="sf-label">Outlet *</label>
-                    <select name="outlet_id" class="sf-input text-base min-h-11" required>
-                        @foreach($outlets as $outlet)
-                            <option value="{{ $outlet->id }}" @selected((string) old('outlet_id', $defaultOutletId) === (string) $outlet->id)>
-                                {{ $outlet->name }}
-                            </option>
-                        @endforeach
-                    </select>
+                    @if($canChangeOutlet)
+                        <select name="outlet_id" class="sf-input text-base min-h-11" required>
+                            @foreach($outlets as $outlet)
+                                <option value="{{ $outlet->id }}" @selected((string) old('outlet_id', $defaultOutletId) === (string) $outlet->id)>
+                                    {{ $outlet->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    @else
+                        <div class="sf-input text-base min-h-11 flex items-center bg-gray-50 text-gray-700">
+                            {{ $outlets->first()?->name ?? '-' }}
+                        </div>
+                        <input type="hidden" name="outlet_id" value="{{ $defaultOutletId }}">
+                    @endif
                 </div>
                 <div>
-                    <label class="sf-label">Tanggal *</label>
-                    <input type="date" name="opname_date" value="{{ old('opname_date', now()->toDateString()) }}" class="sf-input text-base min-h-11" required>
-                    <p class="mt-1 text-xs text-gray-400 flex items-center gap-1">
-                        <i class="ti ti-clock" aria-hidden="true"></i>
-                        Sekarang: {{ now()->format('H:i') }} WIB
-                    </p>
+                    <label class="sf-label">Departemen *</label>
+                    @if($canChangeDepartment)
+                        <select name="department_id" class="sf-input text-base min-h-11" required>
+                            <option value="">Pilih departemen</option>
+                            @foreach($departments as $department)
+                                <option value="{{ $department->id }}" @selected((string) old('department_id') === (string) $department->id)>
+                                    {{ $department->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    @else
+                        <div class="sf-input text-base min-h-11 flex items-center bg-gray-50 text-gray-700">
+                            {{ $departments->first()?->name ?? '-' }}
+                        </div>
+                        <input type="hidden" name="department_id" value="{{ $defaultDepartmentId }}">
+                    @endif
+                </div>
+                <div class="rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-500 flex items-center gap-2">
+                    <i class="ti ti-calendar-event text-sm" aria-hidden="true"></i>
+                    Tanggal opname: <span class="font-semibold text-gray-700">{{ now()->format('d M Y') }}</span> (hari ini)
+                    <a href="{{ route('operations.opname.create-historical') }}" class="ml-auto text-primary-700 font-semibold hover:underline">Input Historis?</a>
                 </div>
                 <div>
                     <label class="sf-label">Shift</label>
@@ -51,9 +73,15 @@
         </x-sf.card>
 
         <x-sf.card>
-            <p class="text-sm text-gray-700">
-                Sistem akan memuat <span class="font-bold text-gray-900">{{ $dailyItemCount }}</span> item yang perlu di-opname harian untuk outlet ini.
-            </p>
+            @if($dailyItemCount !== null)
+                <p class="text-sm text-gray-700">
+                    Sistem akan memuat <span class="font-bold text-gray-900">{{ $dailyItemCount }}</span> item yang perlu di-opname harian untuk outlet dan departemen ini.
+                </p>
+            @else
+                <p class="text-sm text-gray-700">
+                    Pilih departemen untuk melihat jumlah item yang perlu di-opname harian.
+                </p>
+            @endif
         </x-sf.card>
 
         <div class="sticky bottom-0 z-30 -mx-4 px-4 py-3 bg-white border-t border-gray-100 lg:static lg:mx-0 lg:px-0 lg:border-0 lg:bg-transparent"

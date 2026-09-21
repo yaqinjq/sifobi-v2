@@ -227,11 +227,12 @@
                 actionLabel="+ Tambah Item"
             />
         @else
-            <div class="sf-card overflow-hidden">
+            <div class="sf-card overflow-hidden" x-data="{ selectedActive: [], selectedInactive: [] }">
                 <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-100">
+                            <th class="text-left px-4 py-3 w-10"></th>
                             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">No</th>
                             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Foto</th>
                             <th class="text-left px-4 py-3">
@@ -318,6 +319,7 @@
                         <tr class="bg-white border-b border-gray-100">
                             <td class="px-2 py-2"></td>
                             <td class="px-2 py-2"></td>
+                            <td class="px-2 py-2"></td>
                             <td class="px-2 py-2">
                                 <input type="text"
                                        id="col-search-sku"
@@ -373,6 +375,15 @@
                                 $photoUrl = $item->photo ? asset('storage/'.$item->photo) : null;
                             @endphp
                             <tr x-show="matches(@js($searchable), @js($item->item_type), @js($statusKey))" class="odd:bg-white even:bg-gray-50/60">
+                                <td class="px-4 py-3">
+                                    @can('manage_items')
+                                        @if($item->is_active)
+                                            <input type="checkbox" x-model="selectedActive" value="{{ $item->id }}" class="rounded border-gray-300 text-primary-700">
+                                        @else
+                                            <input type="checkbox" x-model="selectedInactive" value="{{ $item->id }}" class="rounded border-gray-300 text-primary-700">
+                                        @endif
+                                    @endcan
+                                </td>
                                 <td class="px-4 py-3 text-gray-400">{{ $items->firstItem() + $index }}</td>
                                 <td class="px-4 py-3">
                                     <div class="h-10 w-10 rounded-xl bg-gray-100 overflow-hidden flex items-center justify-center text-xs font-semibold text-gray-400">
@@ -452,6 +463,28 @@
                     </tbody>
                 </table>
                 </div>
+
+                @can('manage_items')
+                    <x-sf.bulk-action-bar
+                        selected-var="selectedActive"
+                        route="{{ route('master-data.items.bulk-toggle-active') }}"
+                        confirm-message="Nonaktifkan __COUNT__ item terpilih?"
+                        button-label="Nonaktifkan Terpilih"
+                        button-icon="ti-ban"
+                    >
+                        <input type="hidden" name="active" value="0">
+                    </x-sf.bulk-action-bar>
+
+                    <x-sf.bulk-action-bar
+                        selected-var="selectedInactive"
+                        route="{{ route('master-data.items.bulk-toggle-active') }}"
+                        confirm-message="Aktifkan __COUNT__ item terpilih?"
+                        button-label="Aktifkan Terpilih"
+                        button-icon="ti-check"
+                    >
+                        <input type="hidden" name="active" value="1">
+                    </x-sf.bulk-action-bar>
+                @endcan
             </div>
 
             <div class="mt-4 flex items-center justify-between gap-2 flex-wrap">

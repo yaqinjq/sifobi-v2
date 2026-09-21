@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\MasterData;
 
+use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\MasterData\BulkToggleItemStatusRequest;
 use App\Http\Requests\MasterData\StoreItemRequest;
 use App\Http\Requests\MasterData\UpdateItemRequest;
 use App\Modules\Core\Models\Brand;
@@ -23,6 +25,7 @@ use Illuminate\View\View;
 
 class ItemController extends Controller
 {
+    use HasBulkAction;
     use HasPerPageSelector;
 
     public function index(Request $request): View
@@ -263,6 +266,28 @@ class ItemController extends Controller
         DB::transaction(fn () => $item->update(['is_active' => $willBeActive]));
 
         return back()->with('success', $willBeActive ? 'Item berhasil diaktifkan.' : 'Item berhasil dinonaktifkan.');
+    }
+
+    public function bulkToggleStatus(BulkToggleItemStatusRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $willBeActive = $request->boolean('active');
+
+        $items = Item::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', ! $willBeActive)
+            ->get();
+
+        $result = $this->runBulkAction(
+            $items,
+            fn (Item $item) => DB::transaction(fn () => $item->update(['is_active' => $willBeActive])),
+            fn (Item $item) => $item->name
+        );
+
+        $label = $willBeActive ? 'diaktifkan' : 'dinonaktifkan';
+
+        return $this->bulkActionRedirect('master-data.items.index', $result, "{$result['processed']} item berhasil {$label}.");
     }
 
     /**

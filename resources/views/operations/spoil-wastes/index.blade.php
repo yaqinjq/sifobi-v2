@@ -14,7 +14,7 @@
     </x-slot:actions>
 </x-sf.page-header>
 
-<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4">
+<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4" x-data="{ selected: [] }">
     @if($duplicateCount > 0)
         <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
             <strong>{{ $duplicateCount }}</strong> laporan spoil pending memakai foto duplikat.
@@ -90,6 +90,15 @@
                 <table class="min-w-full divide-y divide-gray-100">
                     <thead class="bg-gray-50">
                         <tr class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            @can('approve_spoil')
+                                <th class="px-4 py-3 w-10">
+                                    @if($pendingIds->isNotEmpty())
+                                        <input type="checkbox" class="rounded border-gray-300 text-primary-700"
+                                               :checked="selected.length === {{ $pendingIds->count() }} && {{ $pendingIds->count() }} > 0"
+                                               @change="selected = $event.target.checked ? @js($pendingIds) : []">
+                                    @endif
+                                </th>
+                            @endcan
                             <th class="px-4 py-3">No</th>
                             <th class="px-4 py-3">Waktu</th>
                             <th class="px-4 py-3">Item</th>
@@ -104,6 +113,13 @@
                     <tbody class="divide-y divide-gray-100 text-sm">
                         @forelse($spoilWastes as $spoil)
                             <tr>
+                                @can('approve_spoil')
+                                    <td class="px-4 py-3">
+                                        @if($spoil->status === \App\Modules\Operations\Models\SpoilWaste::STATUS_PENDING)
+                                            <input type="checkbox" x-model="selected" value="{{ $spoil->id }}" class="rounded border-gray-300 text-primary-700">
+                                        @endif
+                                    </td>
+                                @endcan
                                 <td class="px-4 py-3 text-gray-500">{{ $spoilWastes->firstItem() + $loop->index }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ optional($spoil->recorded_at)->format('d M H:i') }}</td>
                                 <td class="px-4 py-3 font-semibold text-gray-900">{{ $spoil->item?->name ?? '-' }}</td>
@@ -132,7 +148,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="px-4 py-10 text-center text-gray-500">Belum ada spoil.</td>
+                                <td colspan="10" class="px-4 py-10 text-center text-gray-500">Belum ada spoil.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -145,5 +161,14 @@
         <x-sf.per-page-selector :options="$perPageOptions" :current="$perPage" />
         {{ $spoilWastes->links() }}
     </div>
+
+    @can('approve_spoil')
+        <x-sf.bulk-action-bar
+            route="{{ route('operations.spoil-wastes.bulk-approve') }}"
+            confirm-message="Approve __COUNT__ spoil/waste pending terpilih?"
+            button-label="Approve Terpilih"
+            button-icon="ti-checks"
+        />
+    @endcan
 </div>
 @endsection

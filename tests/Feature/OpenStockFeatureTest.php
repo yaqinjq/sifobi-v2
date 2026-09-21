@@ -302,7 +302,7 @@ test('desktop open stock index shows create and import actions', function (): vo
     $this->actingAs($user)
         ->get(route('operations.open-stocks.index'))
         ->assertOk()
-        ->assertSee('+ Input Stok Awal')
+        ->assertSee('Input Stok Awal')
         ->assertSee('Import Excel');
 });
 
@@ -691,6 +691,70 @@ test('ambiguous decimal with dot then comma is rejected', function (): void {
         ->from('/operations/open-stocks/create')
         ->post('/operations/open-stocks', openStockPayload(['qty_whole' => '1.000,50']))
         ->assertSessionHasErrors('items.0.qty_whole');
+});
+
+test('open stock index filters by department', function (): void {
+    $user = openStockUser('PIC_OUTLET');
+    $item2 = Item::query()->where('canonical_sku', 'MKO-GULA-PASIR')->firstOrFail();
+    $bar = Department::query()->where('code', 'BAR')->firstOrFail();
+    $kitchen = Department::query()->where('code', 'KITCHEN')->firstOrFail();
+
+    $this->actingAs($user)->post('/operations/open-stocks', openStockPayload(['department_id' => $bar->id]));
+    $this->actingAs($user)->post('/operations/open-stocks', openStockPayload([
+        'item_id' => $item2->id,
+        'department_id' => $kitchen->id,
+    ]));
+
+    $this->actingAs($user)
+        ->get(route('operations.open-stocks.index', ['department_id' => $bar->id]))
+        ->assertOk()
+        ->assertViewHas('openStocks', fn ($openStocks) => $openStocks->total() === 1
+            && $openStocks->first()->department_id === $bar->id);
+});
+
+test('open stock index filters by outlet for non outlet bound user', function (): void {
+    $user = openStockUser('PIC_OUTLET');
+    $outlet2 = Outlet::query()->where('code', 'MKO_OUTLET_2')->firstOrFail();
+
+    $this->actingAs($user)->post('/operations/open-stocks', openStockPayload());
+    $this->actingAs($user)->post('/operations/open-stocks', openStockPayload([], ['outlet_id' => $outlet2->id]));
+
+    $this->actingAs($user)
+        ->get(route('operations.open-stocks.index', ['outlet_id' => $outlet2->id]))
+        ->assertOk()
+        ->assertViewHas('openStocks', fn ($openStocks) => $openStocks->total() === 1
+            && $openStocks->first()->outlet_id === $outlet2->id);
+});
+
+test('open stock index does not expose brand and outlet filter to outlet bound user', function (): void {
+    $user = openStockUser('PIC_OUTLET');
+    $user->update(['outlet_id' => $this->outlet->id]);
+
+    $this->actingAs($user)
+        ->get(route('operations.open-stocks.index'))
+        ->assertOk()
+        ->assertViewHas('canFilterOutlet', false)
+        ->assertDontSee('name="brand_id"', false)
+        ->assertDontSee('name="outlet_id"', false);
+});
+
+test('open stock export downloads a spreadsheet respecting active filters', function (): void {
+    $user = openStockUser('PIC_OUTLET');
+    $item2 = Item::query()->where('canonical_sku', 'MKO-GULA-PASIR')->firstOrFail();
+    $bar = Department::query()->where('code', 'BAR')->firstOrFail();
+    $kitchen = Department::query()->where('code', 'KITCHEN')->firstOrFail();
+
+    $this->actingAs($user)->post('/operations/open-stocks', openStockPayload(['department_id' => $bar->id]));
+    $this->actingAs($user)->post('/operations/open-stocks', openStockPayload([
+        'item_id' => $item2->id,
+        'department_id' => $kitchen->id,
+    ]));
+
+    $response = $this->actingAs($user)
+        ->get(route('operations.open-stocks.export', ['department_id' => $bar->id]));
+
+    $response->assertOk();
+    expect($response->headers->get('content-type'))->toContain('spreadsheet');
 });
 
 test('open stock index respects per_page and falls back to default on invalid value', function (): void {

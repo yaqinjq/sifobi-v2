@@ -9,7 +9,7 @@
     back="{{ auth()->user()->can('manage_settings') ? route('settings.index') : route('dashboard') }}"
 />
 
-<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-5">
+<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-5" x-data="{ selected: [] }">
     @if($errors->any())
         <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {{ $errors->first() }}
@@ -42,6 +42,10 @@
                     ][$event->event_type] ?? 'badge-draft';
                 @endphp
                 <div class="py-4" x-data="{ editing: false }">
+                    <label class="flex items-center gap-2 mb-2 text-xs font-medium text-gray-500">
+                        <input type="checkbox" x-model="selected" value="{{ $event->id }}" class="rounded border-gray-300 text-primary-700">
+                        Pilih
+                    </label>
                     <form method="POST" action="{{ route('settings.calendar-events.update', $event) }}"
                           class="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr_1.3fr_1fr_0.8fr_auto] gap-3 items-center">
                         @csrf
@@ -135,6 +139,13 @@
             {{ $events->links() }}
         </div>
     </x-sf.card>
+
+    <x-sf.bulk-action-bar
+        route="{{ route('settings.calendar-events.bulk-destroy') }}"
+        confirm-message="Hapus __COUNT__ kalender event terpilih?"
+        button-label="Hapus Terpilih"
+        button-icon="ti-trash"
+    />
 
     <x-sf.card title="+ Tambah Event">
         <form method="POST" action="{{ route('settings.calendar-events.store') }}"
