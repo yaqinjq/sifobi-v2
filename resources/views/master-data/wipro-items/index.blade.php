@@ -11,7 +11,8 @@
         this.viewMode = mode;
         localStorage.setItem('sifobi_wipro_items_view_mode', mode);
     },
-    selected: []
+    selected: [],
+    selectedActive: []
 }">
 <x-sf.page-header title="Data Item Wipro" subtitle="Item dari katalog Wipro — cuma untuk Purchase Order" back="{{ route('master-data.items.index') }}">
     <x-slot:actions>
@@ -118,9 +119,11 @@
                             <tr class="odd:bg-white even:bg-gray-50/60">
                                 <td class="px-4 py-3">
                                     @can('manage_items')
-                                        @unless($item->track_stock)
+                                        @if($item->track_stock)
+                                            <input type="checkbox" x-model="selectedActive" value="{{ $item->id }}" class="rounded border-gray-300 text-primary-700">
+                                        @else
                                             <input type="checkbox" x-model="selected" value="{{ $item->id }}" class="rounded border-gray-300 text-primary-700">
-                                        @endunless
+                                        @endif
                                     @endcan
                                 </td>
                                 <td class="px-4 py-3">
@@ -203,6 +206,7 @@
 
     @can('manage_items')
         <x-sf.bulk-action-bar
+            selected-var="selected"
             route="{{ route('master-data.wipro-items.bulk-activate-opname') }}"
             confirm-message="Aktifkan __COUNT__ item Wipro terpilih untuk Opname pada departemen yang dipilih?"
             button-label="Aktifkan untuk Opname"
@@ -215,6 +219,43 @@
                 @endforeach
             </select>
         </x-sf.bulk-action-bar>
+
+        {{-- Item yang SUDAH aktif untuk Opname: bisa pindah departemen atau
+             dinonaktifkan lagi -- 2 tombol dalam 1 form yang sama, lewat
+             atribut formaction/formnovalidate supaya tidak perlu 2 bar
+             bertumpuk (keduanya terikat ke selection yang sama). --}}
+        <div x-show="selectedActive.length > 0" x-cloak
+             class="fixed inset-x-0 bottom-16 z-30 border-t border-gray-200 bg-white px-4 py-3 shadow-lg md:bottom-0 md:px-6">
+            <form method="POST" action="{{ route('master-data.wipro-items.bulk-activate-opname') }}"
+                  class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3"
+                  @submit="if (! confirm(`Terapkan aksi ke ${selectedActive.length} item Wipro terpilih?`)) { $event.preventDefault(); }">
+                @csrf
+                <template x-for="id in selectedActive" :key="id">
+                    <input type="hidden" name="ids[]" :value="id">
+                </template>
+                <p class="text-sm text-gray-600">
+                    <span class="font-semibold text-gray-900" x-text="selectedActive.length"></span> item aktif terpilih
+                </p>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <select name="department_id" class="sf-input text-sm w-auto min-h-11" required>
+                        <option value="">Pindah ke departemen...</option>
+                        @foreach($opnameDepartments as $department)
+                            <option value="{{ $department->id }}">{{ $department->name }}</option>
+                        @endforeach
+                    </select>
+                    <button type="submit" class="sf-btn-secondary min-h-11 px-4">
+                        <i class="ti ti-transfer text-base" aria-hidden="true"></i>
+                        Ubah Departemen
+                    </button>
+                    <button type="submit" formnovalidate
+                            formaction="{{ route('master-data.wipro-items.bulk-deactivate-opname') }}"
+                            class="sf-btn-danger min-h-11 px-4">
+                        <i class="ti ti-x text-base" aria-hidden="true"></i>
+                        Nonaktifkan dari Opname
+                    </button>
+                </div>
+            </form>
+        </div>
     @endcan
 </div>
 </div>

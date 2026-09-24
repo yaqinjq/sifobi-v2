@@ -672,6 +672,19 @@
                     <li>Item langsung muncul di sesi Opname departemen tsb untuk semua outlet, lengkap dengan kategorinya (otomatis ikut logika filter &amp; urutan "Sesuai Form")</li>
                 </ol>
                 <p class="text-xs text-gray-500 mt-2">Item yang sudah diaktifkan tidak akan pernah ke-reset lagi meski katalog Wipro di-upload ulang (lihat kotak "Disesuaikan manual" di tabel) — cukup dilakukan sekali per item. Tidak semua item Wipro perlu diaktifkan, hanya yang memang dihitung fisik saja.</p>
+
+                <p class="font-semibold text-gray-800 mt-4 mb-2">Mengubah Departemen atau Membatalkan Aktivasi</p>
+                <p class="text-xs text-gray-600 mb-2">Item yang SUDAH aktif (ada label hijau "Aktif Opname") punya checkbox tersendiri. Kalau dicentang, muncul bar aksi berbeda di bagian bawah layar dengan 2 pilihan:</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div class="rounded-lg bg-gray-50 px-3 py-2">
+                        <p class="font-medium text-gray-700">Ubah Departemen</p>
+                        <p class="text-gray-500 mt-0.5">Pilih departemen baru dari dropdown, lalu klik "Ubah Departemen" — dipakai kalau ternyata item itu seharusnya dihitung departemen lain, bukan yang dipilih sebelumnya.</p>
+                    </div>
+                    <div class="rounded-lg bg-gray-50 px-3 py-2">
+                        <p class="font-medium text-gray-700">Nonaktifkan dari Opname</p>
+                        <p class="text-gray-500 mt-0.5">Tidak perlu pilih departemen — klik langsung untuk mengembalikan item ke kondisi semula (tidak ikut Opname lagi), misalnya kalau ternyata item itu tidak perlu dihitung fisik.</p>
+                    </div>
+                </div>
             </div>
 
             <div class="border-t border-gray-100 pt-3">

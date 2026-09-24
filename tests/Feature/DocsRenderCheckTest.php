@@ -10,6 +10,6 @@ test('tutorial and changelog pages render without blade errors', function () {
     $this->seed([RolesAndPermissionsSeeder::class, MinimumMasterDataSeeder::class]);
     $admin = User::query()->where('email', 'admin@sifobi.test')->firstOrFail();
 
-    $this->actingAs($admin)->get(route('tutorial'))->assertOk()->assertSee('Mapping Departemen')->assertSee('Aktifkan untuk Opname');
-    $this->actingAs($admin)->get(route('changelog'))->assertOk()->assertSee('v2.17');
+    $this->actingAs($admin)->get(route('tutorial'))->assertOk()->assertSee('Mapping Departemen')->assertSee('Aktifkan untuk Opname')->assertSee('Nonaktifkan dari Opname');
+    $this->actingAs($admin)->get(route('changelog'))->assertOk()->assertSee('v2.18');
 });

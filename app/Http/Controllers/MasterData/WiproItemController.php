@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MasterData\BulkActivateWiproItemForOpnameRequest;
+use App\Http\Requests\MasterData\BulkDeactivateWiproItemForOpnameRequest;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
@@ -82,6 +83,11 @@ class WiproItemController extends Controller
      * track_stock=true otomatis kena proteksi "isCustomized" di
      * WiproCatalogImport, jadi aman dari ke-reset saat import katalog
      * berikutnya -- lihat app/Imports/WiproCatalogImport.php.
+     *
+     * Method ini sengaja tidak membedakan item yang sudah aktif atau belum
+     * -- dipakai juga untuk "Ubah Departemen" pada item yang sudah aktif
+     * (tinggal jalankan ulang dengan department_id baru), supaya tidak ada
+     * jalur/logika terpisah untuk kasus yang sebenarnya sama.
      */
     public function bulkActivateForOpname(BulkActivateWiproItemForOpnameRequest $request): RedirectResponse
     {
@@ -128,6 +134,42 @@ class WiproItemController extends Controller
             'master-data.wipro-items.index',
             $result,
             "{$result['processed']} item Wipro diaktifkan untuk Opname di departemen {$department->name}."
+        );
+    }
+
+    /**
+     * Batalkan aktivasi Opname untuk item Wipro terpilih -- kebalikan dari
+     * bulkActivateForOpname(): mengosongkan kembali track_stock &
+     * primary_department_id. Sengaja TIDAK melepas mapping kategori di
+     * Department::itemCategories() maupun baris item_outlets yang sudah
+     * dibuat -- keduanya bisa dipakai bersama item Wipro lain yang masih
+     * aktif untuk departemen/kategori yang sama, jadi lebih aman dibiarkan
+     * daripada dihapus (harmless: item yang track_stock-nya sudah false
+     * tetap tidak akan muncul di Opname walau baris itu masih ada).
+     */
+    public function bulkDeactivateForOpname(BulkDeactivateWiproItemForOpnameRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+
+        $items = Item::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->where('item_source', 'WIPRO')
+            ->get();
+
+        $result = $this->runBulkAction(
+            $items,
+            fn (Item $item) => $item->update([
+                'track_stock' => false,
+                'primary_department_id' => null,
+            ]),
+            fn (Item $item) => $item->name
+        );
+
+        return $this->bulkActionRedirect(
+            'master-data.wipro-items.index',
+            $result,
+            "{$result['processed']} item Wipro dinonaktifkan dari Opname."
         );
     }
 

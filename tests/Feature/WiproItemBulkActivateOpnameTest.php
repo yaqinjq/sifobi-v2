@@ -24,6 +24,7 @@ beforeEach(function (): void {
     $this->admin = User::query()->where('email', 'admin@sifobi.test')->firstOrFail();
     $this->tenant = Tenant::query()->where('code', 'MKO')->firstOrFail();
     $this->kitchen = Department::query()->where('code', 'KITCHEN')->firstOrFail();
+    $this->bar = Department::query()->where('code', 'BAR')->firstOrFail();
 
     $this->wiproCategory = ItemCategory::query()->create([
         'tenant_id' => $this->tenant->id,
@@ -111,6 +112,62 @@ test('bulk activation survives a subsequent wipro catalog re-import', function (
 
     expect($this->wiproItem->refresh()->track_stock)->toBeTrue()
         ->and($this->wiproItem->primary_department_id)->toBe($this->kitchen->id);
+});
+
+test('re-running bulk activate on an already active item changes its department', function (): void {
+    $this->actingAs($this->admin)->post(route('master-data.wipro-items.bulk-activate-opname'), [
+        'department_id' => $this->kitchen->id,
+        'ids' => [$this->wiproItem->id],
+    ]);
+
+    expect($this->wiproItem->refresh()->primary_department_id)->toBe($this->kitchen->id);
+
+    $this->actingAs($this->admin)
+        ->post(route('master-data.wipro-items.bulk-activate-opname'), [
+            'department_id' => $this->bar->id,
+            'ids' => [$this->wiproItem->id],
+        ])
+        ->assertRedirect(route('master-data.wipro-items.index'));
+
+    expect($this->wiproItem->refresh()->track_stock)->toBeTrue()
+        ->and($this->wiproItem->primary_department_id)->toBe($this->bar->id)
+        ->and($this->bar->itemCategories()->where('item_categories.id', $this->wiproCategory->id)->exists())->toBeTrue();
+});
+
+test('bulk deactivate clears track_stock and department so item no longer appears in opname', function (): void {
+    $this->actingAs($this->admin)->post(route('master-data.wipro-items.bulk-activate-opname'), [
+        'department_id' => $this->kitchen->id,
+        'ids' => [$this->wiproItem->id],
+    ]);
+    expect($this->wiproItem->refresh()->track_stock)->toBeTrue();
+
+    $this->actingAs($this->admin)
+        ->post(route('master-data.wipro-items.bulk-deactivate-opname'), [
+            'ids' => [$this->wiproItem->id],
+        ])
+        ->assertRedirect(route('master-data.wipro-items.index'));
+
+    $this->wiproItem->refresh();
+    expect($this->wiproItem->track_stock)->toBeFalse()
+        ->and($this->wiproItem->primary_department_id)->toBeNull();
+
+    $staff = User::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => \App\Modules\Core\Models\Outlet::query()->where('tenant_id', $this->tenant->id)->value('id'),
+        'department_id' => $this->kitchen->id,
+        'status' => 'ACTIVE',
+    ]);
+    $staff->assignRole('STAFF_BAR');
+
+    $session = app(\App\Services\OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $staff->outlet_id,
+        'department_id' => $this->kitchen->id,
+        'type' => \App\Modules\Operations\Models\OpnameSession::TYPE_DAILY,
+        'opname_date' => now()->toDateString(),
+    ], $staff->id);
+
+    expect($session->items->pluck('item_id')->all())->not->toContain($this->wiproItem->id);
 });
 
 test('non wipro items and items from another tenant are rejected', function (): void {
