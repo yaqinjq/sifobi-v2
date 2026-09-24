@@ -8,12 +8,37 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.19 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.19 &mdash; 24 September 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Upload <strong>Mapping Departemen & Kategori Opname</strong> sekarang bisa membaca format file resmi yang biasa dipakai (baris judul kosong di atas, kolom Departemen/Kategori cuma diisi sekali per kelompok) &mdash; sebelumnya banyak baris gagal karena format ini belum didukung</li>
+                    <li>Kategori yang namanya sudah ada di Master Data tidak lagi gagal saat diimpor (dulu muncul error "Duplicate entry") &mdash; sekarang dipakai ulang otomatis</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Konfirmasi hasil upload mapping dibuat lebih jelas (kotak hijau/kuning/merah dengan ikon &amp; judul, bukan cuma teks kecil)</li>
+                    <li>Filter <strong>Kategori</strong> di halaman Opname sekarang bisa diketik untuk mencari (searchable), tidak perlu scroll dropdown panjang lagi</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.18 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.18 &mdash; 24 September 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

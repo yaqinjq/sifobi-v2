@@ -53,14 +53,13 @@
                        class="sf-input pl-9 w-full text-sm min-h-11">
             </div>
 
-            <select name="category_id" id="opname-category" class="sf-input text-sm w-auto min-h-11" onchange="this.form.submit()">
-                <option value="">Semua Kategori</option>
-                @foreach($categories as $category)
-                    <option value="{{ $category->id }}" @selected((string) $categoryId === (string) $category->id)>
-                        {{ $category->parent_id ? '— '.$category->name : $category->name }}
-                    </option>
-                @endforeach
-            </select>
+            <x-sf.searchable-select
+                name="category_id"
+                :selected="$categoryId"
+                :options="$categories->map(fn ($category) => ['value' => $category->id, 'label' => $category->name, 'indent' => (bool) $category->parent_id])"
+                placeholder="Cari kategori..."
+                all-label="Semua Kategori"
+            />
 
             <select name="sort_mode" id="opname-sort-mode" class="sf-input text-sm w-auto min-h-11" onchange="this.form.submit()">
                 <option value="az" @selected($sortMode === 'az')>Urutkan: A-Z</option>

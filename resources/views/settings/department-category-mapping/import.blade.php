@@ -7,10 +7,32 @@
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-4">
     @if(session('success'))
-        <div class="rounded-2xl border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('success') }}</div>
+        <div class="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 flex items-start gap-3">
+            <i class="ti ti-circle-check-filled text-green-600 text-2xl shrink-0" aria-hidden="true"></i>
+            <div>
+                <p class="font-semibold text-green-800">Import Berhasil</p>
+                <p class="text-sm text-green-700 mt-0.5">{{ session('success') }}</p>
+            </div>
+        </div>
     @endif
     @if(session('warning'))
-        <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{{ session('warning') }}</div>
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+            <i class="ti ti-alert-triangle text-amber-600 text-2xl shrink-0" aria-hidden="true"></i>
+            <div>
+                <p class="font-semibold text-amber-800">Import Selesai, Sebagian Baris Gagal</p>
+                <p class="text-sm text-amber-700 mt-0.5">{{ session('warning') }}</p>
+                <p class="text-xs text-amber-600 mt-1">Lihat rincian baris yang gagal di bawah ini.</p>
+            </div>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
+            <i class="ti ti-alert-circle-filled text-red-600 text-2xl shrink-0" aria-hidden="true"></i>
+            <div>
+                <p class="font-semibold text-red-800">Import Gagal</p>
+                <p class="text-sm text-red-700 mt-0.5">{{ session('error') }}</p>
+            </div>
+        </div>
     @endif
     @if($errors->any())
         <div class="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -46,7 +68,12 @@
                 @error('file')<p class="text-sm text-red-600 mt-1">{{ $message }}</p>@enderror
             </div>
             <div class="rounded-xl bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-800">
-                Kategori & Sub Kategori yang belum ada akan dibuat otomatis. Import ulang file yang sama aman (upsert), tidak membuat data duplikat.
+                <p class="font-semibold mb-1">Upload ini sifatnya MENAMBAH/MEMPERBARUI, bukan mengganti semuanya:</p>
+                <ul class="list-disc list-inside space-y-0.5">
+                    <li>Kategori & Sub Kategori yang <strong>belum ada</strong> akan dibuat otomatis</li>
+                    <li>Kategori & Sub Kategori yang <strong>namanya sudah ada</strong> (baik dari upload sebelumnya maupun dari Master Data lama) akan dipakai ulang &amp; diperbarui urutannya, TIDAK dibuat dobel</li>
+                    <li>Upload ulang file yang sama, atau file baru yang cuma berisi sebagian data, sama-sama aman &mdash; data yang sudah ada sebelumnya <strong>tidak akan terhapus</strong> hanya karena tidak disebut lagi di file yang baru</li>
+                </ul>
             </div>
             <button type="submit" class="sf-btn-primary min-h-11 w-full">Import Sekarang</button>
         </form>

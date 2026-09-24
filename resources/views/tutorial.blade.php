@@ -444,9 +444,11 @@
                     <li>Klik <strong>"Unduh Template"</strong>, isi kolom <em>departemen</em>, <em>kategori</em>, <em>urutan</em>, dan <em>sub_kategori</em> sesuai contoh dan petunjuk di sheet "PETUNJUK"</li>
                     <li>Upload file yang sudah diisi lewat form "Upload File" di halaman yang sama</li>
                     <li>Kategori dan Sub Kategori yang belum ada akan dibuat otomatis, dan langsung ter-mapping ke departemen terkait &mdash; hasilnya langsung muncul di filter Kategori dan mode urutan "Sesuai Form" pada halaman Opname</li>
-                    <li>Import ulang file yang sama aman dilakukan kapan saja untuk memperbarui urutan &mdash; tidak akan membuat data dobel</li>
+                    <li>Setelah upload, muncul kotak konfirmasi hijau <strong>"Import Berhasil"</strong> berisi jumlah baris yang berhasil/gagal diproses &mdash; kalau ada yang gagal, muncul kotak kuning berisi rincian tiap baris yang bermasalah</li>
                 </ol>
                 <p class="text-xs text-gray-500 mt-2">Assign item ke suatu Sub Kategori tetap lewat <strong>Master Data Item</strong> seperti biasa &mdash; file mapping ini cuma mengatur struktur &amp; urutan kategorinya, bukan daftar item.</p>
+                <p class="text-xs text-gray-500 mt-2"><strong>Upload ulang itu menambah/memperbarui, bukan mengganti semuanya:</strong> kategori yang namanya sudah ada (dari upload sebelumnya atau dari Master Data lama) dipakai ulang & diperbarui urutannya, tidak dibuat dobel. Data yang sudah ada sebelumnya juga tidak akan hilang hanya karena tidak disebut lagi di file yang baru diupload.</p>
+                <p class="text-xs text-gray-500 mt-2">Filter <strong>Kategori</strong> di halaman Opname sekarang bisa diketik untuk mencari (klik kotaknya, lalu ketik nama kategori) &mdash; memudahkan kalau daftar kategorinya panjang.</p>
             </div>
 
             <div class="rounded-xl bg-green-50 border border-green-100 px-3 py-2 text-xs text-green-800">
