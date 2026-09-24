@@ -4,39 +4,38 @@ namespace App\Imports;
 
 use App\Modules\Core\Models\Department;
 use App\Modules\Inventory\Models\ItemCategory;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Maatwebsite\Excel\Concerns\Importable;
-use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
-use Maatwebsite\Excel\Concerns\SkipsErrors;
-use Maatwebsite\Excel\Concerns\SkipsFailures;
-use Maatwebsite\Excel\Concerns\SkipsOnError;
-use Maatwebsite\Excel\Concerns\SkipsOnFailure;
-use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithValidation;
-use Maatwebsite\Excel\Validators\Failure;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use RuntimeException;
 use Throwable;
 
 /**
  * Import mapping Departemen -> Kategori -> Sub Kategori (dengan urutan) dari
- * Excel, mengikuti format "Mapping Daily Opname.xlsx" yang disiapkan
- * pimpinan. Tujuannya supaya filter Kategori di halaman Opname cuma
+ * Excel. Sengaja dibaca lewat sel mentah (bukan Laravel-Excel
+ * ToCollection/WithHeadingRow) mengikuti pola WiproCatalogImport --
+ * mengikuti bentuk ASLI file "Mapping Daily Opname.xlsx" dari pimpinan
+ * yang punya baris judul kosong di atas, header BUKAN di baris pertama,
+ * dan kolom Departemen/Kategori cuma diisi sekali per kelompok (baris
+ * berikutnya kosong, mengikuti kebiasaan sel gabungan/visual grouping di
+ * Excel) -- bukan format flat 1-header-per-kolom yang lurus.
+ *
+ * Tujuan fitur ini: supaya filter Kategori di halaman Opname cuma
  * menampilkan kategori yang relevan untuk departemen sesi tsb (bukan semua
  * kategori master), dan item di dalam kategori tampil sesuai urutan form,
  * bukan abjad -- lihat Department::itemCategories() dan
  * ItemCategory::parent()/children().
  *
- * Upsert idempoten: baris yang sama (departemen+kategori+sub kategori) yang
- * diimpor ulang cuma memperbarui urutan, tidak membuat duplikat.
+ * Upsert idempoten berdasarkan NAMA kategori (bukan nama+parent) --
+ * item_categories punya unique constraint (tenant_id, name) sejak migration
+ * dedup_item_categories_add_unique_name, jadi nama kategori/sub-kategori
+ * memang harus unik per tenant apa pun parent-nya. Kalau kategori dengan
+ * nama yang sama sudah ada (mis. dari Master Data lama), baris tsb dipakai
+ * ulang (parent & urutan disesuaikan), TIDAK dibuatkan duplikat baru --
+ * inilah yang tadinya bikin gagal "Duplicate entry" saat upload file asli.
  */
-class DepartmentCategoryMappingImport implements SkipsEmptyRows, SkipsOnError, SkipsOnFailure, ToCollection, WithChunkReading, WithHeadingRow, WithValidation
+class DepartmentCategoryMappingImport
 {
-    use Importable;
-    use SkipsErrors;
-    use SkipsFailures;
-
     private int $processed = 0;
 
     /**
@@ -49,57 +48,68 @@ class DepartmentCategoryMappingImport implements SkipsEmptyRows, SkipsOnError, S
     ) {
     }
 
-    public function collection(Collection $rows): void
+    public function import(string $filePath): void
     {
-        foreach ($rows as $index => $row) {
-            $rowNumber = $index + 2;
+        $spreadsheet = IOFactory::load($filePath);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $columns = $this->detectColumns($sheet);
+
+        if (! $columns) {
+            $this->rowErrors[] = [
+                'row' => 0,
+                'message' => 'Format file tidak dikenali -- pastikan ada kolom/header "Departemen", "Kategori", dan "Sub Kategori".',
+            ];
+
+            return;
+        }
+
+        ['header' => $headerRow, 'departemen' => $departemenCol, 'kategori' => $kategoriCol, 'urutan' => $urutanCol, 'subKategori' => $subKategoriCol] = $columns;
+
+        $lastDepartemen = '';
+        $lastKategori = '';
+        $highestRow = $sheet->getHighestDataRow();
+
+        for ($rowNum = $headerRow + 1; $rowNum <= $highestRow; $rowNum++) {
+            $departemen = trim((string) $sheet->getCell("{$departemenCol}{$rowNum}")->getValue());
+            $kategori = trim((string) $sheet->getCell("{$kategoriCol}{$rowNum}")->getValue());
+            $urutan = trim((string) $sheet->getCell("{$urutanCol}{$rowNum}")->getValue());
+            $subKategori = trim((string) $sheet->getCell("{$subKategoriCol}{$rowNum}")->getValue());
+
+            if ($departemen === '' && $kategori === '' && $subKategori === '') {
+                continue; // baris kosong pemisah antar kelompok -- bukan error
+            }
+
+            // Baris berikutnya dalam satu kelompok cuma mengisi sub-kategori,
+            // Departemen & Kategori dianggap sama dengan baris terakhir yang
+            // benar-benar mengisinya (gaya sel gabungan/visual grouping).
+            $departemen = $departemen !== '' ? $departemen : $lastDepartemen;
+            $kategori = $kategori !== '' ? $kategori : $lastKategori;
+
+            if ($departemen !== '') {
+                $lastDepartemen = $departemen;
+            }
+            if ($kategori !== '') {
+                $lastKategori = $kategori;
+            }
 
             try {
-                $this->importRow($row);
+                if ($departemen === '') {
+                    throw new RuntimeException('Departemen tidak ditemukan (baris ini maupun baris sebelumnya di kelompok yang sama).');
+                }
+                if ($kategori === '') {
+                    throw new RuntimeException('Kategori tidak ditemukan (baris ini maupun baris sebelumnya di kelompok yang sama).');
+                }
+
+                $this->importRow($departemen, $kategori, $subKategori, $urutan);
                 $this->processed++;
             } catch (Throwable $throwable) {
                 $this->rowErrors[] = [
-                    'row' => $rowNumber,
+                    'row' => $rowNum,
                     'message' => $throwable->getMessage(),
                 ];
             }
         }
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function rules(): array
-    {
-        return [
-            '*.departemen' => ['required', 'string'],
-            '*.kategori' => ['required', 'string'],
-            '*.sub_kategori' => ['nullable', 'string'],
-            '*.urutan' => ['nullable', 'integer'],
-        ];
-    }
-
-    public function onFailure(Failure ...$failures): void
-    {
-        foreach ($failures as $failure) {
-            $this->rowErrors[] = [
-                'row' => $failure->row(),
-                'message' => implode('; ', $failure->errors()),
-            ];
-        }
-    }
-
-    public function onError(Throwable $e): void
-    {
-        $this->rowErrors[] = [
-            'row' => 0,
-            'message' => $e->getMessage(),
-        ];
-    }
-
-    public function chunkSize(): int
-    {
-        return 200;
     }
 
     /**
@@ -115,27 +125,31 @@ class DepartmentCategoryMappingImport implements SkipsEmptyRows, SkipsOnError, S
         ];
     }
 
-    private function importRow(Collection $row): void
+    private function importRow(string $departmentLabel, string $categoryName, string $subCategoryName, string $urutan): void
     {
-        $departmentLabel = trim((string) $row->get('departemen'));
         $department = Department::query()
             ->where('tenant_id', $this->tenantId)
             ->where(fn ($q) => $q->where('name', $departmentLabel)->orWhere('code', $departmentLabel))
             ->first();
 
         if (! $department) {
-            throw new \RuntimeException("Departemen '{$departmentLabel}' tidak ditemukan.");
+            throw new RuntimeException("Departemen '{$departmentLabel}' tidak ditemukan.");
         }
 
-        $categoryName = trim((string) $row->get('kategori'));
-
+        // Cari berdasarkan NAMA saja (bukan nama+parent) -- item_categories
+        // unik per (tenant_id, name), jadi kategori yang sudah ada (dari
+        // import sebelumnya ATAU dari Master Data lama) dipakai ulang, tidak
+        // dibuatkan duplikat yang bakal ditolak database.
         $category = ItemCategory::query()
             ->where('tenant_id', $this->tenantId)
-            ->whereNull('parent_id')
             ->where('name', $categoryName)
             ->first();
 
-        if (! $category) {
+        if ($category) {
+            if ($category->parent_id !== null) {
+                $category->update(['parent_id' => null]);
+            }
+        } else {
             $category = ItemCategory::query()->create([
                 'tenant_id' => $this->tenantId,
                 'parent_id' => null,
@@ -149,22 +163,22 @@ class DepartmentCategoryMappingImport implements SkipsEmptyRows, SkipsOnError, S
 
         $department->itemCategories()->syncWithoutDetaching([$category->id]);
 
-        $subCategoryName = trim((string) $row->get('sub_kategori', ''));
-
         if ($subCategoryName === '') {
             return;
         }
 
-        $sortOrder = (int) ($row->get('urutan') ?: 0);
+        $sortOrder = (int) ($urutan ?: 0);
 
         $sub = ItemCategory::query()
             ->where('tenant_id', $this->tenantId)
-            ->where('parent_id', $category->id)
             ->where('name', $subCategoryName)
             ->first();
 
         if ($sub) {
-            $sub->update(['sort_order' => $sortOrder]);
+            $sub->update([
+                'parent_id' => $category->id,
+                'sort_order' => $sortOrder,
+            ]);
 
             return;
         }
@@ -178,6 +192,98 @@ class DepartmentCategoryMappingImport implements SkipsEmptyRows, SkipsOnError, S
             'is_active' => true,
             'sort_order' => $sortOrder,
         ]);
+    }
+
+    /**
+     * Cari baris header (mengandung sel "Departemen") dan kolom-kolom yang
+     * relevan berdasarkan teks header-nya -- bukan posisi tetap -- supaya
+     * tetap jalan baik untuk file resmi pimpinan (header di baris ke-3,
+     * ada kolom Gudang yang diabaikan) maupun format sederhana
+     * departemen/kategori/urutan/sub_kategori di baris pertama.
+     *
+     * @return array{header:int,departemen:string,kategori:string,urutan:string,subKategori:string}|null
+     */
+    private function detectColumns(Worksheet $sheet): ?array
+    {
+        $highestRow = min($sheet->getHighestDataRow(), 10);
+        $highestColumn = $sheet->getHighestDataColumn();
+
+        for ($rowNum = 1; $rowNum <= $highestRow; $rowNum++) {
+            $departemenCol = null;
+            $kategoriCol = null;
+            $subKategoriCol = null;
+            $urutanCol = null;
+
+            foreach ($this->columnRange('A', $highestColumn) as $col) {
+                $value = strtoupper(trim((string) $sheet->getCell("{$col}{$rowNum}")->getValue()));
+
+                if ($value === '') {
+                    continue;
+                }
+
+                if (str_contains($value, 'SUB') && str_contains($value, 'KATEGORI')) {
+                    $subKategoriCol = $col;
+                } elseif (str_contains($value, 'KATEGORI')) {
+                    $kategoriCol = $col;
+                } elseif (str_contains($value, 'DEPARTEMEN') || str_contains($value, 'DEPARTMENT')) {
+                    $departemenCol = $col;
+                } elseif (str_contains($value, 'URUTAN') || str_contains($value, 'NO')) {
+                    $urutanCol = $col;
+                }
+            }
+
+            if ($departemenCol && $kategoriCol && $subKategoriCol) {
+                if (! $urutanCol) {
+                    // File resmi tidak memberi label pada kolom nomor urut --
+                    // posisinya selalu tepat di kiri kolom Sub Kategori.
+                    $urutanCol = $this->columnBefore($subKategoriCol);
+                }
+
+                return [
+                    'header' => $rowNum,
+                    'departemen' => $departemenCol,
+                    'kategori' => $kategoriCol,
+                    'urutan' => $urutanCol,
+                    'subKategori' => $subKategoriCol,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function columnRange(string $from, string $to): array
+    {
+        $columns = [];
+        $current = $from;
+
+        while (true) {
+            $columns[] = $current;
+
+            if ($current === $to) {
+                break;
+            }
+
+            $current = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(
+                \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($current) + 1
+            );
+
+            if (count($columns) > 100) {
+                break;
+            }
+        }
+
+        return $columns;
+    }
+
+    private function columnBefore(string $column): string
+    {
+        $index = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($column);
+
+        return \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(max(1, $index - 1));
     }
 
     private function uniqueCode(string $label): string

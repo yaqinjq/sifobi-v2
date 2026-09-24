@@ -8,9 +8,11 @@ use App\Imports\DepartmentCategoryMappingImport;
 use App\Modules\Core\Models\Department;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 class DepartmentCategoryMappingController extends Controller
 {
@@ -32,16 +34,26 @@ class DepartmentCategoryMappingController extends Controller
 
     public function import(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
+        $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
         ]);
 
         $tenantId = $this->tenantId($request);
-        $import = new DepartmentCategoryMappingImport($tenantId);
+        $path = $request->file('file')->store('department-category-mapping-uploads', 'local');
 
-        Excel::import($import, $validated['file']);
+        try {
+            $import = new DepartmentCategoryMappingImport($tenantId);
+            $import->import(Storage::disk('local')->path($path));
+            $summary = $import->summary();
+        } catch (Throwable $e) {
+            Storage::disk('local')->delete($path);
 
-        $summary = $import->summary();
+            return redirect()
+                ->route('settings.department-category-mapping.import-form')
+                ->with('error', 'Import gagal: '.$e->getMessage());
+        }
+
+        Storage::disk('local')->delete($path);
 
         return redirect()
             ->route('settings.department-category-mapping.import-form')
