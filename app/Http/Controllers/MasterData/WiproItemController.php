@@ -116,8 +116,10 @@ class WiproItemController extends Controller
                     'primary_department_id' => $department->id,
                 ]);
 
-                if ($item->item_category_id) {
-                    $department->itemCategories()->syncWithoutDetaching([$item->item_category_id]);
+                $effectiveCategoryId = $item->categoryForDepartment($department->id)?->id;
+
+                if ($effectiveCategoryId) {
+                    $department->itemCategories()->syncWithoutDetaching([$effectiveCategoryId]);
                 }
 
                 foreach ($outletIds as $outletId) {

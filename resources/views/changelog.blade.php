@@ -8,12 +8,29 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.20 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.20 &mdash; 25 September 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Kategori item bisa beda per departemen</strong> &mdash; untuk item yang dipakai lintas departemen dengan kebiasaan kategori berbeda (mis. Tepung Maizena = "Other" di Bar, "Rice &amp; Flour" di Pastry). Di Master Data &gt; Item, aktifkan toggle "Kategori Beda per Departemen?" (muncul otomatis kalau item dipakai 2+ departemen) untuk mengatur kategori masing-masing. Opsional &mdash; item yang tidak butuh ini tidak perlu diapa-apakan, tetap pakai 1 kategori global seperti biasa</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.19 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.19 &mdash; 24 September 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

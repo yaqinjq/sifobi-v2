@@ -14,6 +14,7 @@ use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\ItemBrandAlias;
 use App\Modules\Inventory\Models\ItemCategory;
+use App\Modules\Inventory\Models\ItemDepartmentCategory;
 use App\Modules\Inventory\Models\ItemJenis;
 use App\Modules\Inventory\Models\Unit;
 use App\Modules\Inventory\Models\UnitConversion;
@@ -195,6 +196,8 @@ class ItemController extends Controller
             'primaryDepartment',
             'departments',
             'outlets',
+            'departmentCategories.department',
+            'departmentCategories.category',
             'brandAliases.brand',
             'conversions.fromUnit',
             'conversions.toUnit',
@@ -217,7 +220,7 @@ class ItemController extends Controller
     {
         $this->authorizeTenant($request, $item);
 
-        $item->load(['baseUnit', 'inventoryUnit', 'purchaseUnit', 'category', 'jenis', 'primaryDepartment', 'departments', 'outlets', 'brandAliases.brand', 'conversions.fromUnit', 'conversions.toUnit']);
+        $item->load(['baseUnit', 'inventoryUnit', 'purchaseUnit', 'category', 'jenis', 'primaryDepartment', 'departments', 'outlets', 'departmentCategories', 'brandAliases.brand', 'conversions.fromUnit', 'conversions.toUnit']);
 
         return view('master-data.items.edit', array_merge($this->formData($request, $item), [
             'item' => $item,
@@ -402,6 +405,39 @@ class ItemController extends Controller
         }
 
         $item->outlets()->sync($outletPivot);
+
+        $this->syncCategoryOverrides($item, $request);
+    }
+
+    /**
+     * Simpan override kategori per departemen (opsional) -- cuma dipakai
+     * untuk item yang butuh kategori beda tergantung departemen mana yang
+     * menghitungnya (mis. Tepung Maizena). Baris override cuma disimpan
+     * untuk departemen yang memang dicentang di "Departemen Pemakai" DAN
+     * kategorinya benar-benar diisi (dropdown "(pakai Kategori Bahan)" ->
+     * dianggap tidak ada override, hapus baris lama kalau ada). Lihat
+     * Item::categoryForDepartment().
+     */
+    private function syncCategoryOverrides(Item $item, Request $request): void
+    {
+        $selectedDepartmentIds = collect($request->input('department_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $overrides = collect($request->input('department_category_overrides', []))
+            ->filter(fn ($categoryId, $departmentId) => $categoryId !== '' && $categoryId !== null
+                && in_array((int) $departmentId, $selectedDepartmentIds, true));
+
+        $keptDepartmentIds = $overrides->keys()->map(fn ($id) => (int) $id)->all();
+
+        $item->departmentCategories()->whereNotIn('department_id', $keptDepartmentIds)->delete();
+
+        foreach ($overrides as $departmentId => $categoryId) {
+            ItemDepartmentCategory::query()->updateOrCreate(
+                ['item_id' => $item->id, 'department_id' => (int) $departmentId],
+                ['item_category_id' => (int) $categoryId]
+            );
+        }
     }
 
     private function syncExtraConversions(Item $item, Request $request, int $tenantId): void

@@ -451,6 +451,19 @@
                 <p class="text-xs text-gray-500 mt-2">Filter <strong>Kategori</strong> di halaman Opname sekarang bisa diketik untuk mencari (klik kotaknya, lalu ketik nama kategori) &mdash; memudahkan kalau daftar kategorinya panjang.</p>
             </div>
 
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">6. Item dengan Kategori Beda Antar Departemen</p>
+                <p class="text-xs text-gray-600 mb-2">Kadang 1 item dipakai lebih dari 1 departemen, tapi kategorinya beda-beda sesuai kebiasaan tiap departemen &mdash; misalnya <strong>Tepung Maizena</strong>: di BAR masuk kategori "Other", tapi di PASTRY masuk kategori "Rice &amp; Flour". Untuk kasus seperti ini:</p>
+                <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Buka <strong>Master Data → Item</strong>, edit item yang dimaksud</li>
+                    <li>Pastikan item itu sudah dicentang di 2 departemen atau lebih pada bagian "Departemen Pemakai"</li>
+                    <li>Muncul bagian baru <strong>"Kategori Beda per Departemen?"</strong> &mdash; aktifkan togglenya</li>
+                    <li>Pilih kategori masing-masing untuk tiap departemen yang tercentang &mdash; kosongkan (pilih "(pakai Kategori Bahan)") untuk departemen yang cukup ikut kategori utama di atas</li>
+                    <li>Simpan &mdash; sekarang kategori yang tampil di Opname akan otomatis menyesuaikan departemen mana yang sedang menghitung item itu</li>
+                </ol>
+                <p class="text-xs text-gray-500 mt-2">Kalau togglenya tidak diaktifkan, semua departemen tetap pakai 1 kategori yang sama seperti biasa &mdash; jadi item yang tidak punya kasus seperti ini tidak perlu diapa-apakan.</p>
+            </div>
+
             <div class="rounded-xl bg-green-50 border border-green-100 px-3 py-2 text-xs text-green-800">
                 Foto item sekarang tampil juga di HP (sebelumnya cuma tampil di desktop), supaya lebih mudah dikenali dan tidak salah pilih barang yang mirip.
             </div>

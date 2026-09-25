@@ -45,6 +45,10 @@
         photoPreview: @js($photoUrl),
         conversionRows: @js($conversionRows),
         units: @js($units->map(fn ($unit) => ['id' => (string) $unit->id, 'label' => $unit->abbreviation ?: $unit->code])->values()),
+        categoryOverrideEnabled: @js(old('category_override_enabled', $isEdit && $item->departmentCategories->isNotEmpty())),
+        categoryOverrides: @js(old('department_category_overrides', $isEdit ? $item->departmentCategories->mapWithKeys(fn ($o) => [(string) $o->department_id => (string) $o->item_category_id])->all() : [])),
+        departmentsList: @js($departments->map(fn ($d) => ['id' => (int) $d->id, 'name' => $d->name])->values()),
+        categoriesList: @js($categories->map(fn ($c) => ['id' => (int) $c->id, 'name' => $c->name])->values()),
       })">
     @csrf
     @if($isEdit)
@@ -211,6 +215,41 @@
                             </button>
                         @endforeach
                     </div>
+                </div>
+
+                <div class="border-t border-gray-100 pt-4" x-show="selectedDepartmentIds.length > 1" x-cloak>
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <span class="sf-label mb-0">Kategori Beda per Departemen?</span>
+                            <p class="text-xs text-gray-500">Aktifkan kalau item ini butuh kategori berbeda tergantung departemen yang menghitungnya (mis. Tepung Maizena = "Other" di Bar, "Rice &amp; Flour" di Pastry). Kalau tidak, semua departemen pakai Kategori Bahan di atas.</p>
+                        </div>
+                        <button type="button"
+                                class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700"
+                                @click="categoryOverrideEnabled = !categoryOverrideEnabled"
+                                :aria-pressed="categoryOverrideEnabled.toString()">
+                            <span class="h-3 w-3 rounded-full bg-primary-700" x-show="categoryOverrideEnabled"></span>
+                            <span class="h-3 w-3 rounded-full bg-gray-300" x-show="!categoryOverrideEnabled" x-cloak></span>
+                            <span x-text="categoryOverrideEnabled ? 'Aktif' : 'Non-Aktif'"></span>
+                        </button>
+                    </div>
+
+                    <template x-if="categoryOverrideEnabled">
+                        <div class="mt-3 space-y-2">
+                            <template x-for="departmentId in selectedDepartmentIds" :key="`cat-override-${departmentId}`">
+                                <div class="grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-2 sm:items-center">
+                                    <span class="text-sm font-medium text-gray-700" x-text="departmentName(departmentId)"></span>
+                                    <select :name="`department_category_overrides[${departmentId}]`"
+                                            x-model="categoryOverrides[departmentId]"
+                                            class="sf-input text-sm">
+                                        <option value="">(pakai Kategori Bahan)</option>
+                                        <template x-for="cat in categoriesList" :key="cat.id">
+                                            <option :value="String(cat.id)" x-text="cat.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>
@@ -488,6 +527,13 @@
             units: config.units || [],
             unitLabel(id) {
                 return this.units.find((unit) => unit.id === String(id))?.label || '-';
+            },
+            categoryOverrideEnabled: Boolean(config.categoryOverrideEnabled),
+            categoryOverrides: config.categoryOverrides || {},
+            departmentsList: config.departmentsList || [],
+            categoriesList: config.categoriesList || [],
+            departmentName(id) {
+                return this.departmentsList.find((d) => d.id === Number(id))?.name || '-';
             },
             generateSku() {
                 if (this.sku.trim() !== '') return;

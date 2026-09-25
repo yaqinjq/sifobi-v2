@@ -77,6 +77,35 @@ class Item extends Model
         return $this->belongsTo(ItemCategory::class, 'item_category_id');
     }
 
+    public function departmentCategories(): HasMany
+    {
+        return $this->hasMany(ItemDepartmentCategory::class);
+    }
+
+    /**
+     * Kategori efektif untuk item ini KHUSUS departemen tertentu -- kalau
+     * ada override di item_department_categories, pakai itu; kalau tidak,
+     * fallback ke kategori global (item_category_id). Dipakai supaya item
+     * yang dipakai lintas departemen (mis. Tepung Maizena: "Other" di BAR,
+     * "Rice & Flour" di PASTRY) bisa tampil beda tergantung sesi Opname
+     * departemen mana yang sedang dilihat -- lihat
+     * OpnameController::formSortKey()/categoryOptionsForSession().
+     */
+    public function categoryForDepartment(?int $departmentId): ?ItemCategory
+    {
+        if ($departmentId) {
+            $override = $this->relationLoaded('departmentCategories')
+                ? $this->departmentCategories->firstWhere('department_id', $departmentId)
+                : $this->departmentCategories()->where('department_id', $departmentId)->first();
+
+            if ($override) {
+                return $override->relationLoaded('category') ? $override->category : $override->category()->first();
+            }
+        }
+
+        return $this->category;
+    }
+
     public function primaryDepartment(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'primary_department_id');

@@ -10,6 +10,7 @@ use App\Modules\Core\Models\Brand;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\ItemCategory;
+use App\Modules\Inventory\Models\ItemDepartmentCategory;
 use App\Modules\Operations\Models\OpnameItem;
 use App\Modules\Operations\Models\OpnameSession;
 use App\Services\OpnameService;
@@ -290,6 +291,7 @@ class OpnameController extends Controller
                 'item.inventoryUnit',
                 'item.baseUnit',
                 'item.category.parent',
+                'item.departmentCategories.category.parent',
                 'item.jenis',
                 'item.primaryDepartment',
                 'item.departments',
@@ -312,7 +314,33 @@ class OpnameController extends Controller
             $categoryIds = ItemCategory::query()
                 ->where(fn ($q) => $q->where('id', (int) $categoryId)->orWhere('parent_id', (int) $categoryId))
                 ->pluck('id');
-            $query->whereHas('item', fn ($q) => $q->whereIn('item_category_id', $categoryIds));
+
+            // Item yang dipakai lintas departemen dengan kategori beda (mis.
+            // Tepung Maizena) punya override di item_department_categories
+            // KHUSUS departemen sesi ini -- override itu yang menentukan,
+            // bukan kategori global item, kalau ada.
+            $sessionDepartmentId = $session->department_id;
+
+            $overrideItemIds = ItemDepartmentCategory::query()
+                ->when($sessionDepartmentId, fn ($q) => $q->where('department_id', $sessionDepartmentId))
+                ->whereIn('item_category_id', $categoryIds)
+                ->pluck('item_id');
+
+            $excludedItemIds = $sessionDepartmentId
+                ? ItemDepartmentCategory::query()
+                    ->where('department_id', $sessionDepartmentId)
+                    ->whereNotIn('item_category_id', $categoryIds)
+                    ->pluck('item_id')
+                : collect();
+
+            $query->where(function ($q) use ($categoryIds, $overrideItemIds, $excludedItemIds): void {
+                $q->whereHas('item', fn ($iq) => $iq->whereIn('item_category_id', $categoryIds))
+                    ->when($excludedItemIds->isNotEmpty(), fn ($qq) => $qq->whereNotIn('item_id', $excludedItemIds));
+
+                if ($overrideItemIds->isNotEmpty()) {
+                    $q->orWhereIn('item_id', $overrideItemIds);
+                }
+            });
         }
 
         if ($perPage === 'all') {
@@ -333,9 +361,11 @@ class OpnameController extends Controller
             $groupedItems = $items
                 ->sortBy(fn (OpnameItem $opnameItem): string => $this->formSortKey($opnameItem))
                 ->values()
-                ->groupBy(fn (OpnameItem $opnameItem): string => $opnameItem->item?->category?->parent?->name
-                    ?? $opnameItem->item?->category?->name
-                    ?? 'Tanpa Kategori');
+                ->groupBy(function (OpnameItem $opnameItem): string {
+                    $category = $opnameItem->item?->categoryForDepartment($opnameItem->department_id);
+
+                    return $category?->parent?->name ?? $category?->name ?? 'Tanpa Kategori';
+                });
         }
 
         $departmentScope = fn ($q) => $q->where(
@@ -446,7 +476,7 @@ class OpnameController extends Controller
      */
     private function formSortKey(OpnameItem $opnameItem): string
     {
-        $leaf = $opnameItem->item?->category;
+        $leaf = $opnameItem->item?->categoryForDepartment($opnameItem->department_id);
         $parent = $leaf?->parent ?? $leaf;
         $childOrder = ($leaf && $leaf->parent_id) ? $leaf->sort_order : 0;
 
