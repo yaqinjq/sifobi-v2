@@ -53,6 +53,7 @@
                 <input type="hidden" name="item_id" :value="selectedItem?.id || ''">
                 <input type="text"
                        x-model="searchQuery"
+                       @input="clearStaleSelection()"
                        @input.debounce.300ms="searchItems()"
                        @focus="searchItems()"
                        @keydown.escape="showSearch = false"
@@ -69,6 +70,9 @@
                     </template>
                     <div x-show="searchResults.length === 0" class="px-4 py-3 text-sm text-gray-500">Item tidak ditemukan.</div>
                 </div>
+                <p class="text-xs text-amber-600 mt-1" x-show="searchQuery && !selectedItem" x-cloak>
+                    ⚠ Belum ada item terpilih -- klik salah satu hasil pencarian di atas dulu.
+                </p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
@@ -164,6 +168,18 @@ function spoilForm() {
             this.searchQuery = item.name;
             this.showSearch = false;
             this.calcBase();
+        },
+        clearStaleSelection() {
+            // Kalau teks pencarian sudah tidak persis sama dengan nama item
+            // yang sebelumnya dipilih (mis. user mengetik ulang/menghapus
+            // untuk cari item lain tapi belum sempat klik hasil pencarian),
+            // lepas item lama supaya tidak diam-diam ikut ke-submit/dipakai
+            // hitung rasio -- item_id, satuan, dan preview total ikut kosong
+            // lagi sampai user benar-benar memilih item dari daftar.
+            if (this.selectedItem && this.searchQuery !== this.selectedItem.name) {
+                this.selectedItem = null;
+                this.calcBase();
+            }
         },
         calcBase() {
             const whole = Number.parseFloat(String(this.qtyWhole || '0').replace(',', '.')) || 0;
