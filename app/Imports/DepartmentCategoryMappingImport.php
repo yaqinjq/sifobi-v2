@@ -4,6 +4,7 @@ namespace App\Imports;
 
 use App\Modules\Core\Models\Department;
 use App\Modules\Inventory\Models\ItemCategory;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -146,7 +147,30 @@ class DepartmentCategoryMappingImport
             ->first();
 
         if ($category) {
+            // Nama ini sudah dipakai sebagai SUB-kategori di baris/kelompok
+            // lain -- JANGAN diam-diam "dipromosikan" jadi kategori utama di
+            // sini kalau parent-nya yang sekarang sudah aktif dipakai
+            // departemen lain (silent data corruption, ketemu lewat
+            // reproduksi nyata: kategori "Other" yang jadi sub-kategori BAR
+            // hilang begitu saja waktu baris KITCHEN lain memakai nama sama
+            // sebagai kategori utama). Kalau parent lamanya belum pernah
+            // di-mapping ke departemen manapun (kemungkinan besar sisa data
+            // lama/orphan sebelum fitur mapping ini ada), aman dipromosikan
+            // seperti sebelumnya.
             if ($category->parent_id !== null) {
+                $oldParentIsMapped = DB::table('department_item_categories')
+                    ->where('item_category_id', $category->parent_id)
+                    ->exists();
+
+                if ($oldParentIsMapped) {
+                    $currentParentName = $category->parent?->name ?? '(tidak diketahui)';
+
+                    throw new RuntimeException(
+                        "Kategori '{$categoryName}' bentrok: nama ini sudah dipakai sebagai SUB-KATEGORI aktif dari '{$currentParentName}' di bagian lain file ini/upload sebelumnya. ".
+                        'Satu nama tidak bisa jadi kategori utama sekaligus sub-kategori. Ganti salah satu nama di file Excel supaya tidak bentrok.'
+                    );
+                }
+
                 $category->update(['parent_id' => null]);
             }
         } else {
@@ -175,6 +199,28 @@ class DepartmentCategoryMappingImport
             ->first();
 
         if ($sub) {
+            // Kebalikan dari konflik di atas: nama ini sudah dipakai sebagai
+            // KATEGORI UTAMA (top-level) yang AKTIF dipakai departemen lain --
+            // jangan diam-diam "diturunkan" jadi sub-kategori di sini. Kalau
+            // belum pernah di-mapping ke departemen manapun (orphan/sisa data
+            // lama, mis. dari Master Data sebelum fitur mapping ini ada),
+            // aman diturunkan seperti sebelumnya.
+            if ($sub->parent_id === null) {
+                $subIsMapped = DB::table('department_item_categories')
+                    ->where('item_category_id', $sub->id)
+                    ->exists();
+
+                if ($subIsMapped) {
+                    throw new RuntimeException(
+                        "Sub Kategori '{$subCategoryName}' bentrok: nama ini sudah dipakai sebagai KATEGORI UTAMA yang aktif dipakai departemen lain. ".
+                        'Satu nama tidak bisa jadi kategori utama sekaligus sub-kategori. Ganti salah satu nama di file Excel supaya tidak bentrok.'
+                    );
+                }
+            }
+
+            // Pindah sub-kategori ke parent baru (mis. koreksi salah kelompok
+            // di upload sebelumnya) -- ini tetap didukung selama rolenya
+            // (sub-kategori) konsisten, cuma parent-nya yang berubah.
             $sub->update([
                 'parent_id' => $category->id,
                 'sort_order' => $sortOrder,

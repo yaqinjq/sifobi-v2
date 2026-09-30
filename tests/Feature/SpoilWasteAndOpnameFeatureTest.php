@@ -87,8 +87,8 @@ test('recording spoil decreases stock balance through ledger', function (): void
             'outlet_id' => $this->outlet->id,
             'department_id' => $this->department->id,
             'item_id' => $this->item->id,
-            'unit_id' => $this->unit,
-            'qty' => '2',
+            'qty_whole' => '2',
+            'qty_loose' => '0',
             'recorded_date' => '2026-07-01',
             'reason_category' => SpoilWaste::REASON_TUMPAH,
             'reason_detail' => 'Tumpah saat prepare.',
@@ -109,6 +109,54 @@ test('recording spoil decreases stock balance through ledger', function (): void
         ->firstOrFail();
 
     expect((string) $balance->qty_on_hand)->toBe('4000.000000');
+});
+
+test('recording spoil with both whole and loose qty combines them into base unit correctly', function (): void {
+    // Reproduksi keluhan user: form Catat Spoil sebelumnya cuma 1 field qty
+    // generik, tidak bisa mencatat "2 utuh (dus/karton) + sisa 50 ecer
+    // (gram/pcs)" sekaligus dalam 1 baris seperti Open Stock/Opname.
+    Storage::fake('public');
+    $user = operationUser('STAFF_BAR');
+    seedDailyBalance($this, '5000');
+
+    $this->actingAs($user)
+        ->post(route('operations.spoil-wastes.store'), [
+            'outlet_id' => $this->outlet->id,
+            'department_id' => $this->department->id,
+            'item_id' => $this->item->id,
+            'qty_whole' => '2',
+            'qty_loose' => '50',
+            'recorded_date' => '2026-07-01',
+            'reason_category' => SpoilWaste::REASON_TUMPAH,
+        ])
+        ->assertRedirect();
+
+    $spoil = SpoilWaste::query()->firstOrFail();
+
+    expect((string) $spoil->qty_whole)->toBe('2.000000')
+        ->and((string) $spoil->qty_loose)->toBe('50.000000')
+        // inventory_ratio item ini 500 -> (2 * 500) + 50 = 1050
+        ->and((string) $spoil->qty_in_base_unit)->toBe('1050.000000');
+});
+
+test('recording spoil without any qty is rejected with a clear validation error', function (): void {
+    Storage::fake('public');
+    $user = operationUser('STAFF_BAR');
+    seedDailyBalance($this, '5000');
+
+    $this->actingAs($user)
+        ->post(route('operations.spoil-wastes.store'), [
+            'outlet_id' => $this->outlet->id,
+            'department_id' => $this->department->id,
+            'item_id' => $this->item->id,
+            'qty_whole' => '0',
+            'qty_loose' => '0',
+            'recorded_date' => '2026-07-01',
+            'reason_category' => SpoilWaste::REASON_TUMPAH,
+        ])
+        ->assertSessionHasErrors('qty_whole');
+
+    expect(SpoilWaste::query()->count())->toBe(0);
 });
 
 test('duplicate spoil photo is detected by sha256 hash', function (): void {

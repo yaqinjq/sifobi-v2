@@ -133,6 +133,76 @@ test('import still supports the simple flat template with department repeated ev
     expect(ItemCategory::query()->where('tenant_id', $this->tenant->id)->where('name', 'MILK')->exists())->toBeTrue();
 });
 
+test('import rejects a category name reused as both top-level and sub-category, without corrupting the existing mapping', function (): void {
+    // Reproduksi bug nyata: "OTHER" sengaja dipakai sebagai sub-kategori BAR
+    // (di bawah "MINUMAN") DAN sebagai kategori utama KITCHEN di baris lain
+    // -- sebelum fix ini, baris KITCHEN diam-diam "mencuri" OTHER dari BAR
+    // (parent_id-nya di-null-kan paksa), bikin kategori Opname BAR jadi
+    // tidak sesuai tanpa pesan error apa pun.
+    $path = storage_path('framework/testing/mapping-collision.xlsx');
+    File::ensureDirectoryExists(dirname($path));
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->fromArray([
+        ['departemen', 'kategori', 'urutan', 'sub_kategori'],
+        ['BAR', 'MINUMAN', '1', 'KOPI'],
+        ['BAR', 'MINUMAN', '2', 'OTHER'],
+        ['KITCHEN', 'OTHER', '1', 'BERAS'],
+    ]);
+    (new Xlsx($spreadsheet))->save($path);
+
+    $import = new DepartmentCategoryMappingImport($this->tenant->id);
+    $import->import($path);
+    $summary = $import->summary();
+
+    expect($summary['processed'])->toBe(2)
+        ->and($summary['failed'])->toBe(1)
+        ->and($summary['errors'][0]['message'])->toContain('bentrok');
+
+    $minuman = ItemCategory::query()->where('tenant_id', $this->tenant->id)->where('name', 'MINUMAN')->firstOrFail();
+    $other = ItemCategory::query()->where('tenant_id', $this->tenant->id)->where('name', 'OTHER')->firstOrFail();
+
+    expect($other->parent_id)->toBe($minuman->id)
+        ->and($this->bar->itemCategories()->where('item_categories.id', $other->id)->exists())->toBeFalse()
+        ->and($this->kitchen->itemCategories()->where('item_categories.id', $other->id)->exists())->toBeFalse();
+});
+
+test('import still allows reusing an orphan top-level category as a sub-category when it is not mapped to any department', function (): void {
+    // Beda dengan test di atas: kalau kategori lama itu belum pernah
+    // di-mapping ke departemen manapun (sisa Master Data lama), boleh tetap
+    // "diturunkan" jadi sub-kategori -- sudah dites di
+    // "import reuses an existing category by name instead of failing on duplicate",
+    // test ini cuma menegaskan skenario spesifiknya secara eksplisit.
+    $orphan = ItemCategory::query()->create([
+        'tenant_id' => $this->tenant->id,
+        'code' => 'orphan_test',
+        'name' => 'ORPHAN CATEGORY',
+        'status' => 'ACTIVE',
+        'is_active' => true,
+    ]);
+
+    $path = storage_path('framework/testing/mapping-orphan-reuse.xlsx');
+    File::ensureDirectoryExists(dirname($path));
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->fromArray([
+        ['departemen', 'kategori', 'urutan', 'sub_kategori'],
+        ['BAR', 'MINUMAN', '1', 'ORPHAN CATEGORY'],
+    ]);
+    (new Xlsx($spreadsheet))->save($path);
+
+    $import = new DepartmentCategoryMappingImport($this->tenant->id);
+    $import->import($path);
+    $summary = $import->summary();
+
+    expect($summary['failed'])->toBe(0);
+
+    $minuman = ItemCategory::query()->where('tenant_id', $this->tenant->id)->where('name', 'MINUMAN')->firstOrFail();
+    expect($orphan->refresh()->parent_id)->toBe($minuman->id);
+});
+
 test('import reports an error for an unknown department without crashing the whole file', function (): void {
     $path = storage_path('framework/testing/mapping-unknown-dept.xlsx');
     File::ensureDirectoryExists(dirname($path));

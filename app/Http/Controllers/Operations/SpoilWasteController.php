@@ -105,6 +105,7 @@ class SpoilWasteController extends Controller
             'outlet',
             'department',
             'item.baseUnit',
+            'item.inventoryUnit',
             'unit',
             'createdBy',
             'approvedBy',
@@ -270,12 +271,8 @@ class SpoilWasteController extends Controller
                 'integer',
                 Rule::exists('items', 'id')->where('tenant_id', $tenantId),
             ],
-            'unit_id' => [
-                'required',
-                'integer',
-                Rule::exists('units', 'id')->where('tenant_id', $tenantId),
-            ],
-            'qty' => ['required', Decimal::validationRule(6)],
+            'qty_whole' => ['nullable', Decimal::validationRule(6)],
+            'qty_loose' => ['nullable', Decimal::validationRule(6)],
             'recorded_date' => ['required', 'date'],
             'reason_category' => ['required', Rule::in([
                 SpoilWaste::REASON_EXPIRED,
@@ -289,9 +286,12 @@ class SpoilWasteController extends Controller
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
-        if (bccomp(Decimal::toFixed($validated['qty'], 6), '0.000000', 6) <= 0) {
+        $qtyWhole = Decimal::toFixed($validated['qty_whole'] ?? '0', 6);
+        $qtyLoose = Decimal::toFixed($validated['qty_loose'] ?? '0', 6);
+
+        if (bccomp($qtyWhole, '0.000000', 6) <= 0 && bccomp($qtyLoose, '0.000000', 6) <= 0) {
             throw ValidationException::withMessages([
-                'qty' => 'Qty spoil harus lebih dari 0.',
+                'qty_whole' => 'Isi minimal salah satu: Jumlah Terbuang Utuh atau Ecer, harus lebih dari 0.',
             ]);
         }
 

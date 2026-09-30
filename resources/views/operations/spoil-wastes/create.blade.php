@@ -46,16 +46,11 @@
                         @endforeach
                     </select>
                 </div>
-                <div>
-                    <label class="sf-label">Jumlah Terbuang *</label>
-                    <input type="text" name="qty" x-model="qty" @input="calcBase()" inputmode="decimal" class="sf-input text-base min-h-11" placeholder="0" required>
-                </div>
             </div>
 
             <div class="relative mt-4">
                 <label class="sf-label">Item/Bahan Baku *</label>
                 <input type="hidden" name="item_id" :value="selectedItem?.id || ''">
-                <input type="hidden" name="unit_id" :value="selectedItem?.inventory_unit_id || selectedItem?.base_unit_id || ''">
                 <input type="text"
                        x-model="searchQuery"
                        @input.debounce.300ms="searchItems()"
@@ -76,13 +71,21 @@
                 </div>
             </div>
 
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                    <label class="sf-label">Jumlah Terbuang Utuh <span class="text-gray-400 font-normal normal-case" x-text="selectedItem ? `(${selectedItem.inventory_unit})` : ''"></span></label>
+                    <input type="text" name="qty_whole" x-model="qtyWhole" @input="calcBase()" inputmode="decimal" class="sf-input text-base min-h-11" placeholder="0">
+                </div>
+                <div>
+                    <label class="sf-label">Jumlah Terbuang Ecer <span class="text-gray-400 font-normal normal-case" x-text="selectedItem ? `(${selectedItem.base_unit})` : ''"></span></label>
+                    <input type="text" name="qty_loose" x-model="qtyLoose" @input="calcBase()" inputmode="decimal" class="sf-input text-base min-h-11" placeholder="0">
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-1.5">Isi minimal salah satu. <strong>Utuh</strong> = satuan kemasan/inventory (mis. DUS, KARTON). <strong>Ecer</strong> = satuan dasar/eceran (mis. PCS, GRAM).</p>
+
             <div class="mt-4 rounded-xl bg-gray-50 px-4 py-3 text-sm">
                 <div class="flex justify-between gap-3">
-                    <span class="text-gray-500">Satuan input</span>
-                    <span class="font-semibold text-gray-900" x-text="selectedItem?.inventory_unit || '-'"></span>
-                </div>
-                <div class="flex justify-between gap-3 mt-1">
-                    <span class="text-gray-500">Total base unit</span>
+                    <span class="text-gray-500">Total (satuan dasar)</span>
                     <span class="font-semibold text-gray-900" x-text="`${qtyInBase} ${selectedItem?.base_unit || ''}`"></span>
                 </div>
             </div>
@@ -137,7 +140,8 @@ function spoilForm() {
         searchQuery: '',
         searchResults: [],
         showSearch: false,
-        qty: '',
+        qtyWhole: '',
+        qtyLoose: '',
         qtyInBase: '0.0000',
         photoPreview: null,
         async searchItems() {
@@ -162,9 +166,10 @@ function spoilForm() {
             this.calcBase();
         },
         calcBase() {
-            const qty = Number.parseFloat(String(this.qty || '0').replace(',', '.')) || 0;
+            const whole = Number.parseFloat(String(this.qtyWhole || '0').replace(',', '.')) || 0;
+            const loose = Number.parseFloat(String(this.qtyLoose || '0').replace(',', '.')) || 0;
             const ratio = Number.parseFloat(this.selectedItem?.inventory_ratio || 1) || 1;
-            this.qtyInBase = (qty * ratio).toFixed(4);
+            this.qtyInBase = (whole * ratio + loose).toFixed(4);
         },
         previewPhoto(event) {
             const file = event.target.files[0];

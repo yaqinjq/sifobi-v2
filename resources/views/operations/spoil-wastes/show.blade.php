@@ -32,9 +32,16 @@
                 <p class="font-semibold text-gray-900">{{ $spoil->department?->name ?? '-' }}</p>
             </div>
             <div>
-                <p class="text-gray-500">Qty</p>
-                <p class="font-semibold text-gray-900">{{ $spoil->qty }} {{ $spoil->unit?->abbreviation }}</p>
-                <p class="text-xs text-gray-500">{{ $spoil->qty_in_base_unit }} {{ $spoil->item?->baseUnit?->abbreviation }}</p>
+                <p class="text-gray-500">Qty Terbuang</p>
+                @if($spoil->qty_whole !== null || $spoil->qty_loose !== null)
+                    <p class="font-semibold text-gray-900">
+                        {{ rtrim(rtrim((string) $spoil->qty_whole, '0'), '.') ?: '0' }} {{ $spoil->item?->inventoryUnit?->abbreviation }}
+                        + {{ rtrim(rtrim((string) $spoil->qty_loose, '0'), '.') ?: '0' }} {{ $spoil->item?->baseUnit?->abbreviation }}
+                    </p>
+                @else
+                    <p class="font-semibold text-gray-900">{{ $spoil->qty }} {{ $spoil->unit?->abbreviation }}</p>
+                @endif
+                <p class="text-xs text-gray-500">Total: {{ $spoil->qty_in_base_unit }} {{ $spoil->item?->baseUnit?->abbreviation }}</p>
             </div>
             <div>
                 <p class="text-gray-500">Alasan</p>

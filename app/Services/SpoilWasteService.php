@@ -34,12 +34,31 @@ class SpoilWasteService
             $tenantId = (int) $data['tenant_id'];
             $outletId = (int) $data['outlet_id'];
             $item = $this->itemForTenant((int) $data['item_id'], $tenantId);
-            $unitId = (int) ($data['unit_id'] ?? $item->inventory_unit_id ?? $item->base_unit_id);
-            $this->assertUnitBelongsToTenant($unitId, $tenantId);
             $this->assertOutletBelongsToTenant($outletId, $tenantId);
 
-            $qty = Decimal::toFixed($data['qty'], 6);
-            $qtyInBase = $this->calculateBaseQty($item, $unitId, $qty);
+            // Dua jalur input didukung: form manual mengirim qty_whole (satuan
+            // inventory, mis. DUS) + qty_loose (satuan dasar, mis. PCS/GRAM)
+            // terpisah -- sama seperti Open Stock/Opname. Import Excel historis
+            // masih pakai jalur lama qty+unit_id (1 angka, satuan bebas) supaya
+            // data lama & template import yang sudah ada tetap jalan apa adanya.
+            $usesWholeLoose = array_key_exists('qty_whole', $data) || array_key_exists('qty_loose', $data);
+
+            if ($usesWholeLoose) {
+                $qtyWhole = Decimal::toFixed($data['qty_whole'] ?? '0', 6);
+                $qtyLoose = Decimal::toFixed($data['qty_loose'] ?? '0', 6);
+                $ratio = Decimal::toFixed($item->inventory_ratio ?: '1', 6);
+                $qtyInBase = bcadd(bcmul($qtyWhole, $ratio, 6), $qtyLoose, 6);
+                $unitId = (int) $item->base_unit_id;
+                $qty = $qtyInBase;
+            } else {
+                $unitId = (int) ($data['unit_id'] ?? $item->inventory_unit_id ?? $item->base_unit_id);
+                $this->assertUnitBelongsToTenant($unitId, $tenantId);
+                $qty = Decimal::toFixed($data['qty'], 6);
+                $qtyInBase = $this->calculateBaseQty($item, $unitId, $qty);
+                $qtyWhole = null;
+                $qtyLoose = null;
+            }
+
             $stockTarget = $data['stock_target'] ?? StockMutation::TARGET_OUTLET_DAILY;
 
             $balance = StockBalance::query()
@@ -67,6 +86,8 @@ class SpoilWasteService
                 'item_id' => $item->id,
                 'unit_id' => $unitId,
                 'qty' => $qty,
+                'qty_whole' => $qtyWhole,
+                'qty_loose' => $qtyLoose,
                 'qty_in_base_unit' => $qtyInBase,
                 'reason_category' => $data['reason_category'],
                 'reason_detail' => $data['reason_detail'] ?? null,

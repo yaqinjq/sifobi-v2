@@ -40,6 +40,8 @@ class SpoilWaste extends Model
         'item_id',
         'unit_id',
         'qty',
+        'qty_whole',
+        'qty_loose',
         'qty_in_base_unit',
         'reason_category',
         'reason_detail',
@@ -85,6 +87,8 @@ class SpoilWaste extends Model
     {
         return [
             'qty' => 'decimal:6',
+            'qty_whole' => 'decimal:6',
+            'qty_loose' => 'decimal:6',
             'qty_in_base_unit' => 'decimal:6',
             'photo_meta' => 'array',
             'is_duplicate_photo' => 'boolean',

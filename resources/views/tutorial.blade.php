@@ -486,7 +486,8 @@
             <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
                 <li>Buka <strong>Operasi → Spoil & Waste</strong></li>
                 <li>Pilih outlet dan tanggal kejadian</li>
-                <li>Tambahkan item yang rusak/terbuang beserta jumlahnya</li>
+                <li>Cari & pilih item yang rusak/terbuang</li>
+                <li>Isi <strong>Jumlah Terbuang Utuh</strong> (satuan kemasan/inventory, mis. DUS/KARTON) dan/atau <strong>Jumlah Terbuang Ecer</strong> (satuan dasar, mis. PCS/GRAM) — isi salah satu saja kalau memang tidak ada sisa ecer/utuh</li>
                 <li>Isi alasan (Kadaluarsa, Tumpah, Rusak Proses, dll.)</li>
                 <li>Submit → stok berkurang otomatis di ledger</li>
             </ol>

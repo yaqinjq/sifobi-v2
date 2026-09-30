@@ -8,12 +8,35 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.22 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.22 &mdash; 30 September 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Catat Spoil &amp; Waste sekarang punya 2 field terpisah: <strong>Jumlah Terbuang Utuh</strong> (satuan kemasan/inventory, mis. DUS/KARTON) dan <strong>Jumlah Terbuang Ecer</strong> (satuan dasar, mis. PCS/GRAM) &mdash; persis seperti Open Stock &amp; Opname, bisa diisi salah satu atau keduanya sekaligus (mis. 2 dus + sisa 300 gram ecer dalam 1 baris)</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Upload <strong>Mapping Departemen &amp; Kategori Opname</strong>: kalau 1 nama kategori dipakai sebagai kategori utama di satu departemen TAPI sebagai sub-kategori di departemen lain, sistem sekarang menolak baris tsb dengan pesan error jelas &mdash; sebelumnya diam-diam "mencuri" kategori itu dari departemen yang sudah lebih dulu memakainya, bikin filter Kategori di Opname jadi tidak sesuai dengan yang sudah di-setting tanpa ada tanda apa pun</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.21 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.21 &mdash; 26 September 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
