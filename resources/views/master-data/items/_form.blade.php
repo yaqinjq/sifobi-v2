@@ -241,9 +241,9 @@
                                     <select :name="`department_category_overrides[${departmentId}]`"
                                             x-model="categoryOverrides[departmentId]"
                                             class="sf-input text-sm">
-                                        <option value="">(pakai Kategori Bahan)</option>
+                                        <option value="" :selected="!categoryOverrides[departmentId]">(pakai Kategori Bahan)</option>
                                         <template x-for="cat in categoriesList" :key="cat.id">
-                                            <option :value="String(cat.id)" x-text="cat.name"></option>
+                                            <option :value="String(cat.id)" :selected="categoryOverrides[departmentId] === String(cat.id)" x-text="cat.name"></option>
                                         </template>
                                     </select>
                                 </div>
@@ -529,7 +529,7 @@
                 return this.units.find((unit) => unit.id === String(id))?.label || '-';
             },
             categoryOverrideEnabled: Boolean(config.categoryOverrideEnabled),
-            categoryOverrides: config.categoryOverrides || {},
+            categoryOverrides: Array.isArray(config.categoryOverrides) ? {} : (config.categoryOverrides || {}),
             departmentsList: config.departmentsList || [],
             categoriesList: config.categoriesList || [],
             departmentName(id) {

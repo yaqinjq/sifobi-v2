@@ -63,6 +63,22 @@ test('admin can create user and assign role', function (): void {
         ->and($user->hasRole('STAFF_BAR'))->toBeTrue();
 });
 
+test('creating an outlet-scoped role without an outlet is rejected', function (): void {
+    $this->actingAs($this->admin)
+        ->post(route('settings.users.store'), [
+            'name' => 'Staff Kitchen Tanpa Outlet',
+            'email' => 'staff.kitchen.no-outlet@sifobi.test',
+            'phone' => '081234567891',
+            'password' => 'Password@123',
+            'password_confirmation' => 'Password@123',
+            'role' => 'STAFF_KITCHEN',
+            'status' => 'active',
+        ])
+        ->assertSessionHasErrors('outlet_id');
+
+    expect(User::query()->where('email', 'staff.kitchen.no-outlet@sifobi.test')->exists())->toBeFalse();
+});
+
 test('admin cannot deactivate own account', function (): void {
     $this->actingAs($this->admin)
         ->patch(route('settings.users.toggle-status', $this->admin))

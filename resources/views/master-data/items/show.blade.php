@@ -133,6 +133,29 @@
                     </div>
                 </div>
 
+                @if($item->departmentCategories->isNotEmpty())
+                    <div class="mt-5">
+                        <p class="sf-label">Kategori Beda per Departemen</p>
+                        <div class="space-y-1">
+                            @foreach($item->departmentCategories as $override)
+                                <p class="text-sm text-gray-700">
+                                    <span class="font-semibold">{{ $override->department->name }}</span>
+                                    &rarr; <span class="badge-draft">{{ $override->category->name }}</span>
+                                </p>
+                            @endforeach
+                            @php
+                                $overriddenDeptIds = $item->departmentCategories->pluck('department_id')->all();
+                                $plainDepts = $item->departments->whereNotIn('id', $overriddenDeptIds);
+                            @endphp
+                            @if($plainDepts->isNotEmpty())
+                                <p class="text-xs text-gray-400">
+                                    Departemen lain ({{ $plainDepts->pluck('name')->implode(', ') }}) tetap pakai Kategori Bahan: {{ $item->category?->name ?? '-' }}.
+                                </p>
+                            @endif
+                        </div>
+                    </div>
+                @endif
+
                 <div class="mt-5">
                     <p class="sf-label">Batch Tracking</p>
                     <span class="{{ $item->track_expiry ? 'badge-approved' : 'badge-inactive' }}">

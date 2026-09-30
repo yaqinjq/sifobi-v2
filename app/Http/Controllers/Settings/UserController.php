@@ -23,6 +23,17 @@ class UserController extends Controller
     use HasBulkAction;
     use HasPerPageSelector;
 
+    /**
+     * Role yang WAJIB terikat ke 1 outlet spesifik. Kalau outlet_id kosong
+     * untuk role ini, user jadi dianggap "tidak terikat outlet" di semua
+     * halaman (Kartu Stok, Opname, Open Stock, dst) -- sama seperti
+     * SUPER_ADMIN/MANAGER_AREA -- sehingga bisa melihat/memilih SEMUA
+     * outlet tenant, bukan cuma outlet-nya sendiri.
+     *
+     * @var list<string>
+     */
+    public const OUTLET_SCOPED_ROLES = ['PIC_OUTLET', 'STAFF_BAR', 'STAFF_KITCHEN', 'STAFF_SERVICE', 'STAFF_GUDANG'];
+
     public function index(Request $request): View
     {
         $tenantId = (int) $request->user()->tenant_id;
@@ -239,7 +250,7 @@ class UserController extends Controller
             'password'      => [$user ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],
             'role'          => ['required', Rule::exists('roles', 'name')],
             'outlet_id'     => [
-                'nullable',
+                in_array($request->input('role'), self::OUTLET_SCOPED_ROLES, true) ? 'required' : 'nullable',
                 Rule::exists('outlets', 'id')->where(fn ($query) => $query
                     ->where('tenant_id', $tenantId)
                     ->where('status', 'ACTIVE')),
@@ -250,6 +261,8 @@ class UserController extends Controller
             ],
             'phone'  => ['nullable', 'string', 'max:20'],
             'status' => ['required', Rule::in(['active', 'inactive', 'ACTIVE', 'INACTIVE'])],
+        ], [
+            'outlet_id.required' => 'Role ini terikat ke 1 outlet -- Outlet wajib dipilih, kalau tidak user ini akan bisa melihat SEMUA outlet.',
         ]);
     }
 

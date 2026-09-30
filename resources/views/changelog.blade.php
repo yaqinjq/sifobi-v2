@@ -8,12 +8,31 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.21 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.21 &mdash; 26 September 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Form Item Master Data: dropdown "Kategori Beda per Departemen?" sekarang benar-benar menampilkan kategori yang sudah disimpan saat dibuka ulang &mdash; sebelumnya tampil kosong walau datanya sudah tersimpan di database, bikin terlihat seperti "ter-reset" padahal tidak</li>
+                    <li>Halaman detail Item sekarang menampilkan ringkasan Kategori Beda per Departemen (departemen mana pakai kategori apa) &mdash; sebelumnya tidak ada konfirmasi visual sama sekali setelah simpan</li>
+                    <li>Settings &gt; User: Outlet sekarang <strong>wajib diisi</strong> untuk role yang seharusnya terikat 1 outlet (PIC Outlet, Staff Bar/Kitchen/Service/Gudang) &mdash; mencegah staff outlet tertentu bisa melihat/memilih SEMUA outlet gara-gara field Outlet-nya kelupaan dikosongkan saat akun dibuat</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.20 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.20 &mdash; 25 September 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

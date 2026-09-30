@@ -21,7 +21,8 @@
       class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-4xl mx-auto w-full space-y-4"
       x-data="{
           role: @js($selectedRole ?: ''),
-          descriptions: @js($roleDescriptions)
+          descriptions: @js($roleDescriptions),
+          outletScopedRoles: @js(\App\Http\Controllers\Settings\UserController::OUTLET_SCOPED_ROLES)
       }">
     @csrf
     @if($method !== 'POST')
@@ -130,16 +131,21 @@
                 </div>
             </div>
 
-            <x-sf.form-group label="Outlet yang Ditugaskan" for="outlet_id" hint="Kosongkan untuk role yang mengakses semua outlet.">
-                <select name="outlet_id" id="outlet_id" class="sf-input text-base">
-                    <option value="">Semua outlet / global</option>
-                    @foreach($outlets as $outlet)
-                        <option value="{{ $outlet->id }}" @selected((string) old('outlet_id', $user->outlet_id) === (string) $outlet->id)>
-                            {{ $outlet->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </x-sf.form-group>
+            <div>
+                <x-sf.form-group label="Outlet yang Ditugaskan" for="outlet_id" hint="Kosongkan untuk role yang mengakses semua outlet.">
+                    <select name="outlet_id" id="outlet_id" class="sf-input text-base">
+                        <option value="">Semua outlet / global</option>
+                        @foreach($outlets as $outlet)
+                            <option value="{{ $outlet->id }}" @selected((string) old('outlet_id', $user->outlet_id) === (string) $outlet->id)>
+                                {{ $outlet->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </x-sf.form-group>
+                <p class="text-xs text-amber-600 mt-1" x-show="outletScopedRoles.includes(role)" x-cloak>
+                    ⚠ Role ini wajib diisi Outlet-nya — kalau dikosongkan, user akan bisa melihat/memilih SEMUA outlet, bukan cuma outlet-nya.
+                </p>
+            </div>
 
             <x-sf.form-group label="Departemen" for="department_id"
                 hint="Isi untuk staff departemen tertentu (misal: Pastry, Bar). Kosongkan untuk Admin/Manager yang melihat semua departemen.">
