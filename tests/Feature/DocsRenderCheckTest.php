@@ -15,5 +15,5 @@ test('tutorial and changelog pages render without blade errors', function () {
         ->assertSee('Aktifkan untuk Opname')
         ->assertSee('Nonaktifkan dari Opname')
         ->assertSee('Kategori Beda per Departemen');
-    $this->actingAs($admin)->get(route('changelog'))->assertOk()->assertSee('v2.22');
+    $this->actingAs($admin)->get(route('changelog'))->assertOk()->assertSee('v2.23');
 });

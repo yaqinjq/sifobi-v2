@@ -8,12 +8,30 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.23 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.23 &mdash; 1 Oktober 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Daftar Opname untuk staff yang terikat 1 departemen (Staff Bar/Kitchen/Service/Gudang) sekarang cuma menampilkan sesi departemen-nya sendiri &mdash; sebelumnya ikut menampilkan sesi SEMUA departemen lain di outlet yang sama (mis. Staff Kitchen bisa melihat sesi Bar)</li>
+                    <li>Aksi Submit, Submit Massal, dan Approve sekarang ikut memverifikasi kepemilikan outlet &amp; departemen sebelum diproses &mdash; sebelumnya tidak ada pengecekan sama sekali di aksi submit/approve, jadi secara teori staff departemen lain bisa ikut men-submit sesi yang bukan tanggung jawabnya</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.22 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.22 &mdash; 30 September 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

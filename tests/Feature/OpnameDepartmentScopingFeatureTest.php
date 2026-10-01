@@ -233,6 +233,125 @@ test('bulk submit only processes draft sessions owned by the acting outlet', fun
     expect($barSession->refresh()->status)->toBe(OpnameSession::STATUS_SUBMITTED);
 });
 
+test('opname list only shows sessions for the staff own department', function (): void {
+    // Reproduksi laporan user 2026-10-01: Staff Kitchen bisa melihat sesi
+    // Bar di daftar Opname, padahal cuma outlet yang dibatasi, departemen
+    // sama sekali tidak difilter.
+    $barStaff = opnameUser('STAFF_BAR', 'BAR');
+    $kitchenStaff = opnameUser('STAFF_KITCHEN', 'KITCHEN');
+    $today = now()->toDateString();
+
+    $barSession = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->bar->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => $today,
+    ], $barStaff->id);
+
+    $kitchenSession = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->kitchen->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => $today,
+    ], $kitchenStaff->id);
+
+    $response = $this->actingAs($kitchenStaff)->get(route('operations.opname.index'));
+
+    $response->assertOk();
+    $ids = $response->viewData('sessions')->pluck('id')->all();
+
+    expect($ids)->toContain($kitchenSession->id)
+        ->and($ids)->not->toContain($barSession->id);
+});
+
+test('opname list hides the department filter dropdown for a department bound staff', function (): void {
+    $kitchenStaff = opnameUser('STAFF_KITCHEN', 'KITCHEN');
+
+    $this->actingAs($kitchenStaff)
+        ->get(route('operations.opname.index'))
+        ->assertOk()
+        ->assertViewHas('canFilterDepartment', false)
+        ->assertDontSee('<select name="department_id"', false);
+});
+
+test('opening another departments session directly by url is forbidden', function (): void {
+    $barStaff = opnameUser('STAFF_BAR', 'BAR');
+    $kitchenStaff = opnameUser('STAFF_KITCHEN', 'KITCHEN');
+
+    $barSession = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->bar->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => now()->toDateString(),
+    ], $barStaff->id);
+
+    $this->actingAs($kitchenStaff)
+        ->get(route('operations.opname.show', $barSession))
+        ->assertForbidden();
+});
+
+test('submitting another departments session directly is forbidden even with correct items', function (): void {
+    $barStaff = opnameUser('STAFF_BAR', 'BAR');
+    $kitchenStaff = opnameUser('STAFF_KITCHEN', 'KITCHEN');
+
+    $barSession = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->bar->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => now()->toDateString(),
+    ], $barStaff->id);
+
+    foreach ($barSession->items as $item) {
+        app(OpnameService::class)->updateItem($item, '0', '0');
+    }
+
+    $this->actingAs($kitchenStaff)
+        ->post(route('operations.opname.submit', $barSession))
+        ->assertForbidden();
+
+    expect($barSession->refresh()->status)->toBe(OpnameSession::STATUS_DRAFT);
+});
+
+test('bulk submit silently skips another departments session id even if included', function (): void {
+    $barStaff = opnameUser('STAFF_BAR', 'BAR');
+    $kitchenStaff = opnameUser('STAFF_KITCHEN', 'KITCHEN');
+
+    $barSession = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->bar->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => now()->toDateString(),
+    ], $barStaff->id);
+
+    foreach ($barSession->items as $item) {
+        app(OpnameService::class)->updateItem($item, '0', '0');
+    }
+
+    $kitchenSession = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->kitchen->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => now()->toDateString(),
+    ], $kitchenStaff->id);
+
+    foreach ($kitchenSession->items as $item) {
+        app(OpnameService::class)->updateItem($item, '0', '0');
+    }
+
+    $this->actingAs($kitchenStaff)
+        ->post(route('operations.opname.bulk-submit'), ['ids' => [$barSession->id, $kitchenSession->id]])
+        ->assertRedirect(route('operations.opname.index'));
+
+    expect($barSession->refresh()->status)->toBe(OpnameSession::STATUS_DRAFT)
+        ->and($kitchenSession->refresh()->status)->toBe(OpnameSession::STATUS_SUBMITTED);
+});
+
 test('opname show page only offers categories mapped to the session department', function (): void {
     $staff = opnameUser('STAFF_BAR', 'BAR');
 

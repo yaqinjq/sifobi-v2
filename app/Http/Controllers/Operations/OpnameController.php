@@ -35,11 +35,21 @@ class OpnameController extends Controller
     {
         $tenantId = $this->tenantId($request);
         $userOutletId = $request->user()->outlet_id;
+        $userDepartmentId = $request->user()->department_id;
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
 
         $sessions = OpnameSession::query()
             ->where('tenant_id', $tenantId)
             ->when($userOutletId, fn ($q) => $q->where('outlet_id', $userOutletId))
+            // User yang terikat 1 departemen (STAFF_BAR/KITCHEN/dst) cuma
+            // boleh lihat sesi departemen-nya sendiri -- sebelumnya tidak
+            // dibatasi sama sekali di sini, jadi Staff Kitchen bisa melihat
+            // sesi Bar dkk di outlet yang sama (laporan user 2026-10-01).
+            // department_id null = sesi historis lama sebelum sesi di-scope
+            // per departemen, tetap ikut tampil untuk siapa pun.
+            ->when($userDepartmentId, fn ($q) => $q->where(
+                fn ($dq) => $dq->where('department_id', $userDepartmentId)->orWhereNull('department_id')
+            ))
             ->with(['outlet', 'department', 'createdBy', 'approvedBy'])
             ->withCount('items')
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->upper()->toString()))
@@ -49,22 +59,24 @@ class OpnameController extends Controller
                 'outlet',
                 fn ($q) => $q->where('brand_id', $request->integer('brand_id'))
             ))
-            ->when($request->filled('department_id'), fn ($query) => $query->where('department_id', $request->integer('department_id')))
+            ->when(! $userDepartmentId && $request->filled('department_id'), fn ($query) => $query->where('department_id', $request->integer('department_id')))
             ->latest('opname_date')
             ->latest('id')
             ->paginate($perPage)
             ->withQueryString();
 
         $canFilterOutlet = ! $userOutletId;
+        $canFilterDepartment = ! $userDepartmentId;
 
         return view('operations.opname.index', [
             'sessions' => $sessions,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
             'canFilterOutlet' => $canFilterOutlet,
+            'canFilterDepartment' => $canFilterDepartment,
             'filterOutlets' => $canFilterOutlet ? Outlet::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
             'filterBrands' => $canFilterOutlet ? Brand::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
-            'filterDepartments' => Department::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get(),
+            'filterDepartments' => $canFilterDepartment ? Department::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get() : collect(),
         ]);
     }
 
@@ -199,6 +211,15 @@ class OpnameController extends Controller
             ->whereIn('id', $request->input('ids', []))
             ->where('tenant_id', $tenantId)
             ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            // Dulu cuma dicek outlet -- Staff departemen tertentu (mis.
+            // Kitchen) bisa ikut men-submit massal sesi departemen LAIN di
+            // outlet yang sama kalau ID-nya kebawa dari daftar (yang sampai
+            // baru-baru ini juga belum dibatasi departemen, lihat index()).
+            // department_id null = sesi historis lama, tetap boleh diproses
+            // siapa pun (sama seperti pengecualian di authorizeSessionOwnership()).
+            ->when($request->user()->department_id, fn ($q) => $q->where(
+                fn ($dq) => $dq->where('department_id', $request->user()->department_id)->orWhereNull('department_id')
+            ))
             ->where('status', OpnameSession::STATUS_DRAFT)
             ->pluck('id')
             ->all();
@@ -215,6 +236,9 @@ class OpnameController extends Controller
             ->whereIn('id', $request->input('ids', []))
             ->where('tenant_id', $tenantId)
             ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->when($request->user()->department_id, fn ($q) => $q->where(
+                fn ($dq) => $dq->where('department_id', $request->user()->department_id)->orWhereNull('department_id')
+            ))
             ->where('status', OpnameSession::STATUS_SUBMITTED)
             ->pluck('id')
             ->all();
@@ -253,8 +277,7 @@ class OpnameController extends Controller
             'approvedBy',
         ]);
 
-        $userOutletId = $request->user()->outlet_id;
-        abort_if($userOutletId && (int) $session->outlet_id !== (int) $userOutletId, 403);
+        $this->authorizeSessionOwnership($request, $session);
 
         $search = $request->string('q')->toString();
         $categoryId = $request->string('category_id')->toString();
@@ -582,6 +605,8 @@ class OpnameController extends Controller
 
     public function submit(Request $request, OpnameSession $session): RedirectResponse
     {
+        $this->authorizeSessionOwnership($request, $session);
+
         $updated = $this->opnameService->submit($session, (int) $request->user()->id);
 
         return redirect()
@@ -591,6 +616,8 @@ class OpnameController extends Controller
 
     public function approve(Request $request, OpnameSession $session): RedirectResponse
     {
+        $this->authorizeSessionOwnership($request, $session);
+
         try {
             $updated = $this->opnameService->approve($session, (int) $request->user()->id);
         } catch (ValidationException $exception) {
@@ -609,5 +636,29 @@ class OpnameController extends Controller
         abort_unless($tenantId, 403, 'Tenant belum terpasang pada user.');
 
         return (int) $tenantId;
+    }
+
+    /**
+     * Pastikan user cuma bisa submit/approve sesi outlet & departemennya
+     * sendiri -- meniru pola yang sudah benar di show()/updateItem(), yang
+     * sebelumnya TIDAK dicek sama sekali di submit()/approve() (laporan
+     * user 2026-10-01: Staff Kitchen bisa melihat sesi Bar; ditelusuri lebih
+     * jauh, aksi submit/approve pun tidak pernah memvalidasi kepemilikan
+     * outlet/departemen sama sekali).
+     */
+    private function authorizeSessionOwnership(Request $request, OpnameSession $session): void
+    {
+        $userOutletId = $request->user()->outlet_id;
+        abort_if($userOutletId && (int) $session->outlet_id !== (int) $userOutletId, 403, 'Anda tidak berwenang untuk sesi outlet lain.');
+
+        // $session->department_id null = sesi historis lama sebelum sesi
+        // di-scope per departemen -- tetap boleh diakses semua departemen
+        // (sama seperti pengecualian "orWhereNull" di query item per sesi).
+        $userDepartmentId = $request->user()->department_id;
+        abort_if(
+            $userDepartmentId && $session->department_id && (int) $session->department_id !== (int) $userDepartmentId,
+            403,
+            'Anda tidak berwenang untuk sesi departemen lain.'
+        );
     }
 }

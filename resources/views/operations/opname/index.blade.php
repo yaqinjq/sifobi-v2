@@ -39,12 +39,14 @@
                 </select>
             @endif
 
-            <select name="department_id" onchange="this.form.submit()" class="sf-input py-2 text-sm flex-shrink-0 w-auto min-h-11">
-                <option value="">Semua Departemen</option>
-                @foreach($filterDepartments as $department)
-                    <option value="{{ $department->id }}" @selected((string) request('department_id') === (string) $department->id)>{{ $department->name }}</option>
-                @endforeach
-            </select>
+            @if($canFilterDepartment)
+                <select name="department_id" onchange="this.form.submit()" class="sf-input py-2 text-sm flex-shrink-0 w-auto min-h-11">
+                    <option value="">Semua Departemen</option>
+                    @foreach($filterDepartments as $department)
+                        <option value="{{ $department->id }}" @selected((string) request('department_id') === (string) $department->id)>{{ $department->name }}</option>
+                    @endforeach
+                </select>
+            @endif
 
             <select name="status" class="sf-input py-2 text-sm flex-shrink-0 w-auto min-h-11" onchange="this.form.submit()">
                 <option value="">Semua status</option>
