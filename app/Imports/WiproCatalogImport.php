@@ -7,21 +7,29 @@ use App\Modules\Inventory\Models\ItemCategory;
 use App\Modules\Inventory\Models\Unit;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Throwable;
 
 /**
  * Reads a Wipro catalog Excel (multi-sheet: one sheet per category).
- * Columns: A=sku, B=product_name, C=product_type, D=unit, E=is_active, F=kategori, G=CK, H=konversi
- * Row 1 is the heading row — data starts at row 2.
  *
- * Kolom H (header-nya bisa "Konversi" atau masih "outlet" tergantung sheet
- * — dibaca berdasarkan posisi kolom, bukan nama header, jadi tidak masalah)
- * berisi teks bebas format "1 PACK = 2 KG" — dipakai untuk isi purchase_unit
- * (mis. PACK) terpisah dari base/inventory_unit (mis. KG) beserta rasionya.
- * Kalau kolom ini kosong/tidak bisa diparse (tim WIP masih proses isi data
- * untuk sebagian item), fallback ke perilaku lama: base=inventory=purchase
- * unit sama persis, ratio 1 — supaya tidak merusak item yang datanya belum
- * lengkap.
+ * Kolom dibaca berdasarkan TEKS HEADER di row 1 (lihat detectColumns()),
+ * BUKAN posisi huruf kolom tetap lagi -- sebelumnya hardcoded A=sku,
+ * B=product_name, C=product_type, D=unit, E=is_active, F=kategori,
+ * G=CK, H=konversi, yang diam-diam menghasilkan data SALAH TOTAL (bukan
+ * error yang kelihatan) begitu file "STANDARISASI PRODUK WIP.xlsx" dari
+ * pimpinan menyisipkan kolom baru (Product_Code di depan, outlet sebelum
+ * konversi) sehingga semua posisi kolom bergeser. Kolom Product_Code, CK,
+ * dan outlet sengaja tidak dipakai (bukan bagian dari data yang disimpan
+ * ke Item), cukup kolom SKU/Product_Name/Unit/Is_Active/Kategori/Konversi
+ * yang wajib ketemu lewat nama headernya.
+ *
+ * Kolom konversi berisi teks bebas format "1 PACK = 2 KG" — dipakai untuk
+ * isi purchase_unit (mis. PACK) terpisah dari base/inventory_unit
+ * (mis. KG) beserta rasionya. Kalau kolom ini kosong/tidak bisa diparse
+ * (tim WIP masih proses isi data untuk sebagian item), fallback ke
+ * perilaku lama: base=inventory=purchase unit sama persis, ratio 1 —
+ * supaya tidak merusak item yang datanya belum lengkap.
  */
 class WiproCatalogImport
 {
@@ -36,11 +44,18 @@ class WiproCatalogImport
         $spreadsheet = IOFactory::load($filePath);
 
         foreach ($spreadsheet->getAllSheets() as $sheet) {
+            $columns = $this->detectColumns($sheet);
+
+            if (! $columns) {
+                $this->errors[] = "Sheet [{$sheet->getTitle()}]: format kolom tidak dikenali -- pastikan ada header SKU, Product_Name, (Default_)Unit(_Symbol), Is_Active, dan Kategori.";
+
+                continue;
+            }
+
             $highestRow = $sheet->getHighestDataRow();
 
-            // Start from row 2 (skip header)
-            for ($rowNum = 2; $rowNum <= $highestRow; $rowNum++) {
-                $sku = trim((string) $sheet->getCell("A{$rowNum}")->getValue());
+            for ($rowNum = $columns['header'] + 1; $rowNum <= $highestRow; $rowNum++) {
+                $sku = trim((string) $sheet->getCell("{$columns['sku']}{$rowNum}")->getValue());
 
                 if ($sku === '') {
                     continue;
@@ -49,17 +64,91 @@ class WiproCatalogImport
                 try {
                     $this->upsert(
                         sku:       $sku,
-                        name:      trim((string) $sheet->getCell("B{$rowNum}")->getValue()),
-                        unitCode:  strtoupper(trim((string) $sheet->getCell("D{$rowNum}")->getValue())) ?: 'PCS',
-                        kategori:  trim((string) $sheet->getCell("F{$rowNum}")->getValue()),
-                        isActive:  ((int) $sheet->getCell("E{$rowNum}")->getValue()) !== 0,
-                        konversi:  trim((string) $sheet->getCell("H{$rowNum}")->getValue()),
+                        name:      trim((string) $sheet->getCell("{$columns['name']}{$rowNum}")->getValue()),
+                        unitCode:  strtoupper(trim((string) $sheet->getCell("{$columns['unit']}{$rowNum}")->getValue())) ?: 'PCS',
+                        kategori:  trim((string) $sheet->getCell("{$columns['kategori']}{$rowNum}")->getValue()),
+                        isActive:  ((int) $sheet->getCell("{$columns['active']}{$rowNum}")->getValue()) !== 0,
+                        konversi:  isset($columns['konversi']) ? trim((string) $sheet->getCell("{$columns['konversi']}{$rowNum}")->getValue()) : '',
                     );
                 } catch (Throwable $e) {
                     $this->errors[] = "Sheet [{$sheet->getTitle()}] baris {$rowNum} (SKU {$sku}): " . $e->getMessage();
                 }
             }
         }
+    }
+
+    /**
+     * Cari baris header (mengandung kolom SKU/Product_Name/Unit/Is_Active/
+     * Kategori) dan kolom-kolom yang relevan berdasarkan teks header-nya --
+     * bukan posisi tetap -- supaya tahan terhadap kolom baru yang disisipkan
+     * di tengah (persis yang terjadi di file "STANDARISASI PRODUK WIP.xlsx").
+     * Kolom Konversi opsional (item tanpa data konversi tetap bisa diimpor).
+     *
+     * @return array{header:int,sku:string,name:string,unit:string,active:string,kategori:string,konversi?:string}|null
+     */
+    private function detectColumns(Worksheet $sheet): ?array
+    {
+        $highestRow = min($sheet->getHighestRow(), 5);
+        $highestColumn = $sheet->getHighestColumn();
+
+        for ($rowNum = 1; $rowNum <= $highestRow; $rowNum++) {
+            $found = [];
+
+            foreach ($this->columnRange('A', $highestColumn) as $col) {
+                $value = strtoupper(trim((string) $sheet->getCell("{$col}{$rowNum}")->getValue()));
+
+                if ($value === '') {
+                    continue;
+                }
+
+                if ($value === 'SKU') {
+                    $found['sku'] = $col;
+                } elseif (str_contains($value, 'PRODUCT_NAME') || $value === 'NAME') {
+                    $found['name'] = $col;
+                } elseif (str_contains($value, 'UNIT')) {
+                    $found['unit'] = $col;
+                } elseif (str_contains($value, 'ACTIVE')) {
+                    $found['active'] = $col;
+                } elseif (str_contains($value, 'KATEGORI') || str_contains($value, 'CATEGORY')) {
+                    $found['kategori'] = $col;
+                } elseif (str_contains($value, 'KONVERSI') || str_contains($value, 'CONVERSION')) {
+                    $found['konversi'] = $col;
+                }
+            }
+
+            if (isset($found['sku'], $found['name'], $found['unit'], $found['active'], $found['kategori'])) {
+                return ['header' => $rowNum] + $found;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function columnRange(string $from, string $to): array
+    {
+        $columns = [];
+        $current = $from;
+
+        while (true) {
+            $columns[] = $current;
+
+            if ($current === $to) {
+                break;
+            }
+
+            $current = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(
+                \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($current) + 1
+            );
+
+            if (count($columns) > 100) {
+                break;
+            }
+        }
+
+        return $columns;
     }
 
     /** @return array{inserted:int,updated:int,errors:list<string>} */

@@ -99,19 +99,21 @@
             </div>
 
             <div class="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 space-y-1.5">
-                <p class="text-xs font-semibold text-blue-800">Format kolom yang diharapkan (row 1 = header):</p>
-                <div class="grid grid-cols-4 gap-1 text-xs text-blue-700 font-mono">
-                    <span>A: sku</span>
-                    <span>B: product_name</span>
-                    <span>C: product_type</span>
-                    <span>D: default_unit_symbol</span>
-                    <span>E: is_active</span>
-                    <span>F: kategori</span>
-                    <span>G: CK</span>
-                    <span>H: konversi</span>
+                <p class="text-xs font-semibold text-blue-800">Kolom wajib ada (row 1 = header, urutan/posisi kolom bebas):</p>
+                <div class="grid grid-cols-3 gap-1 text-xs text-blue-700 font-mono">
+                    <span>SKU</span>
+                    <span>Product_Name</span>
+                    <span>(Default_)Unit(_Symbol)</span>
+                    <span>Is_Active</span>
+                    <span>Kategori</span>
+                    <span>Konversi <em class="not-italic text-blue-400">(opsional)</em></span>
                 </div>
                 <p class="text-xs text-blue-600">
-                    Kolom H (konversi satuan) diisi format bebas <strong>"1 PACK = 2 KG"</strong> — dipakai supaya
+                    Kolom lain seperti Product_Code, CK, atau Outlet boleh ada di file (diabaikan, tidak perlu dihapus) —
+                    kolom dicari berdasarkan NAMA header-nya, jadi urutan/posisi kolom boleh berubah-ubah antar file.
+                </p>
+                <p class="text-xs text-blue-600">
+                    Kolom Konversi (satuan) diisi format bebas <strong>"1 PACK = 2 KG"</strong> — dipakai supaya
                     outlet order pakai satuan PACK tapi tetap lihat perkiraan beratnya dalam KG saat pilih item.
                     Kalau kolom ini kosong, item tetap bisa diimpor tapi belum tampil keterangan konversinya.
                 </p>
