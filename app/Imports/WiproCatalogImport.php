@@ -30,6 +30,13 @@ use Throwable;
  * (tim WIP masih proses isi data untuk sebagian item), fallback ke
  * perilaku lama: base=inventory=purchase unit sama persis, ratio 1 —
  * supaya tidak merusak item yang datanya belum lengkap.
+ *
+ * Item dicocokkan ke record yang sudah ada lewat kolom Product_Code
+ * (disimpan di items.wipro_product_code) kalau ada -- kode ini STABIL,
+ * tidak ikut berubah meski SKU-nya di-standarisasi/diganti skema
+ * penamaannya (kasus nyata: proyek "STANDARISASI PRODUK WIP"). Kalau
+ * file tidak punya kolom Product_Code, atau item belum pernah ke-tag
+ * product_code-nya, fallback ke pencarian lewat SKU seperti sebelumnya.
  */
 class WiproCatalogImport
 {
@@ -63,12 +70,13 @@ class WiproCatalogImport
 
                 try {
                     $this->upsert(
-                        sku:       $sku,
-                        name:      trim((string) $sheet->getCell("{$columns['name']}{$rowNum}")->getValue()),
-                        unitCode:  strtoupper(trim((string) $sheet->getCell("{$columns['unit']}{$rowNum}")->getValue())) ?: 'PCS',
-                        kategori:  trim((string) $sheet->getCell("{$columns['kategori']}{$rowNum}")->getValue()),
-                        isActive:  ((int) $sheet->getCell("{$columns['active']}{$rowNum}")->getValue()) !== 0,
-                        konversi:  isset($columns['konversi']) ? trim((string) $sheet->getCell("{$columns['konversi']}{$rowNum}")->getValue()) : '',
+                        sku:         $sku,
+                        productCode: isset($columns['product_code']) ? trim((string) $sheet->getCell("{$columns['product_code']}{$rowNum}")->getValue()) : '',
+                        name:        trim((string) $sheet->getCell("{$columns['name']}{$rowNum}")->getValue()),
+                        unitCode:    strtoupper(trim((string) $sheet->getCell("{$columns['unit']}{$rowNum}")->getValue())) ?: 'PCS',
+                        kategori:    trim((string) $sheet->getCell("{$columns['kategori']}{$rowNum}")->getValue()),
+                        isActive:    ((int) $sheet->getCell("{$columns['active']}{$rowNum}")->getValue()) !== 0,
+                        konversi:    isset($columns['konversi']) ? trim((string) $sheet->getCell("{$columns['konversi']}{$rowNum}")->getValue()) : '',
                     );
                 } catch (Throwable $e) {
                     $this->errors[] = "Sheet [{$sheet->getTitle()}] baris {$rowNum} (SKU {$sku}): " . $e->getMessage();
@@ -84,7 +92,7 @@ class WiproCatalogImport
      * di tengah (persis yang terjadi di file "STANDARISASI PRODUK WIP.xlsx").
      * Kolom Konversi opsional (item tanpa data konversi tetap bisa diimpor).
      *
-     * @return array{header:int,sku:string,name:string,unit:string,active:string,kategori:string,konversi?:string}|null
+     * @return array{header:int,sku:string,name:string,unit:string,active:string,kategori:string,konversi?:string,product_code?:string}|null
      */
     private function detectColumns(Worksheet $sheet): ?array
     {
@@ -103,6 +111,8 @@ class WiproCatalogImport
 
                 if ($value === 'SKU') {
                     $found['sku'] = $col;
+                } elseif (str_contains($value, 'PRODUCT_CODE')) {
+                    $found['product_code'] = $col;
                 } elseif (str_contains($value, 'PRODUCT_NAME') || $value === 'NAME') {
                     $found['name'] = $col;
                 } elseif (str_contains($value, 'UNIT')) {
@@ -161,7 +171,7 @@ class WiproCatalogImport
         ];
     }
 
-    private function upsert(string $sku, string $name, string $unitCode, string $kategori, bool $isActive, string $konversi = ''): void
+    private function upsert(string $sku, string $productCode, string $name, string $unitCode, string $kategori, bool $isActive, string $konversi = ''): void
     {
         $purchaseUnit = $this->resolveUnit($unitCode);
         $category     = $this->resolveCategory($kategori);
@@ -204,10 +214,26 @@ class WiproCatalogImport
             ];
         }
 
-        $existing = Item::withoutGlobalScopes()
-            ->where('tenant_id', $this->tenantId)
-            ->where('canonical_sku', $sku)
-            ->first();
+        // Cari dulu lewat Product_Code (kode Wipro yang STABIL, tidak ikut
+        // berubah walau SKU di-standarisasi/diganti nama skema-nya) -- kalau
+        // tidak ketemu (file tidak punya kolom Product_Code, atau item ini
+        // belum pernah ke-tag product_code-nya dari import sebelumnya),
+        // fallback ke pencarian lewat SKU seperti semula.
+        $existing = null;
+
+        if ($productCode !== '') {
+            $existing = Item::withoutGlobalScopes()
+                ->where('tenant_id', $this->tenantId)
+                ->where('wipro_product_code', $productCode)
+                ->first();
+        }
+
+        if (! $existing) {
+            $existing = Item::withoutGlobalScopes()
+                ->where('tenant_id', $this->tenantId)
+                ->where('canonical_sku', $sku)
+                ->first();
+        }
 
         // SKU dari Wipro ternyata bisa kebetulan sama dengan SKU item bahan
         // baku internal yang dibuat manual dan sama sekali tidak berkaitan
@@ -226,7 +252,29 @@ class WiproCatalogImport
             return;
         }
 
+        if ($productCode !== '') {
+            $attributes['wipro_product_code'] = $productCode;
+        }
+
         if ($existing) {
+            // Ketemu lewat Product_Code tapi SKU di file beda dari yang
+            // tersimpan -- produk ini sedang di-standarisasi SKU-nya. Boleh
+            // ikut berganti SELAMA sku baru itu belum dipakai item lain.
+            if ($existing->canonical_sku !== $sku) {
+                $skuTakenByAnotherItem = Item::withoutGlobalScopes()
+                    ->where('tenant_id', $this->tenantId)
+                    ->where('canonical_sku', $sku)
+                    ->where('id', '!=', $existing->id)
+                    ->exists();
+
+                if ($skuTakenByAnotherItem) {
+                    $this->errors[] = "SKU baru '{$sku}' untuk \"{$name}\" (product_code {$productCode}) sudah dipakai item lain -- "
+                        ."dilewati, SKU lama '{$existing->canonical_sku}' tetap dipakai. Periksa manual.";
+                } else {
+                    $attributes['canonical_sku'] = $sku;
+                }
+            }
+
             // Item ini sudah pernah "diadopsi" manual oleh staff (dikasih
             // foto, track_stock dinyalakan, atau kategorinya diganti dari
             // hasil auto-sync "Wipro — X") — jangan timpa lagi kategori &

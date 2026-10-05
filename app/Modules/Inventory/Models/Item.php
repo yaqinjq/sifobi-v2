@@ -27,6 +27,7 @@ class Item extends Model
         'yield_pct',
         'last_purchase_price',
         'canonical_sku',
+        'wipro_product_code',
         'name',
         'description',
         'photo',
