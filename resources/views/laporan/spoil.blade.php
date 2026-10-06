@@ -18,12 +18,14 @@
                     <option value="{{ $outlet->id }}" @selected((string) ($filters['outlet_id'] ?? '') === (string) $outlet->id)>{{ $outlet->name }}</option>
                 @endforeach
             </select>
-            <select name="department_id" class="sf-input text-base min-h-11">
-                <option value="">Semua departemen</option>
-                @foreach($departments as $department)
-                    <option value="{{ $department->id }}" @selected((string) ($filters['department_id'] ?? '') === (string) $department->id)>{{ $department->name }}</option>
-                @endforeach
-            </select>
+            @if($canFilterDepartment)
+                <select name="department_id" class="sf-input text-base min-h-11">
+                    <option value="">Semua departemen</option>
+                    @foreach($departments as $department)
+                        <option value="{{ $department->id }}" @selected((string) ($filters['department_id'] ?? '') === (string) $department->id)>{{ $department->name }}</option>
+                    @endforeach
+                </select>
+            @endif
             <input type="date" name="date_from" value="{{ $filters['date_from'] ?? now()->startOfMonth()->toDateString() }}" class="sf-input text-base min-h-11">
             <input type="date" name="date_to" value="{{ $filters['date_to'] ?? now()->toDateString() }}" class="sf-input text-base min-h-11">
             <button type="submit" class="sf-btn-primary min-h-11">Filter</button>

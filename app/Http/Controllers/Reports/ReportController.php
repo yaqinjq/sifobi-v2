@@ -84,7 +84,7 @@ class ReportController extends Controller
     public function spoilReport(Request $request): View
     {
         $tenantId = $this->tenantId($request);
-        $filters = $this->enforceOutletScope($request, $this->validateSpoilFilters($request, $tenantId));
+        $filters = $this->enforceSpoilDepartmentScope($request, $this->enforceOutletScope($request, $this->validateSpoilFilters($request, $tenantId)));
         [$dateFrom, $dateTo] = $this->dateRange($filters);
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 50);
 
@@ -118,11 +118,14 @@ class ReportController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        $canFilterDepartment = ! $request->user()?->department_id;
+
         return view('laporan.spoil', [
             'spoils' => $spoils,
             'summary' => $summary,
             'outlets' => $this->outlets($tenantId),
-            'departments' => Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+            'canFilterDepartment' => $canFilterDepartment,
+            'departments' => $canFilterDepartment ? Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
             'filters' => $filters,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
@@ -413,7 +416,7 @@ class ReportController extends Controller
     public function exportSpoil(Request $request): BinaryFileResponse
     {
         $tenantId = $this->tenantId($request);
-        $filters = $this->enforceOutletScope($request, $this->validateSpoilFilters($request, $tenantId));
+        $filters = $this->enforceSpoilDepartmentScope($request, $this->enforceOutletScope($request, $this->validateSpoilFilters($request, $tenantId)));
 
         return Excel::download(new SpoilExport($tenantId, $filters), 'LaporanSpoilWaste.xlsx');
     }
@@ -594,6 +597,29 @@ class ReportController extends Controller
 
         if ($user?->outlet_id && ! $user->can('view_all_reports')) {
             $filters['outlet_id'] = (int) $user->outlet_id;
+        }
+
+        return $filters;
+    }
+
+    /**
+     * Khusus laporan Spoil & Waste: STAFF_SERVICE dan STAFF_GUDANG punya
+     * permission `view_reports` (beda dari STAFF_BAR/KITCHEN yang tidak),
+     * jadi mereka BISA mencapai halaman & export laporan ini -- tapi
+     * sebelumnya filter department_id di sini cuma opsional lewat query
+     * string, tidak pernah dipaksa dari akun user. Staf yang terikat 1
+     * departemen cuma boleh lihat/export spoil departemen-nya sendiri,
+     * apa pun yang dikirim lewat query string.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function enforceSpoilDepartmentScope(Request $request, array $filters): array
+    {
+        $userDepartmentId = $request->user()?->department_id;
+
+        if ($userDepartmentId) {
+            $filters['department_id'] = (int) $userDepartmentId;
         }
 
         return $filters;

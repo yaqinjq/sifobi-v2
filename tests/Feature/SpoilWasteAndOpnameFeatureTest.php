@@ -35,6 +35,11 @@ beforeEach(function (): void {
     $this->department = Department::query()->where('code', 'BAR')->firstOrFail();
     /** @phpstan-ignore-next-line */
     $this->item = Item::query()->where('canonical_sku', 'MKO-AJINOMOTO-500GR')->firstOrFail();
+    // Item harus terikat ke departemen BAR supaya lolos validasi item_id
+    // per-departemen di SpoilWasteController (lihat
+    // SpoilWasteDepartmentScopingFeatureTest) -- staff di test ini semua
+    // STAFF_BAR.
+    $this->item->update(['primary_department_id' => $this->department->id]);
     $this->unit = $this->item->inventory_unit_id;
     $this->baseUnit = $this->item->base_unit_id;
 });
