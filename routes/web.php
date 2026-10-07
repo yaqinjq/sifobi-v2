@@ -457,6 +457,9 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
         Route::get('/spoil-wastes/{spoil}', [SpoilWasteController::class, 'show'])
             ->middleware('permission:record_spoil')
             ->name('spoil-wastes.show');
+        Route::get('/spoil-wastes/{spoil}/photo', [SpoilWasteController::class, 'photo'])
+            ->middleware('permission:record_spoil')
+            ->name('spoil-wastes.photo');
         Route::post('/spoil-wastes/bulk-approve', [SpoilWasteController::class, 'bulkApprove'])
             ->middleware('permission:approve_spoil')
             ->name('spoil-wastes.bulk-approve');

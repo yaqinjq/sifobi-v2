@@ -233,7 +233,14 @@ class SpoilWasteService
             ->latest()
             ->first();
 
-        $photoPath = $file->store("tenants/{$tenantId}/spoil", 'public');
+        // Disk 'local' (storage/app/private) -- BUKAN 'public' lagi. Foto
+        // bukti spoil sekarang cuma bisa diakses lewat endpoint otentikasi
+        // SpoilWasteController::photo() yang menerapkan scope yang sama
+        // dengan show(), bukan URL statis yang bisa dibuka siapa pun tanpa
+        // login. Ini SATU-SATUNYA perubahan di file ini pada patch keamanan
+        // ini -- murni lokasi penyimpanan file, tidak mengubah lifecycle
+        // status spoil atau perhitungan ledger apa pun.
+        $photoPath = $file->store("tenants/{$tenantId}/spoil", 'local');
 
         return [
             $photoPath,

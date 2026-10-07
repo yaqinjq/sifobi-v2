@@ -9,6 +9,7 @@ use App\Exports\Reports\PenerimaanExport;
 use App\Exports\Reports\SpoilExport;
 use App\Exports\Reports\StokMenipisExport;
 use App\Exports\Reports\StokSummaryExport;
+use App\Http\Controllers\Concerns\EnforcesSuperAdminScope;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Department;
@@ -27,6 +28,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ReportController extends Controller
 {
+    use EnforcesSuperAdminScope;
     use HasPerPageSelector;
 
     public function index(): View
@@ -84,7 +86,7 @@ class ReportController extends Controller
     public function spoilReport(Request $request): View
     {
         $tenantId = $this->tenantId($request);
-        $filters = $this->enforceSpoilDepartmentScope($request, $this->enforceOutletScope($request, $this->validateSpoilFilters($request, $tenantId)));
+        $filters = $this->enforceSpoilScope($request, $this->validateSpoilFilters($request, $tenantId));
         [$dateFrom, $dateTo] = $this->dateRange($filters);
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 50);
 
@@ -118,14 +120,15 @@ class ReportController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        $canFilterDepartment = ! $request->user()?->department_id;
+        $isSuperAdmin = $this->isSuperAdmin($request);
 
         return view('laporan.spoil', [
             'spoils' => $spoils,
             'summary' => $summary,
-            'outlets' => $this->outlets($tenantId),
-            'canFilterDepartment' => $canFilterDepartment,
-            'departments' => $canFilterDepartment ? Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
+            'outlets' => $isSuperAdmin ? $this->outlets($tenantId) : collect(),
+            'canFilterOutlet' => $isSuperAdmin,
+            'canFilterDepartment' => $isSuperAdmin,
+            'departments' => $isSuperAdmin ? Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
             'filters' => $filters,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
@@ -416,7 +419,7 @@ class ReportController extends Controller
     public function exportSpoil(Request $request): BinaryFileResponse
     {
         $tenantId = $this->tenantId($request);
-        $filters = $this->enforceSpoilDepartmentScope($request, $this->enforceOutletScope($request, $this->validateSpoilFilters($request, $tenantId)));
+        $filters = $this->enforceSpoilScope($request, $this->validateSpoilFilters($request, $tenantId));
 
         return Excel::download(new SpoilExport($tenantId, $filters), 'LaporanSpoilWaste.xlsx');
     }
@@ -603,24 +606,40 @@ class ReportController extends Controller
     }
 
     /**
-     * Khusus laporan Spoil & Waste: STAFF_SERVICE dan STAFF_GUDANG punya
-     * permission `view_reports` (beda dari STAFF_BAR/KITCHEN yang tidak),
-     * jadi mereka BISA mencapai halaman & export laporan ini -- tapi
-     * sebelumnya filter department_id di sini cuma opsional lewat query
-     * string, tidak pernah dipaksa dari akun user. Staf yang terikat 1
-     * departemen cuma boleh lihat/export spoil departemen-nya sendiri,
-     * apa pun yang dikirim lewat query string.
+     * Khusus laporan Spoil & Waste -- menggantikan enforceOutletScope() di
+     * 2 method ini (bukan ditumpuk), supaya outlet DAN departemen tunduk ke
+     * aturan yang sama: HANYA SUPER_ADMIN (role resmi) boleh lintas
+     * outlet/departemen. STAFF_SERVICE/STAFF_GUDANG punya permission
+     * `view_reports` (beda dari STAFF_BAR/KITCHEN), jadi bisa mencapai
+     * halaman ini -- dan PIC_OUTLET/MANAGER_AREA yang tidak terikat
+     * departemen (department_id null) sekarang fail closed juga (bukan
+     * lagi "lihat semua departemen di outletnya"), konsisten dengan
+     * SpoilWasteController. Filter dari query string DIABAIKAN untuk
+     * non-superadmin, apa pun yang dikirim.
      *
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
-    private function enforceSpoilDepartmentScope(Request $request, array $filters): array
+    private function enforceSpoilScope(Request $request, array $filters): array
     {
-        $userDepartmentId = $request->user()?->department_id;
-
-        if ($userDepartmentId) {
-            $filters['department_id'] = (int) $userDepartmentId;
+        if ($this->isSuperAdmin($request)) {
+            return $filters;
         }
+
+        $user = $request->user();
+
+        if (! $user?->outlet_id || ! $user?->department_id) {
+            // fail closed -- tidak ada scope yang sah, jangan tampilkan
+            // apa pun (bukan 403 di sini karena ini laporan, bukan aksi
+            // langsung ke 1 record -- biarkan halaman render dengan 0 baris).
+            $filters['outlet_id'] = -1;
+            $filters['department_id'] = -1;
+
+            return $filters;
+        }
+
+        $filters['outlet_id'] = (int) $user->outlet_id;
+        $filters['department_id'] = (int) $user->department_id;
 
         return $filters;
     }

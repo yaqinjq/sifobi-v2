@@ -58,8 +58,8 @@
 
     <x-sf.card title="Foto Bukti">
         @if($spoil->photo || $spoil->photo_path)
-            <a href="{{ asset('storage/'.($spoil->photo ?: $spoil->photo_path)) }}" target="_blank" class="block">
-                <img src="{{ asset('storage/'.($spoil->photo ?: $spoil->photo_path)) }}" alt="Foto bukti spoil" class="w-full max-h-[520px] rounded-xl object-cover">
+            <a href="{{ route('operations.spoil-wastes.photo', $spoil) }}" target="_blank" class="block">
+                <img src="{{ route('operations.spoil-wastes.photo', $spoil) }}" alt="Foto bukti spoil" class="w-full max-h-[520px] rounded-xl object-cover">
             </a>
         @else
             <p class="text-sm text-gray-500">Tidak ada foto bukti.</p>

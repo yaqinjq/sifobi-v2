@@ -51,7 +51,7 @@
                     </div>
                     <div class="flex gap-3">
                         @if($spoil->photo || $spoil->photo_path)
-                            <img src="{{ asset('storage/'.($spoil->photo ?: $spoil->photo_path)) }}" alt="Foto spoil" class="h-16 w-16 rounded-xl object-cover border border-gray-100">
+                            <img src="{{ route('operations.spoil-wastes.photo', $spoil) }}" alt="Foto spoil" class="h-16 w-16 rounded-xl object-cover border border-gray-100">
                         @else
                             <div class="h-16 w-16 rounded-xl bg-gray-100"></div>
                         @endif

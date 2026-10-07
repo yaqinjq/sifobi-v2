@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Operations;
 
 use App\Exceptions\InsufficientStockException;
+use App\Http\Controllers\Concerns\EnforcesSuperAdminScope;
 use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
@@ -18,12 +19,14 @@ use App\Support\Decimal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class SpoilWasteController extends Controller
 {
+    use EnforcesSuperAdminScope;
     use HasBulkAction;
     use HasPerPageSelector;
 
@@ -35,23 +38,13 @@ class SpoilWasteController extends Controller
     {
         $tenantId = $this->tenantId($request);
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
-        $userDepartmentId = $request->user()->department_id;
-        $canSeeAllDepartments = (bool) $request->user()->can('approve_spoil');
 
         $query = SpoilWaste::query()
             ->with(['outlet', 'department', 'item', 'unit', 'createdBy'])
-            ->where('tenant_id', $tenantId)
-            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
-            // User yang terikat 1 departemen cuma boleh lihat spoil
-            // departemen-nya sendiri -- TIDAK termasuk record lama yang
-            // department_id-nya NULL (beda dari pola Opname: di sini legacy
-            // null sengaja tidak otomatis ikut terlihat staff). User tanpa
-            // departemen tetap (PIC_OUTLET/MANAGER_AREA/SUPER_ADMIN) yang
-            // juga tidak punya permission approve_spoil dianggap akun belum
-            // di-assign dengan benar -- JANGAN diam-diam dianggap admin,
-            // tampilkan kosong daripada bocor ke semua departemen.
-            ->when($userDepartmentId, fn ($q) => $q->where('department_id', $userDepartmentId))
-            ->when(! $userDepartmentId && ! $canSeeAllDepartments, fn ($q) => $q->whereNull('id'))
+            ->where('tenant_id', $tenantId);
+        $query = $this->applySpoilRecordScope($query, $request);
+
+        $query = $query
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')->upper()->toString()))
             ->when($request->input('range') === '7', fn ($q) => $q->whereDate('recorded_date', '>=', now()->subDays(7)->toDateString()))
             ->when($request->input('range') === '30', fn ($q) => $q->whereDate('recorded_date', '>=', now()->subDays(30)->toDateString()))
@@ -87,6 +80,10 @@ class SpoilWasteController extends Controller
 
     public function create(Request $request): View
     {
+        if (! $this->isSuperAdmin($request) && ! $this->hasValidSpoilScope($request)) {
+            abort(403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah untuk mencatat spoil. Hubungi Super Admin.');
+        }
+
         return view('operations.spoil-wastes.create', $this->formData($request));
     }
 
@@ -94,16 +91,28 @@ class SpoilWasteController extends Controller
     {
         $tenantId = $this->tenantId($request);
         $user = $request->user();
-        $validated = $this->validated($request, $tenantId);
+        $isSuperAdmin = $this->isSuperAdmin($request);
+
+        // Non-superadmin WAJIB punya outlet_id DAN department_id yang sah --
+        // kalau tidak (mis. PIC_OUTLET/MANAGER_AREA yang desainnya lintas
+        // departemen), akun itu TIDAK PUNYA scope yang valid untuk mencatat
+        // spoil sama sekali di bawah kebijakan ini. Lihat laporan workflow
+        // yang terdampak di commit message/laporan review.
+        if (! $isSuperAdmin && ! $this->hasValidSpoilScope($request)) {
+            abort(403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah untuk mencatat spoil. Hubungi Super Admin.');
+        }
+
+        $validated = $this->validated($request, $tenantId, $isSuperAdmin);
 
         // outlet_id/department_id yang DIKIRIM CLIENT cuma dipakai untuk
-        // user yang memang tidak terikat (PIC_OUTLET/MANAGER_AREA/dst) --
-        // untuk staf yang sudah terikat 1 outlet/departemen, nilai dari
-        // akun mereka SELALU menang, apa pun yang ada di form/request
-        // (jaga-jaga dari form yang dimanipulasi, bukan cuma percaya UI
-        // dropdown yang sudah dibatasi).
-        $validated['outlet_id'] = $user->outlet_id ?: (int) $validated['outlet_id'];
-        $validated['department_id'] = $user->department_id ?: (int) $validated['department_id'];
+        // SUPER_ADMIN -- untuk staf non-superadmin (sudah dipastikan
+        // outlet+departemen-nya sah di atas), nilai dari akun mereka SELALU
+        // menang, apa pun yang ada di form/request (jaga-jaga dari form yang
+        // dimanipulasi, bukan cuma percaya UI dropdown yang sudah dibatasi).
+        if (! $isSuperAdmin) {
+            $validated['outlet_id'] = (int) $user->outlet_id;
+            $validated['department_id'] = (int) $user->department_id;
+        }
 
         try {
             $spoil = $this->spoilWasteService->record(array_merge($validated, [
@@ -121,7 +130,7 @@ class SpoilWasteController extends Controller
             ->with('success', 'Spoil berhasil dicatat dan stok langsung berkurang.');
     }
 
-    public function show(SpoilWaste $spoil): View
+    public function show(Request $request, SpoilWaste $spoil): View
     {
         $spoil->load([
             'outlet',
@@ -135,28 +144,46 @@ class SpoilWasteController extends Controller
             'mutation',
         ]);
 
-        $user = auth()->user();
-        $userOutletId = $user->outlet_id;
-        abort_if($userOutletId && (int) $spoil->outlet_id !== (int) $userOutletId, 403);
-
-        $userDepartmentId = $user->department_id;
-        if ($userDepartmentId) {
-            // Sengaja TIDAK mengecualikan department_id NULL (legacy) --
-            // staf departemen tertentu cuma boleh buka spoil departemen
-            // sendiri, titik.
-            abort_if((int) $spoil->department_id !== (int) $userDepartmentId, 403);
-        } elseif (! $user->can('approve_spoil')) {
-            abort(403);
-        }
+        $this->assertSpoilInScope($request, $spoil);
 
         return view('operations.spoil-wastes.show', [
             'spoil' => $spoil,
         ]);
     }
 
+    /**
+     * Sajikan foto bukti spoil lewat endpoint ber-otentikasi + scope yang
+     * SAMA PERSIS dengan show() -- bukan lagi URL publik lewat disk
+     * 'public'. Foto BARU (sejak patch ini) tersimpan di disk 'local'
+     * (storage/app/private, tidak ada symlink publik). Foto LAMA (sebelum
+     * patch ini) masih di disk 'public' -- file-nya SENGAJA tidak
+     * dipindah/dihapus di sini (lihat rencana migrasi di
+     * docs/technical/), jadi tetap bisa dilayani lewat endpoint ini
+     * (dengan scope check), TAPI url statis lamanya (/storage/...) juga
+     * MASIH tetap bisa diakses langsung tanpa login sampai migrasi
+     * dijalankan -- endpoint ini TIDAK menutup eksposur lama itu.
+     */
+    public function photo(Request $request, SpoilWaste $spoil): \Symfony\Component\HttpFoundation\Response
+    {
+        $this->assertSpoilInScope($request, $spoil);
+
+        $path = $spoil->photo ?: $spoil->photo_path;
+        abort_if(! $path, 404);
+
+        if (Storage::disk('local')->exists($path)) {
+            return Storage::disk('local')->response($path);
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            return Storage::disk('public')->response($path);
+        }
+
+        abort(404);
+    }
+
     public function approve(Request $request, SpoilWaste $spoil): RedirectResponse
     {
-        $this->authorizeSpoilOwnership($request, $spoil);
+        $this->assertSpoilInScope($request, $spoil);
 
         $validated = $request->validate([
             'approval_notes' => ['nullable', 'string', 'max:1000'],
@@ -177,19 +204,35 @@ class SpoilWasteController extends Controller
     {
         $tenantId = $this->tenantId($request);
         $userId = (int) $request->user()->id;
+        $requestedIds = array_map('intval', $request->input('ids', []));
 
-        $spoilWastes = SpoilWaste::query()
-            ->whereIn('id', $request->input('ids', []))
-            ->where('tenant_id', $tenantId)
-            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
-            ->where('status', SpoilWaste::STATUS_PENDING)
-            ->get();
+        $scopedQuery = $this->applySpoilRecordScope(
+            SpoilWaste::query()
+                ->whereIn('id', $requestedIds)
+                ->where('tenant_id', $tenantId)
+                ->where('status', SpoilWaste::STATUS_PENDING),
+            $request
+        );
+
+        $spoilWastes = $scopedQuery->get();
+
+        // ID yang diminta client tapi TIDAK lolos scope (outlet/departemen
+        // beda, atau user tidak punya scope valid sama sekali) HARUS
+        // dilaporkan sebagai ditolak secara eksplisit -- bukan diam-diam
+        // dilewati tanpa jejak seperti sebelumnya.
+        $allowedIds = $spoilWastes->pluck('id')->all();
+        $rejectedIds = array_values(array_diff($requestedIds, $allowedIds));
 
         $result = $this->runBulkAction(
             $spoilWastes,
             fn (SpoilWaste $spoil) => $this->spoilWasteService->approve($spoil, $userId, 'Bulk approve.'),
             fn (SpoilWaste $spoil) => "#{$spoil->id}"
         );
+
+        foreach ($rejectedIds as $rejectedId) {
+            $result['errors'][] = "#{$rejectedId}: di luar scope Anda (outlet/departemen berbeda), dilewati.";
+        }
+        $result['failed'] = count($result['errors']);
 
         return $this->bulkActionRedirect(
             'operations.spoil-wastes.index',
@@ -200,7 +243,7 @@ class SpoilWasteController extends Controller
 
     public function reject(Request $request, SpoilWaste $spoil): RedirectResponse
     {
-        $this->authorizeSpoilOwnership($request, $spoil);
+        $this->assertSpoilInScope($request, $spoil);
 
         $validated = $request->validate([
             'approval_notes' => ['required', 'string', 'max:1000'],
@@ -222,21 +265,29 @@ class SpoilWasteController extends Controller
         $tenantId = $this->tenantId($request);
         $outletId = (int) ($request->input('outlet_id') ?: $request->user()->outlet_id);
         $search = $request->string('q')->trim()->toString();
+        $isSuperAdmin = $this->isSuperAdmin($request);
         $userDepartmentId = $request->user()->department_id;
 
         $items = Item::query()
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->where('track_stock', true)
-            // Staf yang terikat 1 departemen cuma boleh cari/catat spoil
-            // untuk item milik departemen-nya (primary atau relasi
-            // departments) -- pola sama dengan OpnameService::itemsForOpname()
-            // supaya daftar yang bisa di-spoil konsisten dengan daftar yang
-            // dihitung di Opname.
-            ->when($userDepartmentId, fn ($q) => $q->where(
-                fn ($dq) => $dq->where('primary_department_id', $userDepartmentId)
-                    ->orWhereHas('departments', fn ($ddq) => $ddq->where('departments.id', $userDepartmentId))
-            ))
+            // Non-superadmin cuma boleh cari/catat spoil untuk item milik
+            // departemen-nya (primary atau relasi departments) -- pola sama
+            // dengan OpnameService::itemsForOpname() supaya daftar yang bisa
+            // di-spoil konsisten dengan daftar yang dihitung di Opname.
+            // Non-superadmin TANPA departemen yang sah (mis. PIC_OUTLET) --
+            // fail closed, tidak ada item yang boleh dicari sama sekali.
+            ->when(! $isSuperAdmin, function ($q) use ($userDepartmentId): void {
+                if (! $userDepartmentId) {
+                    $q->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                $q->where(fn ($dq) => $dq->where('primary_department_id', $userDepartmentId)
+                    ->orWhereHas('departments', fn ($ddq) => $ddq->where('departments.id', $userDepartmentId)));
+            })
             ->with(['baseUnit', 'inventoryUnit'])
             ->when($search !== '', fn ($query) => $query->where(fn ($inner) => $inner
                 ->where('name', 'like', "%{$search}%")
@@ -273,18 +324,19 @@ class SpoilWasteController extends Controller
     private function formData(Request $request): array
     {
         $tenantId = $this->tenantId($request);
+        $isSuperAdmin = $this->isSuperAdmin($request);
 
         return [
             'outlets' => Outlet::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')
-                ->when($request->user()->outlet_id, fn ($q) => $q->where('id', $request->user()->outlet_id))
+                ->when(! $isSuperAdmin, fn ($q) => $q->where('id', $request->user()->outlet_id))
                 ->orderBy('name')
                 ->get(),
             'departments' => Department::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')
-                ->when($request->user()->department_id, fn ($q) => $q->where('id', $request->user()->department_id))
+                ->when(! $isSuperAdmin, fn ($q) => $q->where('id', $request->user()->department_id))
                 ->orderBy('name')
                 ->get(),
             'reasonOptions' => [
@@ -301,7 +353,7 @@ class SpoilWasteController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validated(Request $request, int $tenantId): array
+    private function validated(Request $request, int $tenantId, bool $isSuperAdmin): array
     {
         $userDepartmentId = $request->user()->department_id;
 
@@ -323,11 +375,12 @@ class SpoilWasteController extends Controller
                 // Pertahanan sisi server -- item_id tidak boleh cuma
                 // dipercaya dari apa yang dikirim client (mis. request
                 // yang dimanipulasi di luar autocomplete pencarian yang
-                // sudah dibatasi di searchItems()). Staf yang terikat 1
-                // departemen cuma boleh catat spoil untuk item departemen
-                // sendiri.
-                function (string $attribute, mixed $value, \Closure $fail) use ($tenantId, $userDepartmentId): void {
-                    if (! $userDepartmentId) {
+                // sudah dibatasi di searchItems()). Non-superadmin cuma
+                // boleh catat spoil untuk item departemen sendiri.
+                // SUPER_ADMIN dikecualikan sepenuhnya (lintas departemen
+                // memang wewenangnya).
+                function (string $attribute, mixed $value, \Closure $fail) use ($tenantId, $userDepartmentId, $isSuperAdmin): void {
+                    if ($isSuperAdmin || ! $userDepartmentId) {
                         return;
                     }
 
@@ -372,11 +425,21 @@ class SpoilWasteController extends Controller
 
     public function importForm(Request $request): View
     {
+        // Import bisa menulis data historis untuk outlet/departemen MANA
+        // PUN yang disebut di file Excel-nya (bukan cuma scope uploader) --
+        // ini bulk operation lintas-scope, jadi di bawah kebijakan "hanya
+        // superadmin eksplisit lintas departemen", dibatasi SUPER_ADMIN saja
+        // (sebelumnya PIC_OUTLET/MANAGER_AREA yang punya approve_spoil juga
+        // bisa; lihat laporan workflow yang terdampak).
+        abort_unless($this->isSuperAdmin($request), 403, 'Import histori Spoil & Waste cuma bisa dilakukan Super Admin.');
+
         return view('operations.spoil-wastes.import');
     }
 
     public function import(Request $request): RedirectResponse
     {
+        abort_unless($this->isSuperAdmin($request), 403, 'Import histori Spoil & Waste cuma bisa dilakukan Super Admin.');
+
         $validated = $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
         ]);
@@ -412,17 +475,53 @@ class SpoilWasteController extends Controller
     }
 
     /**
-     * Dipakai approve()/reject() -- keduanya sudah digerbang permission
-     * approve_spoil di route (cuma dipegang SUPER_ADMIN/ADMIN, MANAGER_AREA,
-     * PIC_OUTLET -- tidak pernah oleh STAFF_* yang terikat departemen),
-     * jadi cukup cek OUTLET di sini (PIC_OUTLET tidak boleh approve spoil
-     * outlet lain). Approve_spoil secara desain memang lintas departemen
-     * dalam 1 outlet (itu tugasnya), jadi sengaja TIDAK ada pengecekan
-     * departemen tambahan di sini.
+     * Terapkan scope SpoilWaste yang konsisten ke query list/bulk. SUPER_ADMIN
+     * (role resmi, bukan permission approve_spoil) lewat tanpa batasan.
+     * Non-superadmin WAJIB match outlet_id DAN department_id akun mereka
+     * persis -- kalau salah satu kosong di akun, fail closed (tidak ada
+     * baris yang cocok). Record lama dengan department_id NULL otomatis
+     * TIDAK match (bukan di-exclude eksplisit, tapi karena perbandingan
+     * `=` terhadap NULL di SQL tidak pernah true) -- jadi legacy null tetap
+     * tidak terlihat staff, konsisten dengan kebijakan sebelumnya.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<SpoilWaste>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<SpoilWaste>
      */
-    private function authorizeSpoilOwnership(Request $request, SpoilWaste $spoil): void
+    private function applySpoilRecordScope($query, Request $request)
     {
-        $userOutletId = $request->user()->outlet_id;
-        abort_if($userOutletId && (int) $spoil->outlet_id !== (int) $userOutletId, 403, 'Anda tidak berwenang untuk spoil outlet lain.');
+        if ($this->isSuperAdmin($request)) {
+            return $query;
+        }
+
+        if (! $this->hasValidSpoilScope($request)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $user = $request->user();
+
+        return $query->where('outlet_id', $user->outlet_id)
+            ->where('department_id', $user->department_id);
+    }
+
+    /**
+     * Dipakai show()/approve()/reject() -- 403 kalau $spoil di luar scope
+     * user (lihat applySpoilRecordScope() untuk aturan yang sama).
+     */
+    private function assertSpoilInScope(Request $request, SpoilWaste $spoil): void
+    {
+        if ($this->isSuperAdmin($request)) {
+            return;
+        }
+
+        $user = $request->user();
+
+        abort_if(
+            ! $user->outlet_id
+                || ! $user->department_id
+                || (int) $spoil->outlet_id !== (int) $user->outlet_id
+                || (int) $spoil->department_id !== (int) $user->department_id,
+            403,
+            'Anda tidak berwenang untuk spoil ini.'
+        );
     }
 }

@@ -12,12 +12,14 @@
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-7xl mx-auto w-full space-y-4">
     <x-sf.card>
         <form method="GET" action="{{ route('laporan.spoil') }}" class="grid grid-cols-1 md:grid-cols-5 gap-3">
-            <select name="outlet_id" class="sf-input text-base min-h-11">
-                <option value="">Semua outlet</option>
-                @foreach($outlets as $outlet)
-                    <option value="{{ $outlet->id }}" @selected((string) ($filters['outlet_id'] ?? '') === (string) $outlet->id)>{{ $outlet->name }}</option>
-                @endforeach
-            </select>
+            @if($canFilterOutlet)
+                <select name="outlet_id" class="sf-input text-base min-h-11">
+                    <option value="">Semua outlet</option>
+                    @foreach($outlets as $outlet)
+                        <option value="{{ $outlet->id }}" @selected((string) ($filters['outlet_id'] ?? '') === (string) $outlet->id)>{{ $outlet->name }}</option>
+                    @endforeach
+                </select>
+            @endif
             @if($canFilterDepartment)
                 <select name="department_id" class="sf-input text-base min-h-11">
                     <option value="">Semua departemen</option>
