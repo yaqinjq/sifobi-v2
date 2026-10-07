@@ -196,10 +196,33 @@ test('duplicate spoil photo is detected by sha256 hash', function (): void {
 });
 
 test('rejecting spoil creates void reversal and restores balance', function (): void {
+    // $this->unit = $this->item->inventory_unit_id, dan untuk item seeder
+    // ini (MKO-AJINOMOTO-500GR) inventory_unit_id SAMA PERSIS dengan
+    // base_unit_id (keduanya GR -- lihat MinimumMasterDataSeeder).
+    // record() dipanggil di sini lewat jalur LAMA qty+unit_id (bukan
+    // qty_whole/qty_loose), yang dikonversi lewat
+    // SpoilWasteService::calculateBaseQty() -- method itu SENGAJA cek
+    // base_unit_id LEBIH DULU (lihat komentar di calculateBaseQty()):
+    // begitu $unitId === base_unit_id, faktor langsung 1, TIDAK PERNAH
+    // sampai ke cabang inventory_ratio sama sekali, walaupun kolom
+    // inventory_ratio item ini kebetulan terisi '500.000000'. Assertion
+    // test ini SEBELUMNYA mengharapkan qty_change = '1000.000000' (qty=2
+    // dikali ratio 500) -- itu ekspektasi usang dari SEBELUM fix ordering
+    // base_unit_id-first ditambahkan ke calculateBaseQty(); dibuktikan
+    // gagal identik di baseline d73ab98 (sebelum patch keamanan Spoil
+    // Waste apa pun) lewat git worktree terisolasi, bukan cuma diasumsikan
+    // dari membaca kode -- jadi ini BUKAN regresi dari patch keamanan, dan
+    // assertion di sini diperbaiki ke semantik yang benar (faktor 1),
+    // BUKAN calculateBaseQty() atau lifecycle ledger yang diubah. Lihat
+    // test "recording and rejecting a spoil in a unit that genuinely
+    // differs from the base unit applies inventory_ratio" di bawah untuk
+    // pembanding jalur konversi rasio yang sungguhan dipakai.
     Storage::fake('public');
     $staff = operationUser('STAFF_BAR');
     $pic = operationUser('PIC_OUTLET');
     seedDailyBalance($this, '5000');
+
+    expect((int) $this->item->inventory_unit_id)->toBe((int) $this->item->base_unit_id);
 
     $spoil = app(SpoilWasteService::class)->record([
         'tenant_id' => $this->tenant->id,
@@ -212,6 +235,85 @@ test('rejecting spoil creates void reversal and restores balance', function (): 
         'reason_category' => SpoilWaste::REASON_RUSAK,
     ], $staff->id);
 
+    expect((string) $spoil->qty_in_base_unit)->toBe('2.000000');
+
+    $this->actingAs($pic)
+        ->post(route('operations.spoil-wastes.reject', $spoil), [
+            'approval_notes' => 'Foto tidak valid.',
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('stock_mutations', [
+        'mutation_type' => StockMutation::TYPE_VOID_REVERSAL,
+        'qty_change' => '2.000000',
+    ]);
+
+    $balance = StockBalance::query()
+        ->where('item_id', $this->item->id)
+        ->where('outlet_id', $this->outlet->id)
+        ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
+        ->firstOrFail();
+
+    expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_REJECTED)
+        ->and((string) $balance->qty_on_hand)->toBe('5000.000000');
+});
+
+test('recording and rejecting a spoil in a unit that genuinely differs from the base unit applies inventory_ratio', function (): void {
+    // Pembanding langsung dari test di atas: di sini inventory_unit_id
+    // SENGAJA dibuat BEDA dari base_unit_id (PACK vs GR, rasio 500) --
+    // supaya cabang inventory_ratio di calculateBaseQty() benar-benar
+    // teruji, bukan cuma item seeder standar yang kedua unitnya sama.
+    // Item test ini LOKAL untuk test ini saja (replicate()), tidak
+    // mengubah $this->item yang dipakai test lain.
+    Storage::fake('public');
+    $staff = operationUser('STAFF_BAR');
+    $pic = operationUser('PIC_OUTLET');
+
+    $packUnit = \App\Modules\Inventory\Models\Unit::query()
+        ->where('tenant_id', $this->tenant->id)
+        ->where('code', 'PACK')
+        ->firstOrFail();
+
+    $itemWithRatio = $this->item->replicate();
+    $itemWithRatio->canonical_sku = 'TEST-RATIO-ITEM-'.uniqid();
+    $itemWithRatio->inventory_unit_id = $packUnit->id;
+    $itemWithRatio->inventory_ratio = '500.000000';
+    $itemWithRatio->save();
+    $itemWithRatio->update(['primary_department_id' => $this->department->id]);
+
+    expect((int) $itemWithRatio->inventory_unit_id)->not->toBe((int) $itemWithRatio->base_unit_id);
+
+    app(StockLedgerService::class)->openStock([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'item_id' => $itemWithRatio->id,
+        'unit_id' => $itemWithRatio->base_unit_id,
+        'stock_target' => StockMutation::TARGET_OUTLET_DAILY,
+        'qty' => '5000',
+        'performed_by' => $staff->id,
+    ]);
+
+    $spoil = app(SpoilWasteService::class)->record([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->department->id,
+        'item_id' => $itemWithRatio->id,
+        'unit_id' => $itemWithRatio->inventory_unit_id, // PACK, beda dari base_unit_id (GR).
+        'qty' => '2', // 2 PACK x rasio 500 = 1000 GR (base unit).
+        'recorded_date' => '2026-07-01',
+        'reason_category' => SpoilWaste::REASON_RUSAK,
+    ], $staff->id);
+
+    expect((string) $spoil->qty_in_base_unit)->toBe('1000.000000');
+
+    $balanceAfterSpoil = StockBalance::query()
+        ->where('item_id', $itemWithRatio->id)
+        ->where('outlet_id', $this->outlet->id)
+        ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
+        ->firstOrFail();
+
+    expect((string) $balanceAfterSpoil->qty_on_hand)->toBe('4000.000000');
+
     $this->actingAs($pic)
         ->post(route('operations.spoil-wastes.reject', $spoil), [
             'approval_notes' => 'Foto tidak valid.',
@@ -223,14 +325,14 @@ test('rejecting spoil creates void reversal and restores balance', function (): 
         'qty_change' => '1000.000000',
     ]);
 
-    $balance = StockBalance::query()
-        ->where('item_id', $this->item->id)
+    $balanceAfterReject = StockBalance::query()
+        ->where('item_id', $itemWithRatio->id)
         ->where('outlet_id', $this->outlet->id)
         ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
         ->firstOrFail();
 
     expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_REJECTED)
-        ->and((string) $balance->qty_on_hand)->toBe('5000.000000');
+        ->and((string) $balanceAfterReject->qty_on_hand)->toBe('5000.000000');
 });
 
 test('bulk approve only processes pending spoil waste rows', function (): void {

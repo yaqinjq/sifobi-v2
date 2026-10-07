@@ -605,6 +605,87 @@ test('a forbidden recipient with approve_spoil but mismatched outlet or departme
     \Illuminate\Support\Facades\Notification::assertNothingSentTo($forbiddenRecipient);
 });
 
+test('a legacy spoil with null department does not notify a non-superadmin approver whose department is also null', function (): void {
+    // Bug yang ditutup di round ini: Eloquent otomatis mengubah
+    // where('department_id', null) jadi whereNull('department_id')
+    // kalau spoil-nya department_id null -- tanpa penjagaan eksplisit,
+    // itu akan mencocokkan approver yang kolomnya JUGA null (PIC_OUTLET
+    // tanpa departemen), padahal approver itu TIDAK PERNAH lolos
+    // hasValidSpoilScope() kalau benar-benar mencoba membuka/approve-nya
+    // (403). Notifikasi ke dead end seperti itu sekarang ditutup.
+    Storage::fake('local');
+    \Illuminate\Support\Facades\Notification::fake();
+
+    $barStaff = spoilUser('STAFF_BAR', 'BAR');
+    $superAdmin = spoilUser('SUPER_ADMIN', null);
+    $picNullDeptSameOutlet = spoilUser('PIC_OUTLET', null);
+    $picNullDeptSameOutlet->givePermissionTo('approve_spoil');
+
+    app(SpoilWasteService::class)->record([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => null, // simulasi record legacy.
+        'item_id' => $this->barItem->id,
+        'qty_whole' => '1',
+        'qty_loose' => '0',
+        'recorded_date' => now()->toDateString(),
+        'reason_category' => SpoilWaste::REASON_RUSAK,
+    ], $barStaff->id);
+
+    \Illuminate\Support\Facades\Notification::assertSentTo($superAdmin, \App\Notifications\WorkflowNotification::class);
+    \Illuminate\Support\Facades\Notification::assertNotSentTo($picNullDeptSameOutlet, \App\Notifications\WorkflowNotification::class);
+});
+
+test('a non-superadmin approver with no outlet or department assignment at all never gets notified', function (): void {
+    Storage::fake('local');
+    \Illuminate\Support\Facades\Notification::fake();
+
+    $barStaff = spoilUser('STAFF_BAR', 'BAR');
+    $unassignedApprover = spoilUser('STAFF_BAR', 'BAR');
+    $unassignedApprover->givePermissionTo('approve_spoil');
+    $unassignedApprover->forceFill(['outlet_id' => null, 'department_id' => null])->saveQuietly();
+
+    recordSpoilFor($barStaff, $this->outlet, $this->bar, $this->barItem);
+
+    \Illuminate\Support\Facades\Notification::assertNothingSentTo($unassignedApprover);
+});
+
+test('a non-superadmin approver with an outlet assignment forged to another tenant never gets notified', function (): void {
+    Storage::fake('local');
+    \Illuminate\Support\Facades\Notification::fake();
+
+    $barStaff = spoilUser('STAFF_BAR', 'BAR');
+    $forgedApprover = spoilUser('STAFF_BAR', 'BAR');
+    $forgedApprover->givePermissionTo('approve_spoil');
+    $foreignOutlet = foreignOutletInNewTenant('Foreign Outlet For Notification Test');
+    $forgedApprover->forceFill(['outlet_id' => $foreignOutlet->id])->saveQuietly();
+
+    recordSpoilFor($barStaff, $this->outlet, $this->bar, $this->barItem);
+
+    \Illuminate\Support\Facades\Notification::assertNothingSentTo($forgedApprover);
+});
+
+test('an approver belonging to a completely different tenant never gets notified, even as super admin', function (): void {
+    Storage::fake('local');
+    \Illuminate\Support\Facades\Notification::fake();
+
+    $barStaff = spoilUser('STAFF_BAR', 'BAR');
+
+    $otherTenantOutlet = foreignOutletInNewTenant('Other Tenant Super Admin Outlet');
+    $otherTenantSuperAdmin = User::factory()->create([
+        'tenant_id' => $otherTenantOutlet->tenant_id,
+        'outlet_id' => null,
+        'department_id' => null,
+        'status' => 'ACTIVE',
+        'email' => 'other_tenant_super_'.uniqid().'@sifobi.test',
+    ]);
+    $otherTenantSuperAdmin->assignRole('SUPER_ADMIN');
+
+    recordSpoilFor($barStaff, $this->outlet, $this->bar, $this->barItem);
+
+    \Illuminate\Support\Facades\Notification::assertNothingSentTo($otherTenantSuperAdmin);
+});
+
 // ===================== photo access =====================
 
 test('new spoil photos are stored privately and are not reachable via the old public storage url', function (): void {

@@ -270,6 +270,19 @@ class SpoilWasteService
      * berisiko mengubah perilaku notifikasi modul lain yang tidak diminta
      * di patch ini, jadi dibuat method khusus di sini saja.
      *
+     * Edge case legacy/null yang WAJIB ditutup di sini: Eloquent secara
+     * otomatis mengubah `where('department_id', null)` jadi
+     * `whereNull('department_id')` kalau $spoil->department_id null
+     * (record legacy). Tanpa penjagaan eksplisit, itu akan mencocokkan
+     * approver non-superadmin yang KOLOM department_id-nya JUGA null
+     * (mis. PIC_OUTLET tanpa departemen) -- padahal approver semacam itu
+     * TIDAK PERNAH lolos hasValidSpoilScope()/assertSpoilInScope() di
+     * controller (fail closed), jadi notifikasi ke mereka adalah dead
+     * end (403 kalau dibuka). Jalur non-superadmin di bawah ini HANYA
+     * dibuka kalau spoil punya outlet_id DAN department_id yang
+     * benar-benar terisi (bukan legacy null), dan approver-nya sendiri
+     * juga whereNotNull di kedua kolom itu sebelum dibandingkan persis.
+     *
      * @return Collection<int, User>
      */
     private function spoilApprovers(SpoilWaste $spoil): Collection
@@ -278,11 +291,16 @@ class SpoilWasteService
             ->where('tenant_id', $spoil->tenant_id)
             ->permission('approve_spoil')
             ->where(function (Builder $query) use ($spoil): void {
-                $query->role('SUPER_ADMIN')
-                    ->orWhere(function (Builder $scoped) use ($spoil): void {
-                        $scoped->where('outlet_id', $spoil->outlet_id)
+                $query->role('SUPER_ADMIN');
+
+                if ($spoil->outlet_id !== null && $spoil->department_id !== null) {
+                    $query->orWhere(function (Builder $scoped) use ($spoil): void {
+                        $scoped->whereNotNull('outlet_id')
+                            ->whereNotNull('department_id')
+                            ->where('outlet_id', $spoil->outlet_id)
                             ->where('department_id', $spoil->department_id);
                     });
+                }
             })
             ->get();
     }
