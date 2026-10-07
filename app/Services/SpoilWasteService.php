@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\InsufficientStockException;
+use App\Models\User;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\UnitConversion;
@@ -11,8 +12,10 @@ use App\Modules\Stock\Models\StockBalance;
 use App\Modules\Stock\Models\StockMutation;
 use App\Notifications\WorkflowNotification;
 use App\Support\Decimal;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
@@ -21,7 +24,6 @@ class SpoilWasteService
 {
     public function __construct(
         private readonly StockLedgerService $stockLedgerService,
-        private readonly NotificationRecipientResolver $recipients = new NotificationRecipientResolver(),
     ) {
     }
 
@@ -131,7 +133,7 @@ class SpoilWasteService
             return $spoil->refresh()->load(['outlet', 'department', 'item', 'unit', 'mutation', 'duplicateReference']);
         });
 
-        $approvers = $this->recipients->usersForApproval((int) $spoil->tenant_id, 'approve_spoil', $spoil->department_id, $spoil->outlet_id);
+        $approvers = $this->spoilApprovers($spoil);
         Notification::send($approvers, new WorkflowNotification(
             "Spoil {$spoil->item?->name} perlu persetujuan",
             "Catatan spoil/waste {$spoil->item?->name} di {$spoil->outlet?->name} menunggu persetujuan Anda.",
@@ -252,6 +254,37 @@ class SpoilWasteService
             ],
             $duplicate,
         ];
+    }
+
+    /**
+     * Penerima notifikasi "spoil perlu approval" HARUS sama persis dengan
+     * siapa yang benar-benar BERHAK approve record ini menurut kebijakan
+     * scope SpoilWasteController (lihat EnforcesSuperAdminScope) -- yaitu
+     * punya permission `approve_spoil` DAN (SUPER_ADMIN ATAU outlet+
+     * departemen-nya sama persis dengan spoil ini). Sengaja TIDAK memakai
+     * NotificationRecipientResolver::usersForApproval() yang shared dipakai
+     * modul lain (Opname/PO/Transfer/Receiving/Recipe) -- resolver itu
+     * menganggap outlet_id/department_id NULL pada akun sebagai "bisa
+     * handle semua", yang untuk Spoil & Waste justru kebalikan dari
+     * kebijakan baru (NULL = fail closed). Mengubah resolver shared
+     * berisiko mengubah perilaku notifikasi modul lain yang tidak diminta
+     * di patch ini, jadi dibuat method khusus di sini saja.
+     *
+     * @return Collection<int, User>
+     */
+    private function spoilApprovers(SpoilWaste $spoil): Collection
+    {
+        return User::query()
+            ->where('tenant_id', $spoil->tenant_id)
+            ->permission('approve_spoil')
+            ->where(function (Builder $query) use ($spoil): void {
+                $query->role('SUPER_ADMIN')
+                    ->orWhere(function (Builder $scoped) use ($spoil): void {
+                        $scoped->where('outlet_id', $spoil->outlet_id)
+                            ->where('department_id', $spoil->department_id);
+                    });
+            })
+            ->get();
     }
 
     private function itemForTenant(int $itemId, int $tenantId): Item

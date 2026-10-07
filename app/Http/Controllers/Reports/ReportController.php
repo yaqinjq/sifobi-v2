@@ -626,9 +626,14 @@ class ReportController extends Controller
             return $filters;
         }
 
-        $user = $request->user();
-
-        if (! $user?->outlet_id || ! $user?->department_id) {
+        // hasValidSpoilScope() bukan cuma cek outlet_id/department_id
+        // tidak null -- juga memverifikasi outlet & departemen itu benar
+        // nyata ada dan milik tenant yang sama dengan user (lihat
+        // EnforcesSuperAdminScope). spoilQuery()/spoilReport()/exportSpoil()
+        // SELALU memfilter tenant_id dari $this->tenantId($request) duluan
+        // juga -- jadi laporan ini tidak bisa lintas tenant sekalipun
+        // outlet_id/department_id di bawah ini dipalsukan.
+        if (! $this->hasValidSpoilScope($request)) {
             // fail closed -- tidak ada scope yang sah, jangan tampilkan
             // apa pun (bukan 403 di sini karena ini laporan, bukan aksi
             // langsung ke 1 record -- biarkan halaman render dengan 0 baris).
@@ -638,6 +643,7 @@ class ReportController extends Controller
             return $filters;
         }
 
+        $user = $request->user();
         $filters['outlet_id'] = (int) $user->outlet_id;
         $filters['department_id'] = (int) $user->department_id;
 

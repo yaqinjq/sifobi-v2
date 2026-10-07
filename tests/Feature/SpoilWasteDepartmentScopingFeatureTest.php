@@ -97,6 +97,57 @@ function recordSpoilFor(User $user, Outlet $outlet, Department $department, Item
     ], $user->id);
 }
 
+/**
+ * Bikin 1 tenant+outlet asing lengkap (Brand/LegalEntity/Outlet lewat
+ * withoutGlobalScopes() karena tidak ada factory untuk model-model ini)
+ * -- dipakai berulang di seluruh test "SUPER_ADMIN/akun tidak boleh
+ * lintas tenant" supaya tidak duplikasi setup di tiap test.
+ */
+function foreignOutletInNewTenant(string $outletName = 'Foreign Outlet Not Visible'): Outlet
+{
+    $suffix = uniqid();
+    $otherTenant = Tenant::query()->create(['code' => 'OTHERTEN_'.$suffix, 'name' => 'Other Tenant '.$suffix, 'status' => 'ACTIVE']);
+    $otherBrand = Brand::withoutGlobalScopes()->create(['tenant_id' => $otherTenant->id, 'code' => 'OTB_'.$suffix, 'name' => 'Other Brand', 'status' => 'ACTIVE']);
+    $otherLegalEntity = LegalEntity::withoutGlobalScopes()->create(['tenant_id' => $otherTenant->id, 'code' => 'OTLE_'.$suffix, 'name' => 'Other Legal Entity', 'status' => 'ACTIVE']);
+
+    return Outlet::withoutGlobalScopes()->create([
+        'tenant_id' => $otherTenant->id,
+        'brand_id' => $otherBrand->id,
+        'legal_entity_id' => $otherLegalEntity->id,
+        'code' => 'OTO_'.$suffix,
+        'name' => $outletName,
+        'status' => 'ACTIVE',
+    ]);
+}
+
+/**
+ * 1 SpoilWaste record milik tenant lain (lewat foreignOutletInNewTenant())
+ * -- dipakai di seluruh test "SUPER_ADMIN ditolak untuk record tenant
+ * lain" di berbagai endpoint (detail, foto, approve, reject, bulk).
+ */
+function foreignTenantSpoilRecord(Item $item, string $outletName = 'Foreign Tenant Outlet Not Visible'): SpoilWaste
+{
+    $otherOutlet = foreignOutletInNewTenant($outletName);
+    $suffix = uniqid();
+
+    return SpoilWaste::query()->create([
+        'tenant_id' => $otherOutlet->tenant_id,
+        'outlet_id' => $otherOutlet->id,
+        'department_id' => null,
+        'item_id' => $item->id,
+        'unit_id' => $item->base_unit_id,
+        'qty' => '1',
+        'qty_in_base_unit' => '1',
+        'reason_category' => SpoilWaste::REASON_RUSAK,
+        'recorded_date' => now()->toDateString(),
+        'recorded_at' => now(),
+        'status' => SpoilWaste::STATUS_PENDING,
+        'approval_status' => SpoilWaste::STATUS_PENDING,
+        'created_by' => 1,
+        'photo' => "tenants/{$otherOutlet->tenant_id}/spoil/foreign-{$suffix}.jpg",
+    ]);
+}
+
 // ===================== list/detail/search =====================
 
 test('index only shows spoil waste from the staff own department, excluding legacy null department records', function (): void {
@@ -216,6 +267,64 @@ test('search items returns nothing for pic_outlet (no department assignment)', f
 
     $response->assertOk();
     expect($response->json())->toBe([]);
+});
+
+test('search items forces outlet_id from the account for non-superadmin, ignoring a forged outlet_id in the request', function (): void {
+    $barStaff = spoilUser('STAFF_BAR', 'BAR');
+
+    // Turunkan saldo otherOutlet untuk item yang sama jadi beda dari
+    // saldo outlet sendiri barStaff (1000) -- supaya kebocoran saldo
+    // outlet lain (kalau ada) akan kelihatan jelas sebagai angka beda.
+    // Langsung update StockBalance (bukan lewat recordSpoilFor) supaya
+    // tidak ikut terpengaruh inventory_ratio item ini.
+    \App\Modules\Stock\Models\StockBalance::query()
+        ->where('tenant_id', $this->tenant->id)
+        ->where('outlet_id', $this->otherOutlet->id)
+        ->where('item_id', $this->barItem->id)
+        ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
+        ->update(['qty_on_hand' => '600.000000']);
+
+    $response = $this->actingAs($barStaff)
+        ->getJson(route('operations.spoil-wastes.search-items', [
+            'q' => 'MKO',
+            'outlet_id' => $this->otherOutlet->id, // dipalsukan lewat query string.
+        ]));
+
+    $response->assertOk();
+    $item = collect($response->json())->firstWhere('id', $this->barItem->id);
+
+    expect((float) $item['qty_on_hand'])->toBe(1000.0);
+});
+
+test('search items lets a superadmin pick any outlet within the tenant', function (): void {
+    $superAdmin = spoilUser('SUPER_ADMIN', null);
+
+    \App\Modules\Stock\Models\StockBalance::query()
+        ->where('tenant_id', $this->tenant->id)
+        ->where('outlet_id', $this->otherOutlet->id)
+        ->where('item_id', $this->barItem->id)
+        ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
+        ->update(['qty_on_hand' => '600.000000']);
+
+    $response = $this->actingAs($superAdmin)
+        ->getJson(route('operations.spoil-wastes.search-items', [
+            'q' => 'MKO',
+            'outlet_id' => $this->otherOutlet->id,
+        ]));
+
+    $response->assertOk();
+    $item = collect($response->json())->firstWhere('id', $this->barItem->id);
+
+    expect((float) $item['qty_on_hand'])->toBe(600.0);
+});
+
+test('search items rejects a superadmin-selected outlet_id that does not belong to the tenant', function (): void {
+    $superAdmin = spoilUser('SUPER_ADMIN', null);
+    $foreignOutlet = foreignOutletInNewTenant();
+
+    $this->actingAs($superAdmin)
+        ->getJson(route('operations.spoil-wastes.search-items', ['q' => 'MKO', 'outlet_id' => $foreignOutlet->id]))
+        ->assertStatus(422);
 });
 
 // ===================== store =====================
@@ -454,34 +563,46 @@ test('import rejects rows referencing an outlet or department from another tenan
 
 // ===================== notifications =====================
 
-test('recording a spoil does not notify approvers outside the item departments scope', function (): void {
+test('recording a spoil only notifies super admin and approvers whose outlet and department exactly match', function (): void {
+    // GAP dari Round 2 SUDAH DITUTUP di patch ini: SpoilWasteService kini
+    // punya spoilApprovers() khusus (lihat app/Services/SpoilWasteService.php)
+    // yang TIDAK lagi memakai NotificationRecipientResolver::usersForApproval()
+    // shared (yang menganggap department_id/outlet_id null = "bisa handle
+    // semua"). Penerima notifikasi SEKARANG mengikuti PERSIS aturan
+    // assertSpoilInScope(): SUPER_ADMIN eksplisit, ATAU approve_spoil DAN
+    // outlet+departemen cocok persis dengan spoil-nya.
     Storage::fake('local');
     \Illuminate\Support\Facades\Notification::fake();
 
     $barStaff = spoilUser('STAFF_BAR', 'BAR');
-    $picSameOutlet = spoilUser('PIC_OUTLET', null);
+    $picSameOutlet = spoilUser('PIC_OUTLET', null); // department_id null -- fail closed sekarang, TIDAK dapat notifikasi lagi.
     $picOtherOutlet = spoilUser('PIC_OUTLET', null, $this->otherOutlet);
     $superAdmin = spoilUser('SUPER_ADMIN', null);
+    $matchingApprover = spoilUser('STAFF_BAR', 'BAR'); // outlet+departemen sama persis dengan spoil.
+    $matchingApprover->givePermissionTo('approve_spoil');
+    $wrongDeptApprover = spoilUser('STAFF_BAR', 'PASTRY'); // outlet sama, departemen BEDA.
+    $wrongDeptApprover->givePermissionTo('approve_spoil');
 
     recordSpoilFor($barStaff, $this->outlet, $this->bar, $this->barItem);
 
-    // usersForApproval() (NotificationRecipientResolver, pre-existing,
-    // shared dengan modul lain, SENGAJA TIDAK diubah di patch ini) masih
-    // memakai aturan lama "department_id null = dianggap bisa handle
-    // semua" -- BUKAN kebijakan baru "hanya superadmin eksplisit".
-    //
-    // - picOtherOutlet (outlet BEDA): benar tidak dapat notifikasi --
-    //   resolver tetap menghormati outlet_id.
-    // - superAdmin: dapat notifikasi (benar, sesuai kebijakan baru juga).
-    // - picSameOutlet (outlet SAMA, departemen null): MASIH dapat
-    //   notifikasi di bawah resolver lama -- padahal di bawah kebijakan
-    //   BARU, PIC_OUTLET ini TIDAK BISA lagi membuka/approve spoil itu
-    //   sama sekali (403, lihat test lain). Ini GAP yang disengaja belum
-    //   ditutup pada patch ini (lihat laporan review) -- notifikasi
-    //   "mengundang" ke aksi yang sekarang diblokir.
     \Illuminate\Support\Facades\Notification::assertSentTo($superAdmin, \App\Notifications\WorkflowNotification::class);
-    \Illuminate\Support\Facades\Notification::assertSentTo($picSameOutlet, \App\Notifications\WorkflowNotification::class);
+    \Illuminate\Support\Facades\Notification::assertSentTo($matchingApprover, \App\Notifications\WorkflowNotification::class);
+    \Illuminate\Support\Facades\Notification::assertNotSentTo($picSameOutlet, \App\Notifications\WorkflowNotification::class);
     \Illuminate\Support\Facades\Notification::assertNotSentTo($picOtherOutlet, \App\Notifications\WorkflowNotification::class);
+    \Illuminate\Support\Facades\Notification::assertNotSentTo($wrongDeptApprover, \App\Notifications\WorkflowNotification::class);
+});
+
+test('a forbidden recipient with approve_spoil but mismatched outlet or department gets no notification at all', function (): void {
+    Storage::fake('local');
+    \Illuminate\Support\Facades\Notification::fake();
+
+    $barStaff = spoilUser('STAFF_BAR', 'BAR');
+    $forbiddenRecipient = spoilUser('STAFF_BAR', 'PASTRY', $this->otherOutlet);
+    $forbiddenRecipient->givePermissionTo('approve_spoil');
+
+    recordSpoilFor($barStaff, $this->outlet, $this->bar, $this->barItem);
+
+    \Illuminate\Support\Facades\Notification::assertNothingSentTo($forbiddenRecipient);
 });
 
 // ===================== photo access =====================
@@ -607,6 +728,72 @@ test('super admin spoil report sees all outlets and departments', function (): v
     expect($response->viewData('spoils')->total())->toBeGreaterThan(0);
 });
 
+// ===================== aggregates / badges / assignment validity =====================
+
+test('duplicate photo badge count respects department and outlet scope, not the whole tenant', function (): void {
+    Storage::fake('local');
+    $barStaff = spoilUser('STAFF_BAR', 'BAR');
+    $pastryStaff = spoilUser('STAFF_BAR', 'PASTRY');
+
+    // handlePhoto() cuma menandai is_duplicate_photo pada laporan yang
+    // BELAKANGAN (yang mendapati hash-nya sudah pernah dipakai) -- yang
+    // PERTAMA kali pakai 1 foto tidak ditandai. Supaya kedua departemen
+    // SAMA-SAMA punya 1 laporan pending berstatus duplikat (dan terbukti
+    // scope-nya tidak saling bocor), tiap departemen posting FOTO YANG
+    // SAMA dua kali dengan fotonya sendiri-sendiri (2 pasang, 2 foto beda).
+    $barPhoto = UploadedFile::fake()->image('bukti-bar.jpg', 200, 200);
+    $pastryPhoto = UploadedFile::fake()->image('bukti-pastry.jpg', 200, 200);
+
+    $postSpoil = function (User $user, Department $department, Item $item, UploadedFile $photo) {
+        return $this->actingAs($user)->post(route('operations.spoil-wastes.store'), [
+            'outlet_id' => $this->outlet->id, 'department_id' => $department->id, 'item_id' => $item->id,
+            'qty_whole' => '1', 'qty_loose' => '0', 'recorded_date' => now()->toDateString(),
+            'reason_category' => SpoilWaste::REASON_RUSAK, 'photo' => $photo,
+        ])->assertRedirect();
+    };
+
+    $postSpoil($barStaff, $this->bar, $this->barItem, $barPhoto); // original, belum duplikat.
+    $postSpoil($barStaff, $this->bar, $this->barItem, $barPhoto); // duplikat #1, departemen BAR.
+    $postSpoil($pastryStaff, $this->pastry, $this->pastryItem, $pastryPhoto); // original, belum duplikat.
+    $postSpoil($pastryStaff, $this->pastry, $this->pastryItem, $pastryPhoto); // duplikat #2, departemen PASTRY.
+
+    // Dari sudut pandang barStaff, cuma 1 duplikat (departemen BAR
+    // miliknya sendiri) yang dihitung -- bukan 2 (ikut departemen PASTRY
+    // juga, yang akan terjadi kalau badge ini masih tidak di-scope).
+    $response = $this->actingAs($barStaff)->get(route('operations.spoil-wastes.index'));
+    $response->assertOk();
+    expect($response->viewData('duplicateCount'))->toBe(1);
+
+    $responseAsPastry = $this->actingAs($pastryStaff)->get(route('operations.spoil-wastes.index'));
+    expect($responseAsPastry->viewData('duplicateCount'))->toBe(1);
+
+    // SUPER_ADMIN tetap melihat semua (lintas departemen memang wewenangnya).
+    $superAdmin = spoilUser('SUPER_ADMIN', null);
+    $responseAsSuperAdmin = $this->actingAs($superAdmin)->get(route('operations.spoil-wastes.index'));
+    expect($responseAsSuperAdmin->viewData('duplicateCount'))->toBe(2);
+});
+
+test('an account with an outlet_id or department_id pointing to another tenant fails closed, not just a null check', function (): void {
+    Storage::fake('local');
+    $barStaff = spoilUser('STAFF_BAR', 'BAR');
+    $foreignOutlet = foreignOutletInNewTenant('Foreign Assign Outlet');
+
+    // Data nyasar/korup: kolomnya TIDAK NULL (lolos cek null lama), tapi
+    // outlet_id menunjuk ke outlet milik TENANT LAIN -- harus tetap
+    // dianggap TIDAK punya scope yang sah (fail closed), bukan "valid
+    // karena kolomnya terisi".
+    $barStaff->forceFill(['outlet_id' => $foreignOutlet->id])->saveQuietly();
+
+    $response = $this->actingAs($barStaff)->get(route('operations.spoil-wastes.index'));
+    $response->assertOk();
+    expect($response->viewData('spoilWastes')->getCollection())->toBeEmpty();
+    expect($response->viewData('duplicateCount'))->toBe(0);
+
+    $this->actingAs($barStaff)
+        ->get(route('operations.spoil-wastes.create'))
+        ->assertForbidden();
+});
+
 // ===================== cross tenant =====================
 
 test('cross tenant spoil record is not reachable at all', function (): void {
@@ -647,4 +834,62 @@ test('cross tenant spoil record is not reachable at all', function (): void {
     $this->actingAs($superAdmin)
         ->get(route('operations.spoil-wastes.show', $foreignSpoil))
         ->assertNotFound();
+});
+
+test('super admin cannot open the photo endpoint for a spoil record belonging to another tenant', function (): void {
+    Storage::fake('local');
+    $superAdmin = spoilUser('SUPER_ADMIN', null);
+    $foreignSpoil = foreignTenantSpoilRecord($this->barItem);
+    Storage::disk('local')->put($foreignSpoil->photo, 'fake-image-content');
+
+    $this->actingAs($superAdmin)
+        ->get(route('operations.spoil-wastes.photo', $foreignSpoil))
+        ->assertNotFound();
+});
+
+test('super admin cannot approve or reject a spoil record belonging to another tenant', function (): void {
+    Storage::fake('local');
+    $superAdmin = spoilUser('SUPER_ADMIN', null);
+    $foreignSpoil = foreignTenantSpoilRecord($this->barItem);
+
+    $this->actingAs($superAdmin)
+        ->post(route('operations.spoil-wastes.approve', $foreignSpoil), ['approval_notes' => 'x'])
+        ->assertNotFound();
+
+    $this->actingAs($superAdmin)
+        ->post(route('operations.spoil-wastes.reject', $foreignSpoil), ['approval_notes' => 'x'])
+        ->assertNotFound();
+
+    expect($foreignSpoil->refresh()->status)->toBe(SpoilWaste::STATUS_PENDING);
+});
+
+test('super admin bulk-approve cannot approve a spoil record from another tenant even if its id is listed', function (): void {
+    Storage::fake('local');
+    $superAdmin = spoilUser('SUPER_ADMIN', null);
+    $foreignSpoil = foreignTenantSpoilRecord($this->barItem);
+
+    $response = $this->actingAs($superAdmin)
+        ->post(route('operations.spoil-wastes.bulk-approve'), ['ids' => [$foreignSpoil->id]]);
+
+    $response->assertRedirect();
+    expect($foreignSpoil->refresh()->status)->toBe(SpoilWaste::STATUS_PENDING);
+});
+
+test('super admin spoil report and export never include records from another tenant', function (): void {
+    Storage::fake('local');
+    $superAdmin = spoilUser('SUPER_ADMIN', null);
+    $foreignSpoil = foreignTenantSpoilRecord($this->barItem, 'ACME_FOREIGN_OUTLET_NOT_VISIBLE');
+
+    $response = $this->actingAs($superAdmin)->get(route('laporan.spoil', [
+        'date_to' => now()->addDay()->toDateString(),
+    ]));
+    $response->assertOk();
+
+    $outletNames = collect($response->viewData('spoils')->items())->pluck('outlet_name')->all();
+    expect($outletNames)->not->toContain('ACME_FOREIGN_OUTLET_NOT_VISIBLE');
+
+    $exportResponse = $this->actingAs($superAdmin)->get(route('laporan.spoil.export', [
+        'date_to' => now()->addDay()->toDateString(),
+    ]));
+    $exportResponse->assertOk();
 });

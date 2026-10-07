@@ -65,13 +65,21 @@ class SpoilWasteController extends Controller
             ->pluck('id')
             ->values();
 
-        return view('operations.spoil-wastes.index', [
-            'spoilWastes' => $query,
-            'duplicateCount' => SpoilWaste::query()
+        // Badge duplikat HARUS ikut scope yang sama dengan daftar di
+        // bawahnya -- sebelumnya menghitung SELURUH tenant tanpa
+        // memandang outlet/departemen viewer, jadi staf non-superadmin
+        // melihat angka yang mencakup laporan di luar scope mereka.
+        $duplicateCount = $this->applySpoilRecordScope(
+            SpoilWaste::query()
                 ->where('tenant_id', $tenantId)
                 ->where('is_duplicate_photo', true)
-                ->where('status', SpoilWaste::STATUS_PENDING)
-                ->count(),
+                ->where('status', SpoilWaste::STATUS_PENDING),
+            $request
+        )->count();
+
+        return view('operations.spoil-wastes.index', [
+            'spoilWastes' => $query,
+            'duplicateCount' => $duplicateCount,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
             'pendingIds' => $pendingIds,
@@ -162,6 +170,13 @@ class SpoilWasteController extends Controller
      * (dengan scope check), TAPI url statis lamanya (/storage/...) juga
      * MASIH tetap bisa diakses langsung tanpa login sampai migrasi
      * dijalankan -- endpoint ini TIDAK menutup eksposur lama itu.
+     *
+     * Path foto SELALU diambil dari kolom $spoil->photo/photo_path pada
+     * record yang sudah lolos assertSpoilInScope() (termasuk cek tenant
+     * eksplisit di dalamnya) -- TIDAK PERNAH dari input client manapun.
+     * Response dipaksa private/no-store supaya tidak tersimpan di cache
+     * bersama/proxy maupun disk cache browser yang bisa diakses user lain
+     * di perangkat/jaringan yang sama.
      */
     public function photo(Request $request, SpoilWaste $spoil): \Symfony\Component\HttpFoundation\Response
     {
@@ -170,15 +185,19 @@ class SpoilWasteController extends Controller
         $path = $spoil->photo ?: $spoil->photo_path;
         abort_if(! $path, 404);
 
+        $response = null;
+
         if (Storage::disk('local')->exists($path)) {
-            return Storage::disk('local')->response($path);
+            $response = Storage::disk('local')->response($path);
+        } elseif (Storage::disk('public')->exists($path)) {
+            $response = Storage::disk('public')->response($path);
         }
 
-        if (Storage::disk('public')->exists($path)) {
-            return Storage::disk('public')->response($path);
-        }
+        abort_if(! $response, 404);
 
-        abort(404);
+        $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
+
+        return $response;
     }
 
     public function approve(Request $request, SpoilWaste $spoil): RedirectResponse
@@ -263,10 +282,34 @@ class SpoilWasteController extends Controller
     public function searchItems(Request $request): JsonResponse
     {
         $tenantId = $this->tenantId($request);
-        $outletId = (int) ($request->input('outlet_id') ?: $request->user()->outlet_id);
         $search = $request->string('q')->trim()->toString();
         $isSuperAdmin = $this->isSuperAdmin($request);
         $userDepartmentId = $request->user()->department_id;
+
+        if ($isSuperAdmin) {
+            // SUPER_ADMIN boleh lihat saldo outlet mana pun, TAPI outlet
+            // yang dipilih harus benar-benar divalidasi milik tenant yang
+            // sama -- jangan percaya begitu saja outlet_id dari request
+            // (bisa saja outlet_id outlet lain/tenant lain, cuma kebetulan
+            // TenantScope yang sama-sama berlaku ke StockBalance akan
+            // membuatnya kosong, tapi di sini kita tolak eksplisit bukan
+            // cuma diam-diam kosong).
+            $outletId = (int) $request->input('outlet_id', 0);
+
+            if ($outletId > 0) {
+                abort_unless(
+                    Outlet::query()->where('tenant_id', $tenantId)->where('id', $outletId)->exists(),
+                    422,
+                    'Outlet tidak valid untuk tenant ini.'
+                );
+            }
+        } else {
+            // Non-superadmin: outlet_id SELALU dipaksa dari akun sendiri.
+            // outlet_id yang dikirim lewat request DIABAIKAN TOTAL --
+            // jangan sampai saldo outlet lain bisa "diintip" lewat
+            // parameter ini cuma karena item-nya kebetulan boleh dicari.
+            $outletId = (int) $request->user()->outlet_id;
+        }
 
         $items = Item::query()
             ->where('tenant_id', $tenantId)
@@ -484,11 +527,21 @@ class SpoilWasteController extends Controller
      * `=` terhadap NULL di SQL tidak pernah true) -- jadi legacy null tetap
      * tidak terlihat staff, konsisten dengan kebijakan sebelumnya.
      *
+     * Tenant dipaksa EKSPLISIT di sini juga (bukan cuma mengandalkan
+     * caller yang kebetulan sudah menambahkan `where('tenant_id', ...)`
+     * duluan) -- supaya method ini aman dipakai di mana pun tanpa diam-diam
+     * membuka jalan lintas tenant kalau suatu saat ada caller baru yang
+     * lupa menambahkan filter tenant_id-nya sendiri. Berlaku untuk SEMUA
+     * user termasuk SUPER_ADMIN -- SUPER_ADMIN cuma dibebaskan dari batasan
+     * outlet/departemen, TIDAK PERNAH dari batasan tenant.
+     *
      * @param  \Illuminate\Database\Eloquent\Builder<SpoilWaste>  $query
      * @return \Illuminate\Database\Eloquent\Builder<SpoilWaste>
      */
     private function applySpoilRecordScope($query, Request $request)
     {
+        $query = $query->where('tenant_id', $request->user()->tenant_id);
+
         if ($this->isSuperAdmin($request)) {
             return $query;
         }
@@ -504,21 +557,38 @@ class SpoilWasteController extends Controller
     }
 
     /**
-     * Dipakai show()/approve()/reject() -- 403 kalau $spoil di luar scope
-     * user (lihat applySpoilRecordScope() untuk aturan yang sama).
+     * Dipakai show()/photo()/approve()/reject() -- 403/404 kalau $spoil di
+     * luar scope user (lihat applySpoilRecordScope() untuk aturan yang
+     * sama pada query list/bulk).
+     *
+     * Cek tenant dilakukan EKSPLISIT di sini DULUAN, untuk SEMUA user
+     * termasuk SUPER_ADMIN -- route-model-binding + TenantScope global
+     * scope pada model SpoilWaste SEHARUSNYA sudah membuat record tenant
+     * lain tidak ter-resolve sama sekali (404 duluan sebelum method ini
+     * dipanggil), tapi itu mekanisme implisit yang bergantung pada global
+     * scope tidak pernah di-bypass di tempat lain. Cek eksplisit di sini
+     * adalah pertahanan lapis kedua yang tidak bergantung pada itu, dan
+     * dibuktikan lewat test (lihat SpoilWasteDepartmentScopingFeatureTest)
+     * -- bukan cuma diasumsikan aman dari perilaku Eloquent.
      */
     private function assertSpoilInScope(Request $request, SpoilWaste $spoil): void
     {
+        $user = $request->user();
+
+        abort_if((int) $spoil->tenant_id !== (int) $user->tenant_id, 404, 'Spoil tidak ditemukan.');
+
         if ($this->isSuperAdmin($request)) {
             return;
         }
 
-        $user = $request->user();
+        abort_unless(
+            $this->hasValidSpoilScope($request),
+            403,
+            'Akun Anda belum ditetapkan ke outlet & departemen yang sah untuk mengakses spoil. Hubungi Super Admin.'
+        );
 
         abort_if(
-            ! $user->outlet_id
-                || ! $user->department_id
-                || (int) $spoil->outlet_id !== (int) $user->outlet_id
+            (int) $spoil->outlet_id !== (int) $user->outlet_id
                 || (int) $spoil->department_id !== (int) $user->department_id,
             403,
             'Anda tidak berwenang untuk spoil ini.'
