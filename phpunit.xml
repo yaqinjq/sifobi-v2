@@ -32,5 +32,8 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Feature flag Inventory Simple: ON cuma di environment test ini,
+             OFF by default di semua environment lain (lihat config/app.php). -->
+        <env name="INVENTORY_SIMPLE_ENABLED" value="true"/>
     </php>
 </phpunit>

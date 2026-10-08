@@ -12,6 +12,7 @@ use App\Http\Controllers\MasterData\ItemAliasController;
 use App\Http\Controllers\MasterData\ItemController;
 use App\Http\Controllers\MasterData\ItemConversionController;
 use App\Http\Controllers\MasterData\UnitController;
+use App\Http\Controllers\Operations\InventoryCountController;
 use App\Http\Controllers\Operations\OpenStockImportController;
 use App\Http\Controllers\Operations\OpenStockController;
 use App\Http\Controllers\Operations\OpnameController;
@@ -606,6 +607,33 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
         Route::post('/open-stocks/{openStock}/void', [OpenStockController::class, 'void'])
             ->middleware('permission:post_open_stock')
             ->name('open-stocks.void');
+
+        // ── Inventory Simple (pendataan fisik, bukan posting stok) ──────────
+        // Feature-flag OFF by default (config('app.inventory_simple_enabled'),
+        // env INVENTORY_SIMPLE_ENABLED) -- route ini TIDAK terdaftar sama
+        // sekali (404, bukan cuma 403) kecuali di local/test yang eksplisit
+        // mengaktifkannya. Belum ada persetujuan untuk staging/production.
+        // Coarse gate: input_opname (staf) ATAU approve_opname (manajer/PIC
+        // yang mungkin tidak ikut input tapi perlu bisa minta revisi) --
+        // otorisasi detail tenant/outlet/departemen + "siapa boleh minta
+        // revisi" tetap diperiksa lagi di controller lewat
+        // EnforcesInventorySimpleScope, independen dari modul Spoil Waste.
+        if (config('app.inventory_simple_enabled')) {
+            Route::prefix('inventory-count')
+                ->name('inventory-count.')
+                ->middleware('permission:input_opname|approve_opname')
+                ->group(function (): void {
+                    Route::get('/', [InventoryCountController::class, 'index'])->name('index');
+                    Route::post('/start', [InventoryCountController::class, 'startOrResume'])->name('start');
+                    Route::get('/history', [InventoryCountController::class, 'history'])->name('history');
+                    Route::get('/export', [InventoryCountController::class, 'export'])->name('export');
+                    Route::get('/{document}', [InventoryCountController::class, 'show'])->name('show');
+                    Route::post('/{document}/submit', [InventoryCountController::class, 'submit'])->name('submit');
+                    Route::post('/{document}/request-revision', [InventoryCountController::class, 'requestRevision'])->name('request-revision');
+                    Route::patch('/lines/{line}', [InventoryCountController::class, 'autosaveLine'])->name('lines.autosave');
+                    Route::post('/lines/{line}/zero', [InventoryCountController::class, 'markZero'])->name('lines.zero');
+                });
+        }
     });
 
     // ── Purchase Order ────────────────────────────────────────────────────

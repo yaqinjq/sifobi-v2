@@ -130,4 +130,17 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Feature flag: Inventory Simple (pendataan fisik)
+    |--------------------------------------------------------------------------
+    |
+    | OFF by default di semua environment. HANYA diaktifkan secara eksplisit
+    | lewat env INVENTORY_SIMPLE_ENABLED=true di .env local/test -- belum ada
+    | persetujuan untuk mengaktifkannya di staging/production.
+    |
+    */
+
+    'inventory_simple_enabled' => (bool) env('INVENTORY_SIMPLE_ENABLED', false),
+
 ];
