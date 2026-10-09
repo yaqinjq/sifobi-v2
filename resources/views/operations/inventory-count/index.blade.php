@@ -85,8 +85,8 @@
                                 <button type="submit" class="sf-btn-primary min-h-11 px-4 shrink-0">Mulai</button>
                             </form>
                             <a href="{{ route('operations.inventory-count.movements.index', array_filter(['template_id' => $template->id, 'outlet_id' => $isSuperAdmin ? request('outlet_id') : null, 'department_id' => $isSuperAdmin ? request('department_id') : null])) }}"
-                               class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary-700">
-                                <i class="ti ti-table" aria-hidden="true"></i> Rekap Mingguan (saldo mandiri)
+                               class="mt-2 sf-btn-secondary min-h-10 w-full flex items-center justify-center gap-1.5 text-sm">
+                                <i class="ti ti-table" aria-hidden="true"></i> Lihat Rekap Mingguan (saldo mandiri)
                             </a>
                         </div>
                     @endforeach

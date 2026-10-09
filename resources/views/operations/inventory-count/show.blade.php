@@ -49,6 +49,11 @@
         Pendataan fisik -- belum mengubah saldo stok sistem.
     </div>
 
+    <a href="{{ route('operations.inventory-count.movements.index', ['template_id' => $document->template_id, 'outlet_id' => $document->outlet_id, 'department_id' => $document->department_id]) }}"
+       class="sf-btn-secondary min-h-10 w-full flex items-center justify-center gap-1.5 text-sm">
+        <i class="ti ti-table" aria-hidden="true"></i> Lihat Rekap Mingguan (saldo mandiri)
+    </a>
+
     <x-sf.card>
         <div class="flex items-center justify-between gap-3">
             <div>
@@ -144,16 +149,32 @@
     </div>
 
     @php $rowNum = 0; @endphp
+    <div x-show="$store.invCount.mode === 'table'" x-cloak class="flex items-center justify-between">
+        <p class="text-xs text-gray-500">Klik header kolom untuk urutkan.</p>
+        <button type="button" onclick="resetInvTableOrder()" class="text-xs font-semibold text-primary-700">
+            <i class="ti ti-arrow-back-up" aria-hidden="true"></i> Urutan Asli
+        </button>
+    </div>
     <div x-show="$store.invCount.mode === 'table'" x-cloak class="overflow-x-auto rounded-xl border border-gray-200 -mx-4 lg:mx-0">
-        <table class="min-w-full text-sm border-collapse">
+        <table id="inv-table" class="min-w-full text-sm border-collapse">
             <thead>
                 <tr class="bg-gray-50">
                     <th class="sticky left-0 z-10 bg-gray-50 px-2 py-2.5 text-center font-semibold text-gray-600 w-10">No.</th>
-                    <th class="sticky left-10 z-10 bg-gray-50 px-3 py-2.5 text-left font-semibold text-gray-600 min-w-[180px]">Item</th>
-                    <th class="px-3 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Lokasi</th>
-                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 min-w-[110px]">Utuh</th>
-                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 min-w-[110px]">Ecer</th>
-                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 whitespace-nowrap">Status</th>
+                    <th class="sticky left-10 z-10 bg-gray-50 px-3 py-2.5 text-left font-semibold text-gray-600 min-w-[180px] cursor-pointer select-none" onclick="sortInvTable('itemName', 'text')">
+                        Item <i class="ti ti-arrows-sort text-xs text-gray-400" data-sort-icon="itemName" aria-hidden="true"></i>
+                    </th>
+                    <th class="px-3 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap cursor-pointer select-none" onclick="sortInvTable('location', 'text')">
+                        Lokasi <i class="ti ti-arrows-sort text-xs text-gray-400" data-sort-icon="location" aria-hidden="true"></i>
+                    </th>
+                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 min-w-[110px] cursor-pointer select-none" onclick="sortInvTable('qtyWhole', 'number')">
+                        Utuh <i class="ti ti-arrows-sort text-xs text-gray-400" data-sort-icon="qtyWhole" aria-hidden="true"></i>
+                    </th>
+                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 min-w-[110px] cursor-pointer select-none" onclick="sortInvTable('qtyLoose', 'number')">
+                        Ecer <i class="ti ti-arrows-sort text-xs text-gray-400" data-sort-icon="qtyLoose" aria-hidden="true"></i>
+                    </th>
+                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 whitespace-nowrap cursor-pointer select-none" onclick="sortInvTable('isCounted', 'bool')">
+                        Status <i class="ti ti-arrows-sort text-xs text-gray-400" data-sort-icon="isCounted" aria-hidden="true"></i>
+                    </th>
                 </tr>
             </thead>
             <tbody>
@@ -200,6 +221,69 @@ async function waitForPendingSaves() {
     while (Alpine.store('invCount').pendingSaves > 0 && Date.now() - start < 8000) {
         await new Promise((resolve) => setTimeout(resolve, 150));
     }
+}
+
+/**
+ * Sort Mode Tabel -- baca state LIVE dari komponen Alpine tiap baris
+ * (Alpine.$data), bukan nilai server-rendered awal, supaya tetap benar
+ * walau staf sudah mengisi beberapa angka sebelum mengurutkan. Baris
+ * pembatas kategori disembunyikan selama sort kustom aktif (grouping
+ * tidak relevan lagi kalau diurutkan lintas kategori) -- "Urutan Asli"
+ * mengembalikan DOM ke urutan semula termasuk baris pembatasnya.
+ */
+let invTableOriginalOrder = null;
+let invTableSortState = { key: null, dir: 'asc' };
+
+function sortInvTable(key, type) {
+    const tbody = document.querySelector('#inv-table tbody');
+    if (!tbody) return;
+
+    if (!invTableOriginalOrder) {
+        invTableOriginalOrder = Array.from(tbody.children);
+    }
+
+    invTableSortState.dir = (invTableSortState.key === key && invTableSortState.dir === 'asc') ? 'desc' : 'asc';
+    invTableSortState.key = key;
+
+    const rows = Array.from(tbody.querySelectorAll('tr[x-data]'));
+    const valueOf = (row) => {
+        const data = Alpine.$data(row);
+        const raw = data ? data[key] : null;
+        if (type === 'number') return raw === null || raw === '' || raw === undefined ? -Infinity : parseFloat(raw);
+        if (type === 'bool') return raw ? 1 : 0;
+        return String(raw ?? '').toLowerCase();
+    };
+
+    rows.sort((a, b) => {
+        const va = valueOf(a), vb = valueOf(b);
+        const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+        return invTableSortState.dir === 'asc' ? cmp : -cmp;
+    });
+
+    rows.forEach((row) => tbody.appendChild(row)); // baris pembatas kategori tertinggal di posisi lama, tidak ikut dipindah -> otomatis tak lagi berdekatan dengan grupnya, disembunyikan di bawah.
+    tbody.querySelectorAll('tr:not([x-data])').forEach((divider) => { divider.style.display = 'none'; });
+
+    document.querySelectorAll('[data-sort-icon]').forEach((icon) => {
+        icon.className = 'ti ti-arrows-sort text-xs text-gray-400';
+    });
+    const activeIcon = document.querySelector(`[data-sort-icon="${key}"]`);
+    if (activeIcon) {
+        activeIcon.className = 'ti text-xs text-primary-700 ' + (invTableSortState.dir === 'asc' ? 'ti-sort-ascending' : 'ti-sort-descending');
+    }
+}
+
+function resetInvTableOrder() {
+    const tbody = document.querySelector('#inv-table tbody');
+    if (!tbody || !invTableOriginalOrder) return;
+
+    invTableOriginalOrder.forEach((row) => {
+        row.style.display = '';
+        tbody.appendChild(row);
+    });
+    invTableSortState = { key: null, dir: 'asc' };
+    document.querySelectorAll('[data-sort-icon]').forEach((icon) => {
+        icon.className = 'ti ti-arrows-sort text-xs text-gray-400';
+    });
 }
 
 function inventoryCountLine(config) {

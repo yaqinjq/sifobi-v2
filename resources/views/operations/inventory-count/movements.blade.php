@@ -25,11 +25,19 @@
         </div>
     </x-sf.card>
 
+    <div class="flex items-center justify-between">
+        <p class="text-xs text-gray-500">Klik header Item untuk urutkan A-Z.</p>
+        <button type="button" onclick="resetMovementTableOrder()" class="text-xs font-semibold text-primary-700">
+            <i class="ti ti-arrow-back-up" aria-hidden="true"></i> Urutan Asli
+        </button>
+    </div>
     <div class="overflow-x-auto rounded-xl border border-gray-200 -mx-4 lg:mx-0">
-        <table class="min-w-full text-xs border-collapse" x-data="{ weekStart: @js($weekStart->toDateString()) }">
+        <table id="movement-table" class="min-w-full text-xs border-collapse" x-data="{ weekStart: @js($weekStart->toDateString()) }">
             <thead>
                 <tr class="bg-gray-50">
-                    <th rowspan="2" class="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left font-semibold text-gray-600 w-[180px] align-bottom">Item</th>
+                    <th rowspan="2" class="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left font-semibold text-gray-600 w-[180px] align-bottom cursor-pointer select-none" onclick="sortMovementTable()">
+                        Item <i class="ti ti-arrows-sort text-xs text-gray-400" data-movement-sort-icon aria-hidden="true"></i>
+                    </th>
                     <th rowspan="2" class="sticky left-[180px] z-20 bg-gray-50 px-2 py-2 text-center font-semibold text-gray-600 min-w-[90px] align-bottom">Saldo Awal<br><span class="font-normal text-gray-400">({{ $weekStart->translatedFormat('d/m') }})</span></th>
                     @for($i = 0; $i < 7; $i++)
                         @php $d = $weekStart->copy()->addDays($i); @endphp
@@ -65,9 +73,55 @@
 
 @push('scripts')
 <script>
+// Sama prinsipnya dengan sortInvTable() di show.blade.php -- baca state
+// LIVE lewat Alpine.$data, baris pembatas kategori disembunyikan selama
+// sort kustom aktif, "Urutan Asli" mengembalikan ke urutan semula.
+let movementTableOriginalOrder = null;
+let movementTableSortDir = 'asc';
+
+function sortMovementTable() {
+    const tbody = document.querySelector('#movement-table tbody');
+    if (!tbody) return;
+
+    if (!movementTableOriginalOrder) {
+        movementTableOriginalOrder = Array.from(tbody.children);
+    }
+
+    movementTableSortDir = movementTableSortDir === 'asc' ? 'desc' : 'asc';
+
+    const rows = Array.from(tbody.querySelectorAll('tr[x-data]'));
+    rows.sort((a, b) => {
+        const cmp = String(Alpine.$data(a)?.itemName ?? '').toLowerCase()
+            .localeCompare(String(Alpine.$data(b)?.itemName ?? '').toLowerCase());
+        return movementTableSortDir === 'asc' ? cmp : -cmp;
+    });
+
+    rows.forEach((row) => tbody.appendChild(row));
+    tbody.querySelectorAll('tr:not([x-data])').forEach((divider) => { divider.style.display = 'none'; });
+
+    const icon = document.querySelector('[data-movement-sort-icon]');
+    if (icon) {
+        icon.className = 'ti text-xs text-primary-700 ' + (movementTableSortDir === 'asc' ? 'ti-sort-ascending' : 'ti-sort-descending');
+    }
+}
+
+function resetMovementTableOrder() {
+    const tbody = document.querySelector('#movement-table tbody');
+    if (!tbody || !movementTableOriginalOrder) return;
+
+    movementTableOriginalOrder.forEach((row) => {
+        row.style.display = '';
+        tbody.appendChild(row);
+    });
+    movementTableSortDir = 'asc';
+    const icon = document.querySelector('[data-movement-sort-icon]');
+    if (icon) icon.className = 'ti ti-arrows-sort text-xs text-gray-400';
+}
+
 function movementRow(config) {
     return {
         itemId: config.itemId,
+        itemName: config.itemName ?? '',
         autosaveUrl: config.autosaveUrl,
         openingBalanceUrl: config.openingBalanceUrl,
         weekStartDate: config.weekStartDate,

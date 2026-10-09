@@ -17,6 +17,7 @@
 @endphp
 <tr x-data="movementRow({
         itemId: {{ $item->id }},
+        itemName: @js($item->name),
         autosaveUrl: @js(route('operations.inventory-count.movements.autosave', $item)),
         openingBalanceUrl: @js(route('operations.inventory-count.movements.opening-balance', $item)),
         weekStartDate: @js($weekStart->toDateString()),
