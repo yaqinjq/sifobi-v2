@@ -10,10 +10,12 @@
     $looseUnit = $line->looseUnit?->abbreviation ?? $line->looseUnit?->code ?? '';
 @endphp
 <div class="sf-card"
+     x-show="matchesSearch()"
      :class="$store.invCount.mode === 'card' ? 'p-5' : 'p-3'"
      x-data="inventoryCountLine({
         lineId: {{ $line->id }},
         url: @js(route('operations.inventory-count.lines.autosave', $line)),
+        itemName: @js($line->item?->name ?? ''),
         qtyWhole: @js($line->qty_whole !== null ? (string) $line->qty_whole : ''),
         qtyLoose: @js($line->qty_loose !== null ? (string) $line->qty_loose : ''),
         requiresConversion: @js($line->requires_conversion),

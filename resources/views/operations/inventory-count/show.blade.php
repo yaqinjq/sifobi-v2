@@ -15,6 +15,7 @@
         status: @js($document->status),
         pendingSaves: 0,
         mode: 'list',
+        search: '',
      })"
      @inv-line-saved.window="
         $store.invCount.docVersion = $event.detail.documentVersion;
@@ -93,18 +94,52 @@
         <button type="button" @click="$store.invCount.mode = 'card'" class="sf-btn-secondary text-xs px-3 py-1.5 min-h-9" :class="$store.invCount.mode === 'card' ? 'sf-btn-primary' : 'sf-btn-secondary'">
             <i class="ti ti-layout-grid text-sm" aria-hidden="true"></i> Kartu
         </button>
+        <button type="button" @click="$store.invCount.mode = 'table'" class="sf-btn-secondary text-xs px-3 py-1.5 min-h-9" :class="$store.invCount.mode === 'table' ? 'sf-btn-primary' : 'sf-btn-secondary'">
+            <i class="ti ti-table text-sm" aria-hidden="true"></i> Tabel
+        </button>
     </div>
 
-    @foreach($linesBySubcategory as $subcategory => $lines)
-        <div>
-            <h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">{{ $subcategory }}</h3>
-            <div class="space-y-3" :class="$store.invCount.mode === 'card' ? 'lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0' : ''">
-                @foreach($lines as $line)
-                    @include('operations.inventory-count.partials.line-card', ['line' => $line, 'document' => $document])
-                @endforeach
+    <div class="relative">
+        <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true"></i>
+        <input type="search" x-model="$store.invCount.search" placeholder="Cari nama item..." class="sf-input pl-9 min-h-11 text-sm">
+    </div>
+
+    <div x-show="$store.invCount.mode !== 'table'">
+        @foreach($linesBySubcategory as $subcategory => $lines)
+            <div class="mb-4">
+                <h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">{{ $subcategory }}</h3>
+                <div class="space-y-3" :class="$store.invCount.mode === 'card' ? 'lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0' : ''">
+                    @foreach($lines as $line)
+                        @include('operations.inventory-count.partials.line-card', ['line' => $line, 'document' => $document])
+                    @endforeach
+                </div>
             </div>
-        </div>
-    @endforeach
+        @endforeach
+    </div>
+
+    <div x-show="$store.invCount.mode === 'table'" x-cloak class="overflow-x-auto rounded-xl border border-gray-200 -mx-4 lg:mx-0">
+        <table class="min-w-full text-sm border-collapse">
+            <thead>
+                <tr class="bg-gray-50">
+                    <th class="sticky left-0 z-10 bg-gray-50 px-3 py-2.5 text-left font-semibold text-gray-600 min-w-[180px]">Item</th>
+                    <th class="px-3 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Lokasi</th>
+                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 min-w-[110px]">Utuh</th>
+                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 min-w-[110px]">Ecer</th>
+                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 whitespace-nowrap">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($linesBySubcategory as $subcategory => $lines)
+                    <tr class="bg-primary-50">
+                        <td colspan="5" class="sticky left-0 px-3 py-2 text-xs font-bold uppercase tracking-wide text-primary-800 bg-primary-50">{{ $subcategory }}</td>
+                    </tr>
+                    @foreach($lines as $line)
+                        @include('operations.inventory-count.partials.table-row', ['line' => $line, 'document' => $document])
+                    @endforeach
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 
     @if($document->status === 'DRAFT')
         <div class="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white px-4 py-3 lg:left-64">
@@ -142,6 +177,7 @@ function inventoryCountLine(config) {
     return {
         lineId: config.lineId,
         url: config.url,
+        itemName: config.itemName ?? '',
         qtyWhole: config.qtyWhole,
         qtyLoose: config.qtyLoose,
         requiresConversion: config.requiresConversion,
@@ -152,6 +188,14 @@ function inventoryCountLine(config) {
         saving: false,
         saveFailed: false,
         conflict: false,
+        // Dipakai x-show di line-card.blade.php dan table-row.blade.php --
+        // search ada di Alpine.store('invCount') (BUKAN $parent) supaya
+        // tidak kena masalah "$parent is not defined" yang sama persis
+        // dengan bug mode Kartu yang pernah ditemukan.
+        matchesSearch() {
+            const q = Alpine.store('invCount').search.trim().toLowerCase();
+            return q === '' || this.itemName.toLowerCase().includes(q);
+        },
         // Alpine store 'invCount' diinisialisasi di wrapper x-init (lihat
         // show.blade.php) -- dibaca via $store, BUKAN lewat $root/__x yang
         // tidak reliable lintas komponen Alpine 3. pendingSaves dipakai

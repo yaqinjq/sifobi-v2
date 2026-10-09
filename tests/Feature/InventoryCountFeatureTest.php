@@ -155,6 +155,49 @@ test('the show page renders distinct List and Kartu mode bindings, not identical
         ->and($html)->not->toContain('$parent.mode');
 });
 
+test('the show page renders a Mode Tabel toggle, a search box, and a table row per line with no $parent usage', function (): void {
+    $barStaff = invUser('STAFF_BAR', 'BAR');
+    $document = app(InventoryCountService::class)->createOrResumeDraft(
+        $this->tenant->id, $this->outlet->id, $this->bar->id, $this->barTemplate, now(), $barStaff->id
+    );
+
+    $html = $this->actingAs($barStaff)
+        ->get(route('operations.inventory-count.show', $document))
+        ->assertOk()
+        ->getContent();
+
+    expect($html)->toContain("\$store.invCount.mode = 'table'")
+        ->and($html)->toContain('x-model="$store.invCount.search"')
+        ->and($html)->toContain('matchesSearch()')
+        // Cek pola BINDING yang rusak ("$parent.mode" dipakai sebagai
+        // expression Alpine), BUKAN substring "$parent" mentah -- komentar
+        // penjelasan bug lama di bawah ini sengaja menyebut kata itu.
+        ->and($html)->not->toContain('$parent.mode')
+        // barTemplate di beforeEach: 1 item, locations ['GUDANG','BAR_AREA']
+        // -> materializeLines() bikin 2 baris (1 per lokasi) -> 2 <tr>.
+        ->and(substr_count($html, 'sticky left-0 z-10 bg-white'))->toBe(2);
+});
+
+test('Mode Tabel search filters by item name client-side (matchesSearch reads from the global store, not $parent)', function (): void {
+    $barStaff = invUser('STAFF_BAR', 'BAR');
+    $document = app(InventoryCountService::class)->createOrResumeDraft(
+        $this->tenant->id, $this->outlet->id, $this->bar->id, $this->barTemplate, now(), $barStaff->id
+    );
+
+    $html = $this->actingAs($barStaff)
+        ->get(route('operations.inventory-count.show', $document))
+        ->assertOk()
+        ->getContent();
+
+    // itemName dilempar ke komponen Alpine yang sama dipakai line-card DAN
+    // table-row -- membuktikan kedua partial konsisten memakai pola yang
+    // sama (bukan 2 implementasi search yang berbeda dan bisa divergen).
+    // 2 baris (GUDANG+BAR_AREA) x 2 partial (line-card + table-row) = 4,
+    // plus 1 definisi "itemName: config.itemName" di dalam fungsi JS
+    // inventoryCountLine() itu sendiri (dicetak sekali per halaman) = 5.
+    expect(substr_count($html, 'itemName: '))->toBe(5);
+});
+
 test('staff bar can start a draft and staff pastry cannot see or edit it', function (): void {
     $barStaff = invUser('STAFF_BAR', 'BAR');
     $pastryStaff = invUser('STAFF_BAR', 'PASTRY');
