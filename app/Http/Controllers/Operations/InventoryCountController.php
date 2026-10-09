@@ -11,6 +11,7 @@ use App\Modules\Operations\Models\InventoryCountDocument;
 use App\Modules\Operations\Models\InventoryCountLine;
 use App\Modules\Operations\Models\InventoryCountTemplate;
 use App\Services\InventoryCountService;
+use App\Support\Decimal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -126,13 +127,32 @@ class InventoryCountController extends Controller
     {
         $this->assertLineInScope($request, $line);
 
-        $validated = $request->validate([
-            'qty_whole' => ['nullable', 'numeric'],
-            'qty_loose' => ['nullable', 'numeric'],
-            'notes' => ['nullable', 'string', 'max:500'],
-            'clear' => ['nullable', 'boolean'],
-            'expected_version' => ['required', 'integer'],
-        ]);
+        // Proyek ini mengaktifkan shouldRenderJsonWhen(fn ($r) => $r->is('api/*'))
+        // di bootstrap/app.php -- berarti ValidationException dari
+        // $request->validate() TIDAK otomatis dirender JSON untuk route
+        // non-api/* seperti endpoint ini (malah redirect balik dengan
+        // errors di session, sesuai desain app untuk halaman biasa).
+        // Endpoint ini dipanggil lewat fetch() dari JS yang mengharapkan
+        // JSON apa pun hasilnya -- jadi exception-nya ditangkap eksplisit
+        // di sini dan direspon manual sebagai JSON 422, sama polanya
+        // dengan InventoryCountConflictException di bawah.
+        try {
+            // Decimal::validationRule() menerima koma ATAU titik sebagai
+            // desimal (tapi menolak kalau KEDUANYA muncul -- ambigu sebagai
+            // pemisah ribuan) -- sama persis pola yang sudah dipakai
+            // Spoil/OpenStock/Opname, supaya staf yang terbiasa input koma
+            // (lazim di Indonesia) tidak ditolak validasi "numeric" standar
+            // Laravel (yang cuma menerima titik).
+            $validated = $request->validate([
+                'qty_whole' => ['nullable', Decimal::validationRule(6)],
+                'qty_loose' => ['nullable', Decimal::validationRule(6)],
+                'notes' => ['nullable', 'string', 'max:500'],
+                'clear' => ['nullable', 'boolean'],
+                'expected_version' => ['required', 'integer'],
+            ]);
+        } catch (ValidationException $exception) {
+            return response()->json(['message' => 'Validasi gagal.', 'errors' => $exception->errors()], 422);
+        }
 
         try {
             $updated = $this->service->autosaveLine(
@@ -161,9 +181,13 @@ class InventoryCountController extends Controller
     {
         $this->assertLineInScope($request, $line);
 
-        $validated = $request->validate([
-            'expected_version' => ['required', 'integer'],
-        ]);
+        try {
+            $validated = $request->validate([
+                'expected_version' => ['required', 'integer'],
+            ]);
+        } catch (ValidationException $exception) {
+            return response()->json(['message' => 'Validasi gagal.', 'errors' => $exception->errors()], 422);
+        }
 
         try {
             $updated = $this->service->markZero($line, (int) $request->user()->id, (int) $validated['expected_version']);

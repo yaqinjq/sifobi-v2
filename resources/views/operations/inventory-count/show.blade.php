@@ -13,6 +13,7 @@
         counted: {{ $countedCount }},
         total: {{ $totalCount }},
         status: @js($document->status),
+        pendingSaves: 0,
      })"
      @inv-line-saved.window="
         $store.invCount.docVersion = $event.detail.documentVersion;
@@ -107,11 +108,12 @@
     @if($document->status === 'DRAFT')
         <div class="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white px-4 py-3 lg:left-64">
             <form method="POST" action="{{ route('operations.inventory-count.submit', $document) }}"
-                  @submit="$event.target.querySelector('[name=expected_version]').value = $store.invCount.docVersion">
+                  @submit.prevent="await waitForPendingSaves(); $event.target.querySelector('[name=expected_version]').value = $store.invCount.docVersion; $event.target.submit();">
                 @csrf
                 <input type="hidden" name="expected_version" value="{{ $document->version }}">
-                <button type="submit" class="sf-btn-primary min-h-12 w-full">
-                    Kirim Hasil Hitung (<span x-text="$store.invCount.counted"></span>/<span x-text="$store.invCount.total"></span>)
+                <button type="submit" class="sf-btn-primary min-h-12 w-full" :disabled="$store.invCount.pendingSaves > 0">
+                    <span x-show="$store.invCount.pendingSaves === 0">Kirim Hasil Hitung (<span x-text="$store.invCount.counted"></span>/<span x-text="$store.invCount.total"></span>)</span>
+                    <span x-show="$store.invCount.pendingSaves > 0">Menunggu autosave selesai...</span>
                 </button>
             </form>
         </div>
@@ -121,6 +123,20 @@
 
 @push('scripts')
 <script>
+/**
+ * Dipakai tombol Kirim -- menunggu SEMUA autosave yang sedang berjalan
+ * (debounce yang baru terpicu / request yang belum selesai) sebelum
+ * benar-benar submit, supaya tidak ada perubahan terakhir yang "ketinggalan"
+ * kalau staf mengetik lalu langsung pencet Kirim. Timeout 8 detik sebagai
+ * jaga-jaga kalau autosave gagal total (daripada tombol macet selamanya).
+ */
+async function waitForPendingSaves() {
+    const start = Date.now();
+    while (Alpine.store('invCount').pendingSaves > 0 && Date.now() - start < 8000) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+}
+
 function inventoryCountLine(config) {
     return {
         lineId: config.lineId,
@@ -133,14 +149,20 @@ function inventoryCountLine(config) {
         wasCountedBefore: config.isCounted,
         saved: false,
         saving: false,
+        saveFailed: false,
         conflict: false,
         // Alpine store 'invCount' diinisialisasi di wrapper x-init (lihat
         // show.blade.php) -- dibaca via $store, BUKAN lewat $root/__x yang
-        // tidak reliable lintas komponen Alpine 3.
+        // tidak reliable lintas komponen Alpine 3. pendingSaves dipakai
+        // tombol Kirim supaya menunggu autosave yang sedang berjalan
+        // selesai dulu (lihat waitForPendingSaves() di bawah) -- submit
+        // TIDAK PERNAH jalan sementara ada autosave yang belum selesai.
         async save() {
             if (Alpine.store('invCount').status === 'SUBMITTED') return;
             this.saving = true;
+            this.saveFailed = false;
             this.conflict = false;
+            Alpine.store('invCount').pendingSaves++;
 
             try {
                 const response = await fetch(this.url, {
@@ -161,7 +183,14 @@ function inventoryCountLine(config) {
                     this.conflict = true;
                     return;
                 }
-                if (!response.ok) return;
+                if (!response.ok) {
+                    // Gagal tersimpan (validasi/server error) -- JANGAN
+                    // pernah menampilkan "Tersimpan" untuk ini, tampilkan
+                    // indikator gagal yang jelas supaya staf tahu harus
+                    // coba lagi, bukan mengira datanya sudah aman.
+                    this.saveFailed = true;
+                    return;
+                }
 
                 const data = await response.json();
                 this.isCounted = data.line.is_counted;
@@ -171,8 +200,15 @@ function inventoryCountLine(config) {
                 this.wasCountedBefore = this.isCounted;
                 this.saved = true;
                 setTimeout(() => this.saved = false, 1200);
+            } catch (networkError) {
+                // fetch() melempar exception kalau koneksi benar-benar
+                // putus (bukan cuma response non-200) -- tanpa catch ini,
+                // "saving" akan macet true selamanya dan tidak ada
+                // feedback sama sekali ke staf.
+                this.saveFailed = true;
             } finally {
                 this.saving = false;
+                Alpine.store('invCount').pendingSaves--;
             }
         },
         async markZero() {

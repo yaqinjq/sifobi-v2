@@ -9,7 +9,8 @@
     $wholeUnit = $line->wholeUnit?->abbreviation ?? $line->wholeUnit?->code ?? '';
     $looseUnit = $line->looseUnit?->abbreviation ?? $line->looseUnit?->code ?? '';
 @endphp
-<div class="sf-card p-4"
+<div class="sf-card"
+     :class="$parent.mode === 'card' ? 'p-5' : 'p-3'"
      x-data="inventoryCountLine({
         lineId: {{ $line->id }},
         url: @js(route('operations.inventory-count.lines.autosave', $line)),
@@ -21,10 +22,15 @@
      })">
     <div class="flex items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
-            <p class="font-semibold text-gray-900">{{ $line->item?->name ?? '-' }}</p>
-            @if($locationLabel)
-                <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 mt-1">{{ $locationLabel }}</span>
-            @endif
+            <p class="font-semibold text-gray-900" :class="$parent.mode === 'card' ? 'text-lg' : ''">{{ $line->item?->name ?? '-' }}</p>
+            <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                {{-- Mode Kartu: subkategori diulang per kartu (berguna saat scroll cepat satu per satu).
+                     Mode List: subkategori cukup di header grup, tidak diulang per baris -- biar padat. --}}
+                <span x-show="$parent.mode === 'card'" x-cloak class="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">{{ $line->subcategory_label }}</span>
+                @if($locationLabel)
+                    <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{{ $locationLabel }}</span>
+                @endif
+            </div>
         </div>
         <div class="shrink-0">
             <span x-show="isCounted" class="inline-flex items-center gap-1 text-xs font-semibold text-green-600"><i class="ti ti-circle-check" aria-hidden="true"></i> Terhitung</span>
@@ -39,26 +45,32 @@
         </div>
     @endif
 
-    <div class="mt-3 grid grid-cols-1 {{ $line->requires_conversion ? 'sm:grid-cols-2' : '' }} gap-3">
+    {{-- Mode List: field Utuh+Ecer berdampingan (padat, cepat di-scan).
+         Mode Kartu: field SELALU bertumpuk 1 kolom (lebih mudah dibaca &
+         diketik pakai jempol saat fokus ke 1 item), dan input lebih besar. --}}
+    <div class="mt-3 grid gap-3"
+         :class="$parent.mode === 'card' ? 'grid-cols-1' : '{{ $line->requires_conversion ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1' }}'">
         <div>
-            <label class="sf-label">{{ $line->requires_conversion ? "Utuh ({$wholeUnit})" : "Qty ({$wholeUnit})" }}</label>
+            <label class="sf-label" :class="$parent.mode === 'card' ? 'text-sm' : ''">{{ $line->requires_conversion ? "Utuh ({$wholeUnit})" : "Qty ({$wholeUnit})" }}</label>
             <input type="text"
                    inputmode="decimal"
                    x-model="qtyWhole"
                    @input.debounce.600ms="save()"
                    placeholder="0"
-                   class="sf-input text-base min-h-11"
+                   class="sf-input"
+                   :class="$parent.mode === 'card' ? 'text-xl min-h-14 text-center' : 'text-base min-h-11'"
                    {{ $document->status !== 'DRAFT' ? 'disabled' : '' }}>
         </div>
         @if($line->requires_conversion)
             <div>
-                <label class="sf-label">Ecer ({{ $looseUnit }})</label>
+                <label class="sf-label" :class="$parent.mode === 'card' ? 'text-sm' : ''">Ecer ({{ $looseUnit }})</label>
                 <input type="text"
                        inputmode="decimal"
                        x-model="qtyLoose"
                        @input.debounce.600ms="save()"
                        placeholder="0"
-                       class="sf-input text-base min-h-11"
+                       class="sf-input"
+                       :class="$parent.mode === 'card' ? 'text-xl min-h-14 text-center' : 'text-base min-h-11'"
                        {{ $document->status !== 'DRAFT' ? 'disabled' : '' }}>
             </div>
         @endif
@@ -66,11 +78,14 @@
 
     @if($document->status === 'DRAFT')
         <div class="mt-3 flex items-center justify-between gap-2">
-            <button type="button" @click="markZero()" class="sf-btn-secondary text-xs px-3 py-1.5 min-h-9">
+            <button type="button" @click="markZero()" class="sf-btn-secondary text-xs px-3 py-1.5 min-h-9" :class="$parent.mode === 'card' ? 'flex-1' : ''">
                 Stok Nol
             </button>
             <span x-show="saving" class="text-xs text-gray-400">Menyimpan...</span>
             <span x-show="saved" x-transition class="text-xs font-semibold text-primary-700">Tersimpan</span>
+            <span x-show="saveFailed" x-cloak class="text-xs font-semibold text-red-600">
+                <i class="ti ti-wifi-off" aria-hidden="true"></i> Gagal simpan, coba lagi
+            </span>
         </div>
     @endif
 

@@ -280,6 +280,72 @@ test('super admin can start a draft for any outlet and department within the ten
 
 // ===================== null vs explicit zero, utuh/ecer =====================
 
+test('autosave accepts a comma or a dot as the decimal separator and normalizes storage', function (): void {
+    $barStaff = invUser('STAFF_BAR', 'BAR');
+    $document = app(InventoryCountService::class)->createOrResumeDraft(
+        $this->tenant->id, $this->outlet->id, $this->bar->id, $this->barTemplate, now(), $barStaff->id
+    );
+    $line = $document->lines()->first();
+
+    // Koma (lazim diketik di Indonesia) harus diterima, BUKAN ditolak
+    // validasi "numeric" standar Laravel yang cuma mengenal titik.
+    $this->actingAs($barStaff)
+        ->patchJson(route('operations.inventory-count.lines.autosave', $line), [
+            'qty_whole' => '12,5', 'expected_version' => $document->version,
+        ])
+        ->assertOk();
+
+    expect((string) $line->refresh()->qty_whole)->toBe('12.500000');
+
+    $document->refresh();
+    $this->actingAs($barStaff)
+        ->patchJson(route('operations.inventory-count.lines.autosave', $line), [
+            'qty_whole' => '7.25', 'expected_version' => $document->version,
+        ])
+        ->assertOk();
+
+    expect((string) $line->refresh()->qty_whole)->toBe('7.250000');
+});
+
+test('autosave rejects an ambiguous value with both comma and dot instead of silently guessing', function (): void {
+    $barStaff = invUser('STAFF_BAR', 'BAR');
+    $document = app(InventoryCountService::class)->createOrResumeDraft(
+        $this->tenant->id, $this->outlet->id, $this->bar->id, $this->barTemplate, now(), $barStaff->id
+    );
+    $line = $document->lines()->first();
+
+    $this->actingAs($barStaff)
+        ->patchJson(route('operations.inventory-count.lines.autosave', $line), [
+            'qty_whole' => '1.000,5', 'expected_version' => $document->version,
+        ])
+        ->assertStatus(422);
+
+    expect($line->refresh()->is_counted)->toBeFalse();
+});
+
+test('reloading the show page after autosave reflects the persisted value (resume draft)', function (): void {
+    $barStaff = invUser('STAFF_BAR', 'BAR');
+    $document = app(InventoryCountService::class)->createOrResumeDraft(
+        $this->tenant->id, $this->outlet->id, $this->bar->id, $this->barTemplate, now(), $barStaff->id
+    );
+    $line = $document->lines()->first();
+
+    $this->actingAs($barStaff)->patchJson(route('operations.inventory-count.lines.autosave', $line), [
+        'qty_whole' => '42', 'expected_version' => $document->version,
+    ])->assertOk();
+
+    // Simulasi reload: GET ulang halaman show, bukan state client yang
+    // dipertahankan -- buktikan nilainya datang dari server (resume),
+    // bukan cuma "terlihat tersimpan" di state JS yang sebenarnya hilang
+    // kalau tab ditutup.
+    $response = $this->actingAs($barStaff)->get(route('operations.inventory-count.show', $document));
+    $response->assertOk();
+
+    $persistedLine = $response->viewData('document')->lines->firstWhere('id', $line->id);
+    expect((string) $persistedLine->qty_whole)->toBe('42.000000')
+        ->and($persistedLine->is_counted)->toBeTrue();
+});
+
 test('an untouched line is not counted, but an explicit zero via the zero button is counted', function (): void {
     $barStaff = invUser('STAFF_BAR', 'BAR');
     $document = app(InventoryCountService::class)->createOrResumeDraft(
@@ -565,3 +631,49 @@ test('export is forbidden without a valid scope', function (): void {
         ->get(route('operations.inventory-count.export'))
         ->assertForbidden();
 });
+
+// ===================== feature flag OFF =====================
+
+/**
+ * config('app.inventory_simple_enabled') dibaca SEKALI saat routes/web.php
+ * dieksekusi pada boot aplikasi -- mengubah config/env DI TENGAH request
+ * test yang sama TIDAK membatalkan route yang sudah terlanjur terdaftar.
+ * Satu-satunya cara jujur menguji "route sama sekali tidak terdaftar saat
+ * flag OFF" adalah boot PROSES PHP BARU dengan env itu di-override dari
+ * awal -- makanya test ini spawn `php artisan route:list` sebagai child
+ * process, bukan lewat HTTP test di proses yang sama.
+ */
+test('every inventory-count route is completely unregistered (not just forbidden) when the feature flag is off', function (): void {
+    $phpBinary = PHP_BINARY;
+    $basePath = base_path();
+
+    $descriptorSpec = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+    $env = array_filter(array_merge($_ENV, $_SERVER), fn ($value) => is_scalar($value));
+    $env['INVENTORY_SIMPLE_ENABLED'] = 'false';
+
+    $process = proc_open(
+        "\"{$phpBinary}\" artisan route:list --name=inventory-count",
+        $descriptorSpec,
+        $pipes,
+        $basePath,
+        $env
+    );
+
+    expect($process)->not->toBeFalse();
+
+    $stdout = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    proc_close($process);
+
+    // "Your application doesn't have any routes matching the given name."
+    // ATAU tabel kosong -- intinya TIDAK ADA satu pun baris route
+    // inventory-count.* yang muncul, beda dari 403 (yang masih berarti
+    // route terdaftar, cuma ditolak otorisasi).
+    expect($stdout)->not->toContain('operations.inventory-count.index')
+        ->and($stdout)->not->toContain('operations.inventory-count.show')
+        ->and($stdout)->not->toContain('operations.inventory-count.lines.autosave')
+        ->and($stdout)->not->toContain('operations.inventory-count.submit')
+        ->and($stdout)->not->toContain('operations.inventory-count.request-revision')
+        ->and($stdout)->not->toContain('operations.inventory-count.export');
+})->skip(fn () => ! file_exists(base_path('artisan')), 'artisan tidak ditemukan di base_path() -- lingkungan test tidak mendukung subprocess check ini.');

@@ -15,7 +15,8 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
  * Export hasil hitung fisik Inventory Simple -- SELALU di-scope tenant +
  * outlet + departemen yang dipanggil (dipaksa oleh controller, tidak
  * pernah dari filter bebas client untuk non-superadmin). Murni laporan
- * observasi fisik, BUKAN laporan saldo/ledger.
+ * observasi fisik, BUKAN laporan saldo/ledger -- TIDAK ADA baris total
+ * yang menjumlahkan qty lintas item/unit berbeda.
  */
 class InventoryCountExport implements FromArray, ShouldAutoSize, WithEvents
 {
@@ -39,20 +40,26 @@ class InventoryCountExport implements FromArray, ShouldAutoSize, WithEvents
 
         return array_merge([
             ['Export Inventory Simple', 'Pendataan fisik -- belum mengubah saldo stok sistem.'],
-            ['Tanggal', 'Template', 'Status', 'Item', 'Subkategori', 'Lokasi', 'Qty Utuh', 'Qty Ecer', 'Satuan Utuh', 'Satuan Ecer', 'Sudah Dihitung', 'Catatan'],
+            ['Tanggal', 'Outlet', 'Departemen', 'Template', 'Status Dokumen', 'Item', 'Subkategori', 'Lokasi', 'Qty Utuh', 'Qty Ecer', 'Satuan Utuh', 'Satuan Ecer', 'Status Hitung', 'Catatan'],
         ], $rows->map(fn ($row): array => [
             $row->business_date,
-            $row->template_name,
+            $this->sanitize($row->outlet_name),
+            $this->sanitize($row->department_name),
+            $this->sanitize($row->template_name),
             $row->status,
-            $row->item_name,
-            $row->subcategory_label,
+            $this->sanitize($row->item_name),
+            $this->sanitize($row->subcategory_label),
             $row->location,
-            $row->qty_whole,
-            $row->qty_loose,
+            // Draft/belum dihitung TIDAK PERNAH ditampilkan sebagai 0 --
+            // beda antara "belum disentuh" (is_counted=false, cell kosong/
+            // label eksplisit) vs "sengaja diisi 0" (is_counted=true,
+            // angka 0 sungguhan) harus tetap jelas di laporan Finance.
+            $row->is_counted ? $row->qty_whole : '(belum dihitung)',
+            $row->is_counted && $row->qty_loose !== null ? $row->qty_loose : ($row->is_counted ? '' : '(belum dihitung)'),
             $row->whole_unit ?? '',
             $row->loose_unit ?? '',
-            $row->is_counted ? 'Ya' : 'Belum',
-            $row->notes,
+            $row->is_counted ? 'Sudah' : 'Belum',
+            $this->sanitize($row->notes),
         ])->all());
     }
 
@@ -81,6 +88,8 @@ class InventoryCountExport implements FromArray, ShouldAutoSize, WithEvents
             ->join('inventory_count_lines as l', 'l.document_id', '=', 'd.id')
             ->join('inventory_count_templates as t', 't.id', '=', 'd.template_id')
             ->join('items as i', 'i.id', '=', 'l.item_id')
+            ->join('outlets as o', 'o.id', '=', 'd.outlet_id')
+            ->join('departments as dept', 'dept.id', '=', 'd.department_id')
             ->leftJoin('units as wu', 'wu.id', '=', 'l.whole_unit_id')
             ->leftJoin('units as lu', 'lu.id', '=', 'l.loose_unit_id')
             ->where('d.tenant_id', $this->tenantId)
@@ -91,6 +100,8 @@ class InventoryCountExport implements FromArray, ShouldAutoSize, WithEvents
             ->when($this->filters['status'] ?? null, fn ($q, $status) => $q->where('d.status', $status))
             ->select([
                 'd.business_date',
+                'o.name as outlet_name',
+                'dept.name as department_name',
                 't.name as template_name',
                 'd.status',
                 'i.name as item_name',
@@ -117,5 +128,25 @@ class InventoryCountExport implements FromArray, ShouldAutoSize, WithEvents
             isset($this->filters['date_from']) ? Carbon::parse($this->filters['date_from'])->startOfDay() : now()->startOfMonth(),
             isset($this->filters['date_to']) ? Carbon::parse($this->filters['date_to'])->endOfDay() : now()->endOfDay(),
         ];
+    }
+
+    /**
+     * Cegah formula injection (CSV/Excel) -- kalau teks (nama item, catatan,
+     * dst) diawali karakter yang ditafsirkan Excel/Sheets sebagai awal
+     * formula (=, +, -, @, tab, CR), tambahkan apostrof di depan supaya
+     * sel dipaksa dibaca sebagai teks murni, bukan dieksekusi sebagai
+     * formula saat file dibuka di Excel/Sheets.
+     */
+    private function sanitize(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return $value;
+        }
+
+        if (preg_match('/^[=+\-@\t\r]/', $value)) {
+            return "'".$value;
+        }
+
+        return $value;
     }
 }

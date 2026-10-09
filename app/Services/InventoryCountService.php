@@ -9,6 +9,7 @@ use App\Modules\Operations\Models\InventoryCountDocumentRevision;
 use App\Modules\Operations\Models\InventoryCountLine;
 use App\Modules\Operations\Models\InventoryCountTemplate;
 use App\Modules\Operations\Models\InventoryCountTemplateItem;
+use App\Support\Decimal;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -203,13 +204,21 @@ class InventoryCountService
             $wholeProvided = array_key_exists('qty_whole', $data) && $data['qty_whole'] !== null && $data['qty_whole'] !== '';
             $looseProvided = array_key_exists('qty_loose', $data) && $data['qty_loose'] !== null && $data['qty_loose'] !== '';
 
+            // Decimal::toFixed() menormalkan koma -> titik sebelum disimpan
+            // -- kalau cuma assign $data['qty_whole'] mentah, string dengan
+            // koma ("12,5") akan tersimpan apa adanya ke kolom decimal dan
+            // bisa dibaca salah (atau ditolak diam-diam) tergantung driver
+            // DB, bukan langsung error yang jelas.
+            $wholeNormalized = $wholeProvided ? Decimal::toFixed($data['qty_whole'], 6) : null;
+            $looseNormalized = $looseProvided ? Decimal::toFixed($data['qty_loose'], 6) : null;
+
             $isCounted = $line->requires_conversion
                 ? ($wholeProvided || $looseProvided)
                 : $wholeProvided;
 
-            $line->qty_whole = $wholeProvided ? $data['qty_whole'] : ($line->requires_conversion ? $line->qty_whole : null);
+            $line->qty_whole = $wholeProvided ? $wholeNormalized : ($line->requires_conversion ? $line->qty_whole : null);
             $line->qty_loose = $line->requires_conversion
-                ? ($looseProvided ? $data['qty_loose'] : $line->qty_loose)
+                ? ($looseProvided ? $looseNormalized : $line->qty_loose)
                 : null;
 
             // Autosave field kosong TIDAK PERNAH menjadikan is_counted true
