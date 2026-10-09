@@ -70,19 +70,25 @@
             @else
                 <div class="space-y-2">
                     @foreach($templates as $template)
-                        <form method="POST" action="{{ route('operations.inventory-count.start') }}" class="flex items-center justify-between gap-3 rounded-xl border border-gray-100 p-3">
-                            @csrf
-                            <input type="hidden" name="template_id" value="{{ $template->id }}">
-                            @if($isSuperAdmin)
-                                <input type="hidden" name="outlet_id" value="{{ request('outlet_id') }}">
-                                <input type="hidden" name="department_id" value="{{ request('department_id') }}">
-                            @endif
-                            <div class="min-w-0 flex-1">
-                                <p class="font-semibold text-gray-900 truncate">{{ $template->name }}</p>
-                                <p class="text-xs text-gray-500">{{ $template->frequency }} @if(! $template->is_configured) &middot; <span class="text-amber-600">belum terverifikasi</span> @endif</p>
-                            </div>
-                            <button type="submit" class="sf-btn-primary min-h-11 px-4 shrink-0">Mulai</button>
-                        </form>
+                        <div class="rounded-xl border border-gray-100 p-3">
+                            <form method="POST" action="{{ route('operations.inventory-count.start') }}" class="flex items-center justify-between gap-3">
+                                @csrf
+                                <input type="hidden" name="template_id" value="{{ $template->id }}">
+                                @if($isSuperAdmin)
+                                    <input type="hidden" name="outlet_id" value="{{ request('outlet_id') }}">
+                                    <input type="hidden" name="department_id" value="{{ request('department_id') }}">
+                                @endif
+                                <div class="min-w-0 flex-1">
+                                    <p class="font-semibold text-gray-900 truncate">{{ $template->name }}</p>
+                                    <p class="text-xs text-gray-500">{{ $template->frequency }} @if(! $template->is_configured) &middot; <span class="text-amber-600">belum terverifikasi</span> @endif</p>
+                                </div>
+                                <button type="submit" class="sf-btn-primary min-h-11 px-4 shrink-0">Mulai</button>
+                            </form>
+                            <a href="{{ route('operations.inventory-count.movements.index', array_filter(['template_id' => $template->id, 'outlet_id' => $isSuperAdmin ? request('outlet_id') : null, 'department_id' => $isSuperAdmin ? request('department_id') : null])) }}"
+                               class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary-700">
+                                <i class="ti ti-table" aria-hidden="true"></i> Rekap Mingguan (saldo mandiri)
+                            </a>
+                        </div>
                     @endforeach
                 </div>
             @endif
