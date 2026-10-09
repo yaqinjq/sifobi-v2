@@ -122,6 +122,26 @@ function foreignTenantOutlet(): Outlet
 
 // ===================== scope dasar =====================
 
+test('the show page renders distinct List and Kartu mode bindings, not identical markup', function (): void {
+    $barStaff = invUser('STAFF_BAR', 'BAR');
+    $document = app(InventoryCountService::class)->createOrResumeDraft(
+        $this->tenant->id, $this->outlet->id, $this->bar->id, $this->barTemplate, now(), $barStaff->id
+    );
+
+    $html = $this->actingAs($barStaff)
+        ->get(route('operations.inventory-count.show', $document))
+        ->assertOk()
+        ->getContent();
+
+    // Mode Kartu memaksa field bertumpuk 1 kolom + input lebih besar +
+    // subkategori diulang per kartu -- kalau binding ini tidak ada,
+    // Kartu hanya beda warna tombol dari List (regresi UX yang pernah
+    // ditemukan).
+    expect($html)->toContain("\$parent.mode === 'card' ? 'grid-cols-1'")
+        ->and($html)->toContain("\$parent.mode === 'card' ? 'text-xl min-h-14 text-center'")
+        ->and($html)->toContain('$parent.mode === \'card\'" x-cloak');
+});
+
 test('staff bar can start a draft and staff pastry cannot see or edit it', function (): void {
     $barStaff = invUser('STAFF_BAR', 'BAR');
     $pastryStaff = invUser('STAFF_BAR', 'PASTRY');
