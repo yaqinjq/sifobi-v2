@@ -10,12 +10,14 @@
     $looseUnit = $line->looseUnit?->abbreviation ?? $line->looseUnit?->code ?? '';
 @endphp
 <div class="sf-card"
-     x-show="matchesSearch()"
+     x-show="isVisible()"
      :class="$store.invCount.mode === 'card' ? 'p-5' : 'p-3'"
      x-data="inventoryCountLine({
         lineId: {{ $line->id }},
         url: @js(route('operations.inventory-count.lines.autosave', $line)),
         itemName: @js($line->item?->name ?? ''),
+        location: @js($line->location),
+        category: @js($line->subcategory_label ?: 'Lainnya'),
         qtyWhole: @js($line->qty_whole !== null ? (string) $line->qty_whole : ''),
         qtyLoose: @js($line->qty_loose !== null ? (string) $line->qty_loose : ''),
         requiresConversion: @js($line->requires_conversion),
@@ -24,7 +26,10 @@
      })">
     <div class="flex items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
-            <p class="font-semibold text-gray-900" :class="$store.invCount.mode === 'card' ? 'text-lg' : ''">{{ $line->item?->name ?? '-' }}</p>
+            <p class="font-semibold text-gray-900" :class="$store.invCount.mode === 'card' ? 'text-lg' : ''">
+                @if(isset($rowNum))<span class="text-gray-400 font-normal">{{ $rowNum }}.</span>@endif
+                {{ $line->item?->name ?? '-' }}
+            </p>
             <div class="flex flex-wrap items-center gap-1.5 mt-1">
                 {{-- Mode Kartu: subkategori diulang per kartu (berguna saat scroll cepat satu per satu).
                      Mode List: subkategori cukup di header grup, tidak diulang per baris -- biar padat. --}}

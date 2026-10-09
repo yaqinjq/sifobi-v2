@@ -9,11 +9,13 @@
     $wholeUnit = $line->wholeUnit?->abbreviation ?? $line->wholeUnit?->code ?? '';
     $looseUnit = $line->looseUnit?->abbreviation ?? $line->looseUnit?->code ?? '';
 @endphp
-<tr x-show="matchesSearch()"
+<tr x-show="isVisible()"
     x-data="inventoryCountLine({
        lineId: {{ $line->id }},
        url: @js(route('operations.inventory-count.lines.autosave', $line)),
        itemName: @js($line->item?->name ?? ''),
+       location: @js($line->location),
+       category: @js($line->subcategory_label ?: 'Lainnya'),
        qtyWhole: @js($line->qty_whole !== null ? (string) $line->qty_whole : ''),
        qtyLoose: @js($line->qty_loose !== null ? (string) $line->qty_loose : ''),
        requiresConversion: @js($line->requires_conversion),
@@ -21,7 +23,8 @@
        isCounted: @js($line->is_counted),
     })"
     class="border-t border-gray-100">
-    <td class="sticky left-0 z-10 bg-white px-3 py-2 align-top">
+    <td class="sticky left-0 z-10 bg-white px-2 py-2 text-center text-gray-400 w-10">{{ $rowNum ?? '' }}</td>
+    <td class="sticky left-10 z-10 bg-white px-3 py-2 align-top">
         <p class="font-medium text-gray-900">{{ $line->item?->name ?? '-' }}</p>
         @if(! $line->config_valid)
             <span class="inline-flex items-center gap-1 text-[11px] text-amber-700" title="Konversi Utuh/Ecer belum dikonfigurasi -- tidak bisa dikirim sampai diperbaiki Super Admin.">

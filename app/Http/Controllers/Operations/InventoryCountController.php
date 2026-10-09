@@ -120,6 +120,12 @@ class InventoryCountController extends Controller
             'countedCount' => $document->lines->where('is_counted', true)->count(),
             'totalCount' => $document->lines->count(),
             'canRequestRevision' => $request->user()->can('approve_opname'),
+            // Opsi filter Lokasi & Kategori di Mode Tabel/List/Kartu --
+            // dihitung dari baris dokumen ini sendiri (bukan semua lokasi
+            // yang mungkin ada di sistem), supaya dropdown cuma berisi
+            // pilihan yang relevan untuk dokumen yang sedang dibuka.
+            'distinctLocations' => $document->lines->pluck('location')->unique()->sort()->values(),
+            'distinctCategories' => $linesBySubcategory->keys()->sort()->values(),
         ]);
     }
 

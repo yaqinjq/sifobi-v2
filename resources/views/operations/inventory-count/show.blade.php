@@ -16,6 +16,8 @@
         pendingSaves: 0,
         mode: 'list',
         search: '',
+        locationFilter: '',
+        categoryFilter: '',
      })"
      @inv-line-saved.window="
         $store.invCount.docVersion = $event.detail.documentVersion;
@@ -99,29 +101,55 @@
         </button>
     </div>
 
-    <div class="relative">
-        <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true"></i>
-        <input type="search" x-model="$store.invCount.search" placeholder="Cari nama item..." class="sf-input pl-9 min-h-11 text-sm">
+    @php
+        $locationLabels = [
+            'GUDANG' => 'Gudang',
+            'BAR_AREA' => 'Bar Area',
+            'KITCHEN_AREA' => 'Kitchen Area',
+            'GENERIC' => 'Umum',
+        ];
+    @endphp
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div class="relative sm:col-span-1">
+            <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true"></i>
+            <input type="search" x-model="$store.invCount.search" placeholder="Cari nama item..." class="sf-input pl-9 min-h-11 text-sm">
+        </div>
+        <select x-model="$store.invCount.locationFilter" class="sf-input min-h-11 text-sm">
+            <option value="">Semua Lokasi</option>
+            @foreach($distinctLocations as $locationCode)
+                <option value="{{ $locationCode }}">{{ $locationLabels[$locationCode] ?? $locationCode }}</option>
+            @endforeach
+        </select>
+        <select x-model="$store.invCount.categoryFilter" class="sf-input min-h-11 text-sm">
+            <option value="">Semua Kategori</option>
+            @foreach($distinctCategories as $category)
+                <option value="{{ $category }}">{{ $category }}</option>
+            @endforeach
+        </select>
     </div>
 
+    @php $rowNum = 0; @endphp
     <div x-show="$store.invCount.mode !== 'table'">
         @foreach($linesBySubcategory as $subcategory => $lines)
-            <div class="mb-4">
+            <div class="mb-4" x-show="$store.invCount.categoryFilter === '' || $store.invCount.categoryFilter === @js($subcategory)">
                 <h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">{{ $subcategory }}</h3>
                 <div class="space-y-3" :class="$store.invCount.mode === 'card' ? 'lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0' : ''">
                     @foreach($lines as $line)
-                        @include('operations.inventory-count.partials.line-card', ['line' => $line, 'document' => $document])
+                        @php $rowNum++; @endphp
+                        @include('operations.inventory-count.partials.line-card', ['line' => $line, 'document' => $document, 'rowNum' => $rowNum])
                     @endforeach
                 </div>
             </div>
         @endforeach
     </div>
 
+    @php $rowNum = 0; @endphp
     <div x-show="$store.invCount.mode === 'table'" x-cloak class="overflow-x-auto rounded-xl border border-gray-200 -mx-4 lg:mx-0">
         <table class="min-w-full text-sm border-collapse">
             <thead>
                 <tr class="bg-gray-50">
-                    <th class="sticky left-0 z-10 bg-gray-50 px-3 py-2.5 text-left font-semibold text-gray-600 min-w-[180px]">Item</th>
+                    <th class="sticky left-0 z-10 bg-gray-50 px-2 py-2.5 text-center font-semibold text-gray-600 w-10">No.</th>
+                    <th class="sticky left-10 z-10 bg-gray-50 px-3 py-2.5 text-left font-semibold text-gray-600 min-w-[180px]">Item</th>
                     <th class="px-3 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Lokasi</th>
                     <th class="px-3 py-2.5 text-center font-semibold text-gray-600 min-w-[110px]">Utuh</th>
                     <th class="px-3 py-2.5 text-center font-semibold text-gray-600 min-w-[110px]">Ecer</th>
@@ -130,11 +158,12 @@
             </thead>
             <tbody>
                 @foreach($linesBySubcategory as $subcategory => $lines)
-                    <tr class="bg-primary-50">
-                        <td colspan="5" class="sticky left-0 px-3 py-2 text-xs font-bold uppercase tracking-wide text-primary-800 bg-primary-50">{{ $subcategory }}</td>
+                    <tr class="bg-primary-50" x-show="$store.invCount.categoryFilter === '' || $store.invCount.categoryFilter === @js($subcategory)">
+                        <td colspan="6" class="sticky left-0 px-3 py-2 text-xs font-bold uppercase tracking-wide text-primary-800 bg-primary-50">{{ $subcategory }}</td>
                     </tr>
                     @foreach($lines as $line)
-                        @include('operations.inventory-count.partials.table-row', ['line' => $line, 'document' => $document])
+                        @php $rowNum++; @endphp
+                        @include('operations.inventory-count.partials.table-row', ['line' => $line, 'document' => $document, 'rowNum' => $rowNum])
                     @endforeach
                 @endforeach
             </tbody>
@@ -178,6 +207,8 @@ function inventoryCountLine(config) {
         lineId: config.lineId,
         url: config.url,
         itemName: config.itemName ?? '',
+        location: config.location ?? '',
+        category: config.category ?? '',
         qtyWhole: config.qtyWhole,
         qtyLoose: config.qtyLoose,
         requiresConversion: config.requiresConversion,
@@ -189,12 +220,26 @@ function inventoryCountLine(config) {
         saveFailed: false,
         conflict: false,
         // Dipakai x-show di line-card.blade.php dan table-row.blade.php --
-        // search ada di Alpine.store('invCount') (BUKAN $parent) supaya
-        // tidak kena masalah "$parent is not defined" yang sama persis
-        // dengan bug mode Kartu yang pernah ditemukan.
+        // search/locationFilter/categoryFilter ada di Alpine.store('invCount')
+        // (BUKAN $parent) supaya tidak kena masalah "$parent is not defined"
+        // yang sama persis dengan bug mode Kartu yang pernah ditemukan.
         matchesSearch() {
             const q = Alpine.store('invCount').search.trim().toLowerCase();
             return q === '' || this.itemName.toLowerCase().includes(q);
+        },
+        // Mode List/Kartu: filter Kategori JUGA ditangani di level
+        // pembungkus grup subkategori (x-show di show.blade.php, grup = div
+        // nyata membungkus kartu-kartunya, jadi otomatis ikut tersembunyi).
+        // Mode Tabel: baris <tr> adalah SIBLING dari baris pembatas kategori
+        // (bukan child -- <tbody> tidak bisa membungkus per-grup), jadi
+        // kategori WAJIB dicek di sini juga supaya tetap benar di Tabel.
+        // Lokasi SELALU dicek di sini (bukan di grup) karena 1 subkategori
+        // bisa berisi lebih dari 1 lokasi (mis. BAR: Gudang & Bar Area).
+        isVisible() {
+            const store = Alpine.store('invCount');
+            const locOk = store.locationFilter === '' || this.location === store.locationFilter;
+            const catOk = store.categoryFilter === '' || this.category === store.categoryFilter;
+            return this.matchesSearch() && locOk && catOk;
         },
         // Alpine store 'invCount' diinisialisasi di wrapper x-init (lihat
         // show.blade.php) -- dibaca via $store, BUKAN lewat $root/__x yang
