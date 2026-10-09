@@ -6,7 +6,7 @@
 <x-sf.page-header title="{{ $document->template?->name }}" subtitle="{{ $document->outlet?->name }} -- {{ $document->department?->name }}" back="{{ route('operations.inventory-count.index') }}" />
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-4xl mx-auto w-full space-y-4 pb-28"
-     x-data="{ mode: 'list' }"
+     x-data
      x-init="Alpine.store('invCount', {
         docId: {{ $document->id }},
         docVersion: {{ $document->version }},
@@ -14,6 +14,7 @@
         total: {{ $totalCount }},
         status: @js($document->status),
         pendingSaves: 0,
+        mode: 'list',
      })"
      @inv-line-saved.window="
         $store.invCount.docVersion = $event.detail.documentVersion;
@@ -86,10 +87,10 @@
     @endif
 
     <div class="flex items-center gap-1.5">
-        <button type="button" @click="mode = 'list'" class="{{ true }} sf-btn-secondary text-xs px-3 py-1.5 min-h-9" :class="mode === 'list' ? 'sf-btn-primary' : 'sf-btn-secondary'">
+        <button type="button" @click="$store.invCount.mode = 'list'" class="{{ true }} sf-btn-secondary text-xs px-3 py-1.5 min-h-9" :class="$store.invCount.mode === 'list' ? 'sf-btn-primary' : 'sf-btn-secondary'">
             <i class="ti ti-list text-sm" aria-hidden="true"></i> List
         </button>
-        <button type="button" @click="mode = 'card'" class="sf-btn-secondary text-xs px-3 py-1.5 min-h-9" :class="mode === 'card' ? 'sf-btn-primary' : 'sf-btn-secondary'">
+        <button type="button" @click="$store.invCount.mode = 'card'" class="sf-btn-secondary text-xs px-3 py-1.5 min-h-9" :class="$store.invCount.mode === 'card' ? 'sf-btn-primary' : 'sf-btn-secondary'">
             <i class="ti ti-layout-grid text-sm" aria-hidden="true"></i> Kartu
         </button>
     </div>
@@ -97,7 +98,7 @@
     @foreach($linesBySubcategory as $subcategory => $lines)
         <div>
             <h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">{{ $subcategory }}</h3>
-            <div class="space-y-3" :class="mode === 'card' ? 'lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0' : ''">
+            <div class="space-y-3" :class="$store.invCount.mode === 'card' ? 'lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0' : ''">
                 @foreach($lines as $line)
                     @include('operations.inventory-count.partials.line-card', ['line' => $line, 'document' => $document])
                 @endforeach

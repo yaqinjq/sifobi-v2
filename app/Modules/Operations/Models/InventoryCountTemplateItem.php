@@ -24,6 +24,7 @@ class InventoryCountTemplateItem extends Model
         'subcategory_label',
         'sort_order',
         'locations',
+        'location_units',
         'requires_conversion',
         'is_active',
     ];
@@ -37,6 +38,7 @@ class InventoryCountTemplateItem extends Model
     {
         return [
             'locations' => 'array',
+            'location_units' => 'array',
             'requires_conversion' => 'boolean',
             'is_active' => 'boolean',
         ];

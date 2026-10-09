@@ -121,7 +121,7 @@ class InventoryCountService
             $locations = $templateItem->locations ?: [InventoryCountLine::LOCATION_GENERIC];
 
             foreach ($locations as $location) {
-                $config = $this->resolveLineConfig($templateItem, $item);
+                $config = $this->resolveLineConfig($templateItem, $item, $location);
 
                 InventoryCountLine::query()->create([
                     'tenant_id' => $tenantId,
@@ -144,8 +144,28 @@ class InventoryCountService
     /**
      * @return array{requires_conversion: bool, config_valid: bool, whole_unit_id: ?int, loose_unit_id: ?int, conversion_factor: ?string}
      */
-    private function resolveLineConfig(InventoryCountTemplateItem $templateItem, Item $item): array
+    private function resolveLineConfig(InventoryCountTemplateItem $templateItem, Item $item, string $location): array
     {
+        // Override unit per lokasi (mis. Simple Syrup: Gln di Gudang, Kg di
+        // Bar Area) -- TIDAK ADA rasio konversi otomatis antar unit berbeda
+        // substansi yang ditebak dari kemiripan nama. Kalau override unit
+        // beda dari unit master item, config_valid dipaksa false: staf masih
+        // bisa isi angka mentah per lokasi, tapi qty_base TIDAK diklaim valid.
+        $overrideUnitId = $templateItem->location_units[$location] ?? null;
+
+        if ($overrideUnitId !== null) {
+            $masterUnitId = $item->base_unit_id ?: $item->inventory_unit_id;
+            $overrideMatchesMaster = $masterUnitId !== null && (int) $overrideUnitId === (int) $masterUnitId;
+
+            return [
+                'requires_conversion' => false,
+                'config_valid' => $overrideMatchesMaster,
+                'whole_unit_id' => (int) $overrideUnitId,
+                'loose_unit_id' => null,
+                'conversion_factor' => null,
+            ];
+        }
+
         if (! $templateItem->requires_conversion) {
             return [
                 'requires_conversion' => false,

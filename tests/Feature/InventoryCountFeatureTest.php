@@ -137,9 +137,22 @@ test('the show page renders distinct List and Kartu mode bindings, not identical
     // subkategori diulang per kartu -- kalau binding ini tidak ada,
     // Kartu hanya beda warna tombol dari List (regresi UX yang pernah
     // ditemukan).
-    expect($html)->toContain("\$parent.mode === 'card' ? 'grid-cols-1'")
-        ->and($html)->toContain("\$parent.mode === 'card' ? 'text-xl min-h-14 text-center'")
-        ->and($html)->toContain('$parent.mode === \'card\'" x-cloak');
+    //
+    // PERINGATAN DARI PENGALAMAN NYATA: assertion string di bawah ini
+    // CUMA membuktikan teks binding ADA di HTML -- bukan bahwa Alpine
+    // benar-benar bisa MENGEVALUASINYA di browser. Versi sebelumnya
+    // memakai "$parent.mode" di root elemen yang juga mendeklarasikan
+    // x-data sendiri (line-card.blade.php) -- test string ini LULUS,
+    // tapi di browser sungguhan Alpine melempar
+    // "$parent is not defined" untuk SETIAP baris (terbukti lewat
+    // console.error Playwright), sehingga Mode Kartu scara VISUAL
+    // identik dengan List walau test ini hijau. Diperbaiki dengan
+    // pindah ke $store.invCount.mode (global, tidak butuh $parent).
+    // Lihat docs/technical/inventory-simple-fullscale-test-2026-10-09.md.
+    expect($html)->toContain("\$store.invCount.mode === 'card' ? 'grid-cols-1'")
+        ->and($html)->toContain("\$store.invCount.mode === 'card' ? 'text-xl min-h-14 text-center'")
+        ->and($html)->toContain('$store.invCount.mode === \'card\'" x-cloak')
+        ->and($html)->not->toContain('$parent.mode');
 });
 
 test('staff bar can start a draft and staff pastry cannot see or edit it', function (): void {
