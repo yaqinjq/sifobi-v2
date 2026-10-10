@@ -32,13 +32,21 @@
         </button>
     </div>
     <div class="overflow-x-auto rounded-xl border border-gray-200 -mx-4 lg:mx-0">
-        <table id="movement-table" class="min-w-full text-xs border-collapse" x-data="{ weekStart: @js($weekStart->toDateString()) }">
+        {{-- Lebar EKSPLISIT (bukan min-w-full) -- table-fixed + lebar
+             persentase/otomatis membuat browser menyusutkan kolom
+             proporsional kalau total lebar kolom melebihi container,
+             sehingga offset sticky left-[180px] tidak lagi cocok dengan
+             lebar kolom Item yang sungguhan (inilah akar bug "tertindih"
+             yang dilaporkan). Lebar total = 180 (Item) + 90 (Saldo Awal)
+             + 7 x (64+64+72) (IN/OUT/BAL per hari) = 1670px tetap, scroll
+             horizontal muncul kalau viewport lebih sempit dari itu. --}}
+        <table id="movement-table" class="w-[1670px] text-xs border-collapse table-fixed" x-data="{ weekStart: @js($weekStart->toDateString()) }">
             <thead>
                 <tr class="bg-gray-50">
                     <th rowspan="2" class="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left font-semibold text-gray-600 w-[180px] align-bottom cursor-pointer select-none" onclick="sortMovementTable()">
                         Item <i class="ti ti-arrows-sort text-xs text-gray-400" data-movement-sort-icon aria-hidden="true"></i>
                     </th>
-                    <th rowspan="2" class="sticky left-[180px] z-20 bg-gray-50 px-2 py-2 text-center font-semibold text-gray-600 min-w-[90px] align-bottom">Saldo Awal<br><span class="font-normal text-gray-400">({{ $weekStart->translatedFormat('d/m') }})</span></th>
+                    <th rowspan="2" class="sticky left-[180px] z-20 bg-gray-50 px-2 py-2 text-center font-semibold text-gray-600 w-[90px] align-bottom">Saldo Awal<br><span class="font-normal text-gray-400">({{ $weekStart->translatedFormat('d/m') }})</span></th>
                     @for($i = 0; $i < 7; $i++)
                         @php $d = $weekStart->copy()->addDays($i); @endphp
                         <th colspan="3" class="px-2 py-1.5 text-center font-semibold text-gray-600 border-l border-gray-200 whitespace-nowrap">{{ $d->translatedFormat('D, d/m') }}</th>
@@ -46,9 +54,9 @@
                 </tr>
                 <tr class="bg-gray-50">
                     @for($i = 0; $i < 7; $i++)
-                        <th class="px-1.5 py-1.5 text-center font-medium text-gray-500 border-l border-gray-200 min-w-[64px]">IN</th>
-                        <th class="px-1.5 py-1.5 text-center font-medium text-gray-500 min-w-[64px]">OUT</th>
-                        <th class="px-1.5 py-1.5 text-center font-medium text-gray-500 min-w-[72px]">BAL</th>
+                        <th class="px-1.5 py-1.5 text-center font-medium text-gray-500 border-l border-gray-200 w-[64px]">IN</th>
+                        <th class="px-1.5 py-1.5 text-center font-medium text-gray-500 w-[64px]">OUT</th>
+                        <th class="px-1.5 py-1.5 text-center font-medium text-gray-500 w-[72px]">BAL</th>
                     @endfor
                 </tr>
             </thead>

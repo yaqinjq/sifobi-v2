@@ -160,19 +160,19 @@
             <thead>
                 <tr class="bg-gray-50">
                     <th class="sticky left-0 z-10 bg-gray-50 px-2 py-2.5 text-center font-semibold text-gray-600 w-10">No.</th>
-                    <th class="sticky left-10 z-10 bg-gray-50 px-3 py-2.5 text-left font-semibold text-gray-600 min-w-[180px] cursor-pointer select-none" onclick="sortInvTable('itemName', 'text')">
+                    <th class="sticky left-10 z-10 bg-gray-50 px-3 py-2.5 text-left font-semibold text-gray-600 w-[180px] cursor-pointer select-none" onclick="sortInvTable('itemName', 'text')">
                         Item <i class="ti ti-arrows-sort text-xs text-gray-400" data-sort-icon="itemName" aria-hidden="true"></i>
                     </th>
-                    <th class="px-3 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap cursor-pointer select-none" onclick="sortInvTable('location', 'text')">
+                    <th class="px-3 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap w-[110px] cursor-pointer select-none" onclick="sortInvTable('location', 'text')">
                         Lokasi <i class="ti ti-arrows-sort text-xs text-gray-400" data-sort-icon="location" aria-hidden="true"></i>
                     </th>
-                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 min-w-[110px] cursor-pointer select-none" onclick="sortInvTable('qtyWhole', 'number')">
+                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 w-[110px] cursor-pointer select-none" onclick="sortInvTable('qtyWhole', 'number')">
                         Utuh <i class="ti ti-arrows-sort text-xs text-gray-400" data-sort-icon="qtyWhole" aria-hidden="true"></i>
                     </th>
-                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 min-w-[110px] cursor-pointer select-none" onclick="sortInvTable('qtyLoose', 'number')">
+                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 w-[110px] cursor-pointer select-none" onclick="sortInvTable('qtyLoose', 'number')">
                         Ecer <i class="ti ti-arrows-sort text-xs text-gray-400" data-sort-icon="qtyLoose" aria-hidden="true"></i>
                     </th>
-                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 whitespace-nowrap cursor-pointer select-none" onclick="sortInvTable('isCounted', 'bool')">
+                    <th class="px-3 py-2.5 text-center font-semibold text-gray-600 whitespace-nowrap w-[100px] cursor-pointer select-none" onclick="sortInvTable('isCounted', 'bool')">
                         Status <i class="ti ti-arrows-sort text-xs text-gray-400" data-sort-icon="isCounted" aria-hidden="true"></i>
                     </th>
                 </tr>
