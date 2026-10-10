@@ -78,7 +78,17 @@
             <tbody>
                 @foreach($rows->groupBy('subcategory') as $subcategory => $groupRows)
                     <tr class="bg-primary-50" x-show="$store.movements.categoryFilter === '' || $store.movements.categoryFilter === @js($subcategory)">
-                        <td colspan="23" class="sticky left-0 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-primary-800 bg-primary-50">{{ $subcategory }}</td>
+                        {{-- position:sticky TIDAK bekerja di <td> yang colspan-nya
+                             sudah selebar seluruh tabel -- elemen itu tidak
+                             punya "ruang gerak" sendiri untuk perhitungan
+                             sticky (terbukti lewat getBoundingClientRect(),
+                             ikut ter-scroll penuh alih-alih menempel). Yang
+                             sticky dipindah ke <span> pembungkus teks di
+                             dalamnya, yang punya ruang gerak nyata karena
+                             TD induknya jauh lebih lebar dari teksnya. --}}
+                        <td colspan="23" class="px-3 py-1.5 bg-primary-50">
+                            <span class="sticky left-0 text-xs font-bold uppercase tracking-wide text-primary-800 inline-block">{{ $subcategory }}</span>
+                        </td>
                     </tr>
                     @foreach($groupRows as $row)
                         @include('operations.inventory-count.partials.movement-row', ['row' => $row, 'weekStart' => $weekStart])
