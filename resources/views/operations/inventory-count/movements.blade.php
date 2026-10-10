@@ -5,7 +5,9 @@
 @section('content')
 <x-sf.page-header title="Rekap Mingguan" subtitle="{{ $template->name }} -- {{ $outlet?->name }} / {{ $department?->name }}" back="{{ route('operations.inventory-count.index') }}" />
 
-<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4">
+<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4"
+     x-data
+     x-init="Alpine.store('movements', { search: '', categoryFilter: '' })">
     <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
         <i class="ti ti-alert-triangle" aria-hidden="true"></i>
         <strong>Saldo mandiri Inventory Simple -- BUKAN saldo stok sistem resmi.</strong>
@@ -25,6 +27,19 @@
         </div>
     </x-sf.card>
 
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div class="relative">
+            <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true"></i>
+            <input type="search" x-model="$store.movements.search" placeholder="Cari nama item..." class="sf-input pl-9 min-h-11 text-sm">
+        </div>
+        <select x-model="$store.movements.categoryFilter" class="sf-input min-h-11 text-sm">
+            <option value="">Semua Kategori</option>
+            @foreach($distinctCategories as $category)
+                <option value="{{ $category }}">{{ $category }}</option>
+            @endforeach
+        </select>
+    </div>
+
     <div class="flex items-center justify-between">
         <p class="text-xs text-gray-500">Klik header Item untuk urutkan A-Z.</p>
         <button type="button" onclick="resetMovementTableOrder()" class="text-xs font-semibold text-primary-700">
@@ -40,7 +55,7 @@
              yang dilaporkan). Lebar total = 180 (Item) + 90 (Saldo Awal)
              + 7 x (64+64+72) (IN/OUT/BAL per hari) = 1670px tetap, scroll
              horizontal muncul kalau viewport lebih sempit dari itu. --}}
-        <table id="movement-table" class="w-[1670px] text-xs border-collapse table-fixed" x-data="{ weekStart: @js($weekStart->toDateString()) }">
+        <table id="movement-table" class="w-[1670px] text-xs border-collapse table-fixed">
             <thead>
                 <tr class="bg-gray-50">
                     <th rowspan="2" class="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left font-semibold text-gray-600 w-[180px] align-bottom cursor-pointer select-none" onclick="sortMovementTable()">
@@ -62,8 +77,8 @@
             </thead>
             <tbody>
                 @foreach($rows->groupBy('subcategory') as $subcategory => $groupRows)
-                    <tr class="bg-primary-50">
-                        <td colspan="23" class="sticky left-0 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-primary-800 bg-primary-50">{{ $subcategory ?: 'Lainnya' }}</td>
+                    <tr class="bg-primary-50" x-show="$store.movements.categoryFilter === '' || $store.movements.categoryFilter === @js($subcategory)">
+                        <td colspan="23" class="sticky left-0 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-primary-800 bg-primary-50">{{ $subcategory }}</td>
                     </tr>
                     @foreach($groupRows as $row)
                         @include('operations.inventory-count.partials.movement-row', ['row' => $row, 'weekStart' => $weekStart])
@@ -130,6 +145,7 @@ function movementRow(config) {
     return {
         itemId: config.itemId,
         itemName: config.itemName ?? '',
+        category: config.category ?? '',
         autosaveUrl: config.autosaveUrl,
         openingBalanceUrl: config.openingBalanceUrl,
         weekStartDate: config.weekStartDate,
@@ -139,6 +155,16 @@ function movementRow(config) {
         error: config.error,
         savingOpening: false,
         savingDay: null,
+        // Store 'movements' (BUKAN $parent) -- pola sama dengan
+        // Alpine.store('invCount') di show.blade.php, menghindari bug
+        // "$parent is not defined" yang pernah ditemukan.
+        isVisible() {
+            const store = Alpine.store('movements');
+            const q = store.search.trim().toLowerCase();
+            const matchesSearch = q === '' || this.itemName.toLowerCase().includes(q);
+            const matchesCategory = store.categoryFilter === '' || this.category === store.categoryFilter;
+            return matchesSearch && matchesCategory;
+        },
         async saveOpeningBalance() {
             if (this.openingBalanceInput.trim() === '') return;
             this.savingOpening = true;

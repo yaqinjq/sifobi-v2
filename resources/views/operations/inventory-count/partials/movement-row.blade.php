@@ -15,9 +15,11 @@
         ])->all();
     }
 @endphp
-<tr x-data="movementRow({
+<tr x-show="isVisible()"
+    x-data="movementRow({
         itemId: {{ $item->id }},
         itemName: @js($item->name),
+        category: @js($row['subcategory']),
         autosaveUrl: @js(route('operations.inventory-count.movements.autosave', $item)),
         openingBalanceUrl: @js(route('operations.inventory-count.movements.opening-balance', $item)),
         weekStartDate: @js($weekStart->toDateString()),

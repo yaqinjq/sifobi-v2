@@ -67,7 +67,7 @@ class InventoryCountMovementController extends Controller
 
             return [
                 'item' => $item,
-                'subcategory' => $templateItem->subcategory_label,
+                'subcategory' => $templateItem->subcategory_label ?: 'Lainnya',
                 'unit' => $item->baseUnit?->abbreviation ?? $item->baseUnit?->code ?? '',
                 'result' => $result,
             ];
@@ -79,6 +79,7 @@ class InventoryCountMovementController extends Controller
             'department' => Department::query()->find($departmentId),
             'weekStart' => $weekStart,
             'rows' => $rows,
+            'distinctCategories' => $rows->pluck('subcategory')->unique()->sort()->values(),
             'isSuperAdmin' => $this->isSuperAdmin($request),
         ]);
     }
