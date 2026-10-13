@@ -34,7 +34,7 @@ class InventoryCountRecapExport implements FromArray, ShouldAutoSize, WithEvents
     {
         $out = [
             ['Rekap Hasil Hitung Mingguan', 'Pendataan fisik -- belum mengubah saldo stok sistem. Hari kosong = belum dihitung, bukan 0.'],
-            ['Item', 'Subkategori', 'Lokasi', 'Tanggal', 'Status Hitung', 'Qty Utuh', 'Satuan Utuh', 'Qty Ecer', 'Satuan Ecer'],
+            ['Item', 'Subkategori', 'Lokasi', 'Tanggal', 'Status Hitung', 'Qty Utuh', 'Satuan Utuh', 'Qty Ecer', 'Satuan Ecer', 'Catatan'],
         ];
 
         foreach ($this->rows as $row) {
@@ -53,6 +53,13 @@ class InventoryCountRecapExport implements FromArray, ShouldAutoSize, WithEvents
                     $day['whole_unit'] ?? '',
                     $day['counted'] && $day['qty_loose'] !== null ? $day['qty_loose'] : ($day['counted'] ? '' : '(belum dihitung)'),
                     $day['loose_unit'] ?? '',
+                    // Angka tetap apa adanya (TIDAK diubah/di-nol-kan) --
+                    // kolom ini cuma penanda, supaya konsisten dgn peringatan
+                    // "satuan belum valid" yang sudah ada di tampilan web
+                    // (lihat recap-row.blade.php). Tanpa ini, pembaca Excel
+                    // bisa salah percaya qty+satuan sudah pasti benar padahal
+                    // konfigurasi konversi/override satuannya belum valid.
+                    ($day['counted'] && ! $day['config_valid']) ? 'Satuan belum valid, cek konfigurasi item' : '',
                 ];
             }
         }

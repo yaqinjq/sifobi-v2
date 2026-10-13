@@ -2,6 +2,13 @@
 
 @section('title', 'Isi Inventory')
 
+{{-- Tombol "Kirim Hasil Hitung" ada di bar fixed bottom-0 z-30 miliknya
+     sendiri (lihat bawah) -- tanpa ini, bottom nav mobile (z-40, juga
+     fixed bottom-0) menimpa & memblokir klik tombol Kirim di viewport
+     mobile. Pola yang sama sudah dipakai operations/open-stocks/create
+     & edit utk masalah identik. --}}
+@section('hide-bottom-nav', 'true')
+
 @section('content')
 <x-sf.page-header title="{{ $document->template?->name }}" subtitle="{{ $document->outlet?->name }} -- {{ $document->department?->name }}" back="{{ route('operations.inventory-count.index') }}" />
 
@@ -81,17 +88,24 @@
                 </form>
             @endif
         </x-sf.card>
+    @endif
 
-        @if($document->revisions->isNotEmpty())
-            <x-sf.card title="Riwayat Revisi">
-                @foreach($document->revisions as $revision)
-                    <div class="text-sm py-2 border-b border-gray-50 last:border-0">
-                        <p class="text-gray-700">{{ $revision->from_status }} &rarr; {{ $revision->to_status }} oleh {{ $revision->performedBy?->name }}</p>
-                        <p class="text-xs text-gray-500">{{ $revision->performed_at->translatedFormat('d M Y H:i') }} -- {{ $revision->reason }}</p>
-                    </div>
-                @endforeach
-            </x-sf.card>
-        @endif
+    {{-- Riwayat revisi TIDAK digembok ke status SUBMITTED -- sebelumnya
+         kartu ini hilang total begitu dokumen kembali ke Draft (lihat
+         temuan B-F1, docs/technical/uat-inventory-simple-2026-10-13.md),
+         padahal justru saat sedang direvisi staf paling butuh tahu
+         alasannya. Akses lihat dokumen ini sendiri sudah digerbangi
+         assertDocumentInScope() di controller, jadi riwayat di sini ikut
+         izin akses yang sama, tidak perlu pengecekan tambahan. --}}
+    @if($document->revisions->isNotEmpty())
+        <x-sf.card title="Riwayat Revisi">
+            @foreach($document->revisions as $revision)
+                <div class="text-sm py-2 border-b border-gray-50 last:border-0">
+                    <p class="text-gray-700">{{ $revision->from_status }} &rarr; {{ $revision->to_status }} oleh {{ $revision->performedBy?->name }}</p>
+                    <p class="text-xs text-gray-500">{{ $revision->performed_at->translatedFormat('d M Y H:i') }} -- {{ $revision->reason }}</p>
+                </div>
+            @endforeach
+        </x-sf.card>
     @endif
 
     <div class="flex items-center gap-1.5">
@@ -290,6 +304,7 @@ function inventoryCountLine(config) {
     return {
         lineId: config.lineId,
         url: config.url,
+        zeroUrl: config.zeroUrl,
         itemName: config.itemName ?? '',
         location: config.location ?? '',
         category: config.category ?? '',
@@ -333,29 +348,49 @@ function inventoryCountLine(config) {
         // TIDAK PERNAH jalan sementara ada autosave yang belum selesai.
         async save() {
             if (Alpine.store('invCount').status === 'SUBMITTED') return;
+            await this._persist(this.url, 'PATCH', {
+                qty_whole: this.qtyWhole,
+                qty_loose: this.qtyLoose,
+                expected_version: Alpine.store('invCount').docVersion,
+            });
+        },
+        // Tombol "Stok Nol" -- panggil endpoint dedicated POST .../zero
+        // (bukan reuse save() dgn qty di-set manual) supaya nilai nol
+        // dipaksa di sisi SERVER (InventoryCountService::markZero()),
+        // bukan sekadar dikirim client sebagai qty_whole='0' biasa --
+        // cegah divergensi diam-diam antara tombol ini dan endpoint
+        // dedicated yang memang disediakan utk aksi ini (lihat temuan
+        // B-F2, docs/technical/uat-inventory-simple-2026-10-13.md).
+        async markZero() {
+            if (Alpine.store('invCount').status === 'SUBMITTED') return;
+            const ok = await this._persist(this.zeroUrl, 'POST', {
+                expected_version: Alpine.store('invCount').docVersion,
+            });
+            if (ok) {
+                this.qtyWhole = '0';
+                this.qtyLoose = this.requiresConversion ? '0' : null;
+            }
+        },
+        async _persist(url, method, body) {
             this.saving = true;
             this.saveFailed = false;
             this.conflict = false;
             Alpine.store('invCount').pendingSaves++;
 
             try {
-                const response = await fetch(this.url, {
-                    method: 'PATCH',
+                const response = await fetch(url, {
+                    method,
                     headers: {
                         'Accept': 'application/json',
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     },
-                    body: JSON.stringify({
-                        qty_whole: this.qtyWhole,
-                        qty_loose: this.qtyLoose,
-                        expected_version: Alpine.store('invCount').docVersion,
-                    }),
+                    body: JSON.stringify(body),
                 });
 
                 if (response.status === 409) {
                     this.conflict = true;
-                    return;
+                    return false;
                 }
                 if (!response.ok) {
                     // Gagal tersimpan (validasi/server error) -- JANGAN
@@ -363,7 +398,7 @@ function inventoryCountLine(config) {
                     // indikator gagal yang jelas supaya staf tahu harus
                     // coba lagi, bukan mengira datanya sudah aman.
                     this.saveFailed = true;
-                    return;
+                    return false;
                 }
 
                 const data = await response.json();
@@ -374,21 +409,18 @@ function inventoryCountLine(config) {
                 this.wasCountedBefore = this.isCounted;
                 this.saved = true;
                 setTimeout(() => this.saved = false, 1200);
+                return true;
             } catch (networkError) {
                 // fetch() melempar exception kalau koneksi benar-benar
                 // putus (bukan cuma response non-200) -- tanpa catch ini,
                 // "saving" akan macet true selamanya dan tidak ada
                 // feedback sama sekali ke staf.
                 this.saveFailed = true;
+                return false;
             } finally {
                 this.saving = false;
                 Alpine.store('invCount').pendingSaves--;
             }
-        },
-        async markZero() {
-            this.qtyWhole = '0';
-            this.qtyLoose = this.requiresConversion ? '0' : null;
-            await this.save();
         },
     };
 }

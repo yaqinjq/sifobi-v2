@@ -15,6 +15,7 @@
      x-data="inventoryCountLine({
         lineId: {{ $line->id }},
         url: @js(route('operations.inventory-count.lines.autosave', $line)),
+        zeroUrl: @js(route('operations.inventory-count.lines.zero', $line)),
         itemName: @js($line->item?->name ?? ''),
         location: @js($line->location),
         category: @js($line->subcategory_label ?: 'Lainnya'),

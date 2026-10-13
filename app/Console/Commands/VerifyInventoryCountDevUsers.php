@@ -13,8 +13,11 @@ class VerifyInventoryCountDevUsers extends Command
 
     public function handle(): int
     {
-        if (app()->isProduction()) {
-            $this->error('Refused: dev-only.');
+        // Allow-list (bukan deny-list) -- sama alasannya dgn
+        // SeedInventoryCountDevFixtures: isProduction() lolos utk
+        // APP_ENV='staging', yang mungkin punya data akun riil.
+        if (! app()->environment(['local', 'testing'])) {
+            $this->error('Refused: this command only runs in local/testing environments (current: '.app()->environment().').');
 
             return self::FAILURE;
         }

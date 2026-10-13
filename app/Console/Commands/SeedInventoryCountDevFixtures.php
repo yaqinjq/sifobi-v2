@@ -26,8 +26,14 @@ class SeedInventoryCountDevFixtures extends Command
 
     public function handle(): int
     {
-        if (app()->isProduction()) {
-            $this->error('Refused: this command is dev-only.');
+        // Allow-list, BUKAN deny-list -- app()->isProduction() sebelumnya
+        // cuma menolak APP_ENV='production' secara eksplisit, artinya
+        // APP_ENV='staging' (atau environment lain yang mungkin menyimpan
+        // data riil) LOLOS tanpa dicegah sama sekali. Command ini menulis
+        // data sintetis massal (307 baris fixture) -- HANYA boleh jalan
+        // di local/testing yang sudah pasti terisolasi.
+        if (! app()->environment(['local', 'testing'])) {
+            $this->error('Refused: this command only runs in local/testing environments (current: '.app()->environment().'). Never run this against staging or production.');
 
             return self::FAILURE;
         }

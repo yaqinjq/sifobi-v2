@@ -753,3 +753,91 @@ test('every inventory-count route is completely unregistered (not just forbidden
         ->and($stdout)->not->toContain('operations.inventory-count.request-revision')
         ->and($stdout)->not->toContain('operations.inventory-count.export');
 })->skip(fn () => ! file_exists(base_path('artisan')), 'artisan tidak ditemukan di base_path() -- lingkungan test tidak mendukung subprocess check ini.');
+
+// ===================== business_date tidak pernah bergeser =====================
+// Regresi khusus untuk UAT 2026-10-13 (G.6): skrip pengujian browser
+// sempat (karena bug SKRIP, bukan produk) mengubah business_date salah
+// satu dokumen uji secara tidak sengaja. Dikonfirmasi bersih lewat 2
+// reproduksi terisolasi (panggil service langsung + HTTP mentah), tapi
+// belum ada test permanen yang mengunci invariant ini -- ditambahkan di
+// sini supaya regresi serupa di masa depan tertangkap otomatis.
+
+test('business_date tidak berubah melalui siklus penuh autosave, submit, revisi, dan submit ulang', function (): void {
+    $barStaff = invUser('STAFF_BAR', 'BAR');
+    $manager = invUser('MANAGER_AREA', null);
+    $manager->forceFill(['outlet_id' => $this->outlet->id, 'department_id' => $this->bar->id])->saveQuietly();
+
+    $originalDate = now()->subDays(3)->startOfDay();
+    $document = app(InventoryCountService::class)->createOrResumeDraft(
+        $this->tenant->id, $this->outlet->id, $this->bar->id, $this->barTemplate, $originalDate, $barStaff->id
+    );
+    $expectedDateString = $document->business_date->toDateString();
+    expect($expectedDateString)->toBe($originalDate->toDateString());
+
+    foreach ($document->lines as $line) {
+        $this->actingAs($barStaff)->patchJson(route('operations.inventory-count.lines.autosave', $line), [
+            'qty_whole' => '5', 'expected_version' => $document->refresh()->version,
+        ])->assertOk();
+        expect($document->refresh()->business_date->toDateString())->toBe($expectedDateString);
+    }
+
+    $this->actingAs($barStaff)
+        ->post(route('operations.inventory-count.submit', $document), ['expected_version' => $document->refresh()->version])
+        ->assertRedirect();
+    $document->refresh();
+    expect($document->status)->toBe('SUBMITTED')
+        ->and($document->business_date->toDateString())->toBe($expectedDateString);
+
+    $this->actingAs($manager)
+        ->post(route('operations.inventory-count.request-revision', $document), ['reason' => 'Cek ulang angka'])
+        ->assertRedirect();
+    $document->refresh();
+    expect($document->status)->toBe('DRAFT')
+        ->and($document->business_date->toDateString())->toBe($expectedDateString);
+
+    $this->actingAs($barStaff)
+        ->post(route('operations.inventory-count.submit', $document), ['expected_version' => $document->refresh()->version])
+        ->assertRedirect();
+    $document->refresh();
+    expect($document->status)->toBe('SUBMITTED')
+        ->and($document->business_date->toDateString())->toBe($expectedDateString)
+        // Nilai mentah di DB juga dicek, bukan cuma hasil cast Carbon --
+        // supaya kalau cast 'date' bare ikut membengkak jadi
+        // "Y-m-d H:i:s" (pola bug D-F1 di movements), tetap ketahuan
+        // selama bagian tanggalnya (10 char pertama) tidak berubah.
+        ->and(substr($document->getRawOriginal('business_date'), 0, 10))->toBe($expectedDateString);
+});
+
+test('klik ganda (double-click) tombol Kirim tidak menduplikasi dokumen atau menyebabkan error server', function (): void {
+    $barStaff = invUser('STAFF_BAR', 'BAR');
+    $document = app(InventoryCountService::class)->createOrResumeDraft(
+        $this->tenant->id, $this->outlet->id, $this->bar->id, $this->barTemplate, now(), $barStaff->id
+    );
+
+    foreach ($document->lines as $line) {
+        $this->actingAs($barStaff)->patchJson(route('operations.inventory-count.lines.autosave', $line), [
+            'qty_whole' => '5', 'expected_version' => $document->refresh()->version,
+        ])->assertOk();
+    }
+
+    $document->refresh();
+    $expectedVersion = $document->version;
+
+    // Dua request submit BERURUTAN dengan expected_version yang SAMA --
+    // mensimulasikan klik ganda sebelum tombol sempat disabled/redirect
+    // pertama selesai. Request pertama harus berhasil; yang kedua TIDAK
+    // BOLEH membuat dokumen baru atau crash 500 -- cukup gagal dgn pesan
+    // konflik yang rapi (versi sudah tidak berlaku lagi setelah submit
+    // pertama menaikkan version), persis seperti autosave stale-version.
+    $first = $this->actingAs($barStaff)
+        ->post(route('operations.inventory-count.submit', $document), ['expected_version' => $expectedVersion]);
+    $second = $this->actingAs($barStaff)
+        ->post(route('operations.inventory-count.submit', $document), ['expected_version' => $expectedVersion]);
+
+    $first->assertRedirect();
+    expect($second->status())->not->toBe(500);
+
+    $document->refresh();
+    expect($document->status)->toBe('SUBMITTED')
+        ->and(InventoryCountDocument::query()->where('tenant_id', $this->tenant->id)->count())->toBe(1);
+});
