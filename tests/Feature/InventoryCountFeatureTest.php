@@ -746,12 +746,51 @@ test('every inventory-count route is completely unregistered (not just forbidden
     // ATAU tabel kosong -- intinya TIDAK ADA satu pun baris route
     // inventory-count.* yang muncul, beda dari 403 (yang masih berarti
     // route terdaftar, cuma ditolak otorisasi).
+    // Enumerasi LENGKAP -- sebelumnya cuma 6 route GET/PATCH yang dicek di
+    // sini, melewatkan beberapa route TULIS (start, lines.zero, seluruh
+    // movements.*) yang juga HARUS hilang total saat flag utama OFF, bukan
+    // cuma "ter-gate movements flag-nya sendiri". recap.index/recap.export
+    // SENGAJA TIDAK dicek absen di sini -- route itu memang tetap aktif
+    // selama inventory_simple_enabled=true (gate independen, lihat test
+    // movements terpisah).
     expect($stdout)->not->toContain('operations.inventory-count.index')
         ->and($stdout)->not->toContain('operations.inventory-count.show')
+        ->and($stdout)->not->toContain('operations.inventory-count.start')
         ->and($stdout)->not->toContain('operations.inventory-count.lines.autosave')
+        ->and($stdout)->not->toContain('operations.inventory-count.lines.zero')
         ->and($stdout)->not->toContain('operations.inventory-count.submit')
         ->and($stdout)->not->toContain('operations.inventory-count.request-revision')
-        ->and($stdout)->not->toContain('operations.inventory-count.export');
+        ->and($stdout)->not->toContain('operations.inventory-count.export')
+        ->and($stdout)->not->toContain('operations.inventory-count.movements');
+})->skip(fn () => ! file_exists(base_path('artisan')), 'artisan tidak ditemukan di base_path() -- lingkungan test tidak mendukung subprocess check ini.');
+
+test('every inventory-count WRITE route (not just the 6 originally checked GET routes) is unregistered when the feature flag is off', function (): void {
+    $phpBinary = PHP_BINARY;
+    $basePath = base_path();
+
+    $descriptorSpec = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+    $env = array_filter(array_merge($_ENV, $_SERVER), fn ($value) => is_scalar($value));
+    $env['INVENTORY_SIMPLE_ENABLED'] = 'false';
+
+    $process = proc_open(
+        "\"{$phpBinary}\" artisan route:list --method=POST,PATCH,PUT,DELETE --name=inventory-count",
+        $descriptorSpec,
+        $pipes,
+        $basePath,
+        $env
+    );
+
+    expect($process)->not->toBeFalse();
+
+    $stdout = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    proc_close($process);
+
+    // Filter method=POST,PATCH,PUT,DELETE sendiri sudah membuktikan TIDAK
+    // ADA satu pun route tulis inventory-count.* terdaftar sama sekali --
+    // tabel kosong/pesan "no routes" adalah hasil yang benar.
+    expect($stdout)->not->toContain('inventory-count');
 })->skip(fn () => ! file_exists(base_path('artisan')), 'artisan tidak ditemukan di base_path() -- lingkungan test tidak mendukung subprocess check ini.');
 
 // ===================== business_date tidak pernah bergeser =====================
