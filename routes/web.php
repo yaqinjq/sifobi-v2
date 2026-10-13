@@ -14,6 +14,7 @@ use App\Http\Controllers\MasterData\ItemConversionController;
 use App\Http\Controllers\MasterData\UnitController;
 use App\Http\Controllers\Operations\InventoryCountController;
 use App\Http\Controllers\Operations\InventoryCountMovementController;
+use App\Http\Controllers\Operations\InventoryCountRecapController;
 use App\Http\Controllers\Operations\OpenStockImportController;
 use App\Http\Controllers\Operations\OpenStockController;
 use App\Http\Controllers\Operations\OpnameController;
@@ -629,18 +630,32 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                     Route::get('/history', [InventoryCountController::class, 'history'])->name('history');
                     Route::get('/export', [InventoryCountController::class, 'export'])->name('export');
 
-                    // ── Rekap Mingguan (saldo mandiri, BUKAN ledger resmi) ──
-                    // Tabel terpisah (inventory_count_movements/
-                    // inventory_count_opening_balances), tidak pernah
-                    // menyentuh stock_balances/stock_mutations. Lihat
-                    // InventoryCountMovementService. HARUS didaftarkan
-                    // SEBELUM '/{document}' di bawah -- kalau tidak, "/movements"
-                    // akan ketangkap wildcard '/{document}' lebih dulu (route-
-                    // model-binding gagal cari dokumen id="movements" -> 404
-                    // sebelum sempat sampai ke route movements.index).
-                    Route::get('/movements', [InventoryCountMovementController::class, 'index'])->name('movements.index');
-                    Route::patch('/movements/{item}', [InventoryCountMovementController::class, 'autosave'])->name('movements.autosave');
-                    Route::post('/movements/{item}/opening-balance', [InventoryCountMovementController::class, 'saveOpeningBalance'])->name('movements.opening-balance');
+                    // ── Rekap Mingguan saldo mandiri (BUKAN ledger resmi) ──
+                    // Flag TERPISAH (inventory_simple_movements_enabled),
+                    // default OFF sejak UAT 2026-10-13 menemukan bug kritis
+                    // (crash 500 pada edit kedua ke item+tanggal yang sama)
+                    // dan celah otorisasi lintas departemen (sudah diperbaiki,
+                    // tapi fitur tetap disembunyikan sampai direview ulang).
+                    // Lihat docs/technical/uat-inventory-simple-2026-10-13.md.
+                    // HARUS didaftarkan SEBELUM '/{document}' di bawah --
+                    // kalau tidak, "/movements" akan ketangkap wildcard
+                    // '/{document}' lebih dulu (route-model-binding gagal
+                    // cari dokumen id="movements" -> 404 sebelum sempat
+                    // sampai ke route movements.index).
+                    if (config('app.inventory_simple_movements_enabled')) {
+                        Route::get('/movements', [InventoryCountMovementController::class, 'index'])->name('movements.index');
+                        Route::patch('/movements/{item}', [InventoryCountMovementController::class, 'autosave'])->name('movements.autosave');
+                        Route::post('/movements/{item}/opening-balance', [InventoryCountMovementController::class, 'saveOpeningBalance'])->name('movements.opening-balance');
+                    }
+
+                    // ── Rekap Hasil Hitung Mingguan (READ-ONLY, dari dokumen
+                    // submitted) -- pengganti aman yang selalu aktif begitu
+                    // inventory_simple_enabled aktif, TIDAK di balik flag
+                    // movements di atas karena sumber datanya murni
+                    // inventory_count_documents/lines (sama dengan form
+                    // harian), bukan tabel saldo mandiri yang bermasalah.
+                    Route::get('/recap', [InventoryCountRecapController::class, 'index'])->name('recap.index');
+                    Route::get('/recap/export', [InventoryCountRecapController::class, 'export'])->name('recap.export');
 
                     Route::get('/{document}', [InventoryCountController::class, 'show'])->name('show');
                     Route::post('/{document}/submit', [InventoryCountController::class, 'submit'])->name('submit');

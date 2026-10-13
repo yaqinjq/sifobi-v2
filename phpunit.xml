@@ -35,5 +35,11 @@
         <!-- Feature flag Inventory Simple: ON cuma di environment test ini,
              OFF by default di semua environment lain (lihat config/app.php). -->
         <env name="INVENTORY_SIMPLE_ENABLED" value="true"/>
+        <!-- Flag Rekap Mingguan saldo mandiri: TERPISAH dari flag di atas,
+             tetap ON di test supaya InventoryCountMovementAuthorizationTest
+             bisa menguji endpointnya (route perlu terdaftar), walau fitur
+             ini OFF by default di semua environment lain sejak UAT
+             2026-10-13 menemukan bug kritis (lihat config/app.php). -->
+        <env name="INVENTORY_SIMPLE_MOVEMENTS_ENABLED" value="true"/>
     </php>
 </phpunit>

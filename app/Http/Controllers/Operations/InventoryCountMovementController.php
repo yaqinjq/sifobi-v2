@@ -8,6 +8,7 @@ use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Operations\Models\InventoryCountTemplate;
+use App\Modules\Operations\Models\InventoryCountTemplateItem;
 use App\Services\InventoryCountMovementService;
 use App\Support\Decimal;
 use Illuminate\Http\JsonResponse;
@@ -90,8 +91,8 @@ class InventoryCountMovementController extends Controller
         $scope = $this->resolveInventorySimpleScope($request);
 
         abort_if(! $scope, 403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah.');
-        abort_if((int) $item->tenant_id !== $tenantId, 404, 'Item tidak ditemukan.');
         [$outletId, $departmentId] = $scope;
+        $this->assertItemInScope($tenantId, $departmentId, $item);
 
         try {
             $validated = $request->validate([
@@ -123,8 +124,8 @@ class InventoryCountMovementController extends Controller
         $scope = $this->resolveInventorySimpleScope($request);
 
         abort_if(! $scope, 403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah.');
-        abort_if((int) $item->tenant_id !== $tenantId, 404, 'Item tidak ditemukan.');
         [$outletId, $departmentId] = $scope;
+        $this->assertItemInScope($tenantId, $departmentId, $item);
 
         try {
             $validated = $request->validate([
@@ -153,5 +154,32 @@ class InventoryCountMovementController extends Controller
         abort_unless($tenantId, 403, 'Tenant belum terpasang pada user.');
 
         return (int) $tenantId;
+    }
+
+    /**
+     * Item wajib (1) ada di tenant yang sama, DAN (2) terdaftar sebagai
+     * InventoryCountTemplateItem aktif di SALAH SATU template yang
+     * relevan untuk departemen user (department_id cocok, atau template
+     * generik). Sebelum perbaikan ini, cuma (1) yang dicek -- staf
+     * departemen manapun bisa mencatat movement/saldo awal utk item
+     * departemen lain, atau item yang tidak terdaftar di template
+     * manapun. Lihat temuan UAT C-F1 (docs/technical/
+     * uat-inventory-simple-2026-10-13.md).
+     */
+    private function assertItemInScope(int $tenantId, int $departmentId, Item $item): void
+    {
+        abort_if((int) $item->tenant_id !== $tenantId, 404, 'Item tidak ditemukan.');
+
+        $validForDepartment = InventoryCountTemplateItem::query()
+            ->where('tenant_id', $tenantId)
+            ->where('item_id', $item->id)
+            ->where('is_active', true)
+            ->whereHas('template', function ($query) use ($tenantId, $departmentId): void {
+                $query->where('tenant_id', $tenantId)
+                    ->where(fn ($q) => $q->where('department_id', $departmentId)->orWhere('is_generic', true));
+            })
+            ->exists();
+
+        abort_unless($validForDepartment, 403, 'Item ini tidak terdaftar di template departemen Anda.');
     }
 }

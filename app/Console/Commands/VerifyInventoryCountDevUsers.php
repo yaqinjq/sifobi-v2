@@ -20,7 +20,7 @@ class VerifyInventoryCountDevUsers extends Command
         }
 
         $count = User::query()
-            ->whereIn('email', ['bar_staff@sifobi.test', 'kitchen_staff@sifobi.test'])
+            ->whereIn('email', ['bar_staff@sifobi.test', 'kitchen_staff@sifobi.test', 'admin@sifobi.test'])
             ->update(['email_verified_at' => now()]);
 
         $this->line("Verified $count user(s).");

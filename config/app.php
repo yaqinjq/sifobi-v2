@@ -143,4 +143,14 @@ return [
 
     'inventory_simple_enabled' => (bool) env('INVENTORY_SIMPLE_ENABLED', false),
 
+    // Rekap Mingguan saldo mandiri (IN/OUT/BAL terisolasi dari ledger resmi)
+    // -- flag TERPISAH dari inventory_simple_enabled di atas, default OFF.
+    // Dimatikan sejak UAT 2026-10-13 menemukan bug kritis: updateOrCreate()
+    // crash 500 pada penulisan kedua ke item+tanggal yang sama (lihat
+    // docs/technical/uat-inventory-simple-2026-10-13.md, temuan D-F1), dan
+    // celah otorisasi lintas departemen yang sudah diperbaiki (C-F1) tapi
+    // belum direview ulang. Form hitung fisik harian (inventory_simple_enabled
+    // di atas) TIDAK terpengaruh flag ini sama sekali -- dua fitur independen.
+    'inventory_simple_movements_enabled' => (bool) env('INVENTORY_SIMPLE_MOVEMENTS_ENABLED', false),
+
 ];

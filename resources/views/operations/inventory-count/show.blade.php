@@ -49,9 +49,9 @@
         Pendataan fisik -- belum mengubah saldo stok sistem.
     </div>
 
-    <a href="{{ route('operations.inventory-count.movements.index', ['template_id' => $document->template_id, 'outlet_id' => $document->outlet_id, 'department_id' => $document->department_id]) }}"
+    <a href="{{ route('operations.inventory-count.recap.index', ['template_id' => $document->template_id, 'outlet_id' => $document->outlet_id, 'department_id' => $document->department_id]) }}"
        class="sf-btn-secondary min-h-10 w-full flex items-center justify-center gap-1.5 text-sm">
-        <i class="ti ti-table" aria-hidden="true"></i> Lihat Rekap Mingguan (saldo mandiri)
+        <i class="ti ti-table" aria-hidden="true"></i> Lihat Rekap Hasil Hitung Mingguan
     </a>
 
     <x-sf.card>
