@@ -18,6 +18,7 @@ use App\Modules\Inventory\Models\ItemDepartmentCategory;
 use App\Modules\Inventory\Models\ItemJenis;
 use App\Modules\Inventory\Models\Unit;
 use App\Modules\Inventory\Models\UnitConversion;
+use App\Modules\Operations\Models\InventoryCountTemplateItem;
 use App\Support\Decimal;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -98,6 +99,26 @@ class ItemController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        // Badge "Perlu Perhatian" (Inventory Simple) -- cuma dihitung kalau
+        // modulnya aktif (0 query tambahan selama flag OFF, state production
+        // saat ini). 2 query TOTAL, tidak tergantung jumlah baris per
+        // halaman (bukan N+1) -- lihat InventoryCountTemplateItem::configIssues().
+        $inventorySimpleIssuesByItemId = collect();
+        if (config('app.inventory_simple_enabled')) {
+            $templateItemsByItemId = InventoryCountTemplateItem::query()
+                ->where('tenant_id', $tenantId)
+                ->where('is_active', true)
+                ->whereIn('item_id', $items->getCollection()->pluck('id'))
+                ->with('template:id,name')
+                ->get()
+                ->groupBy('item_id');
+
+            $inventorySimpleIssuesByItemId = $items->getCollection()->mapWithKeys(
+                fn (Item $item) => [$item->id => $templateItemsByItemId->get($item->id, collect())
+                    ->flatMap(fn (InventoryCountTemplateItem $templateItem) => $templateItem->configIssues($item))]
+            );
+        }
+
         $outlets = Outlet::query()
             ->where('tenant_id', $tenantId)
             ->where('status', 'ACTIVE')
@@ -126,6 +147,7 @@ class ItemController extends Controller
 
         return view('master-data.items.index', [
             'items' => $items,
+            'inventorySimpleIssuesByItemId' => $inventorySimpleIssuesByItemId,
             'itemTypes' => StoreItemRequest::ITEM_TYPE_OPTIONS,
             'totalItems' => Item::query()->where('tenant_id', $tenantId)->count(),
             'search' => $search,
@@ -203,8 +225,22 @@ class ItemController extends Controller
             'conversions.toUnit',
         ]);
 
+        // Banner "Perlu Perhatian" (Inventory Simple) -- lihat catatan di
+        // index() soal gating flag & sumber kebenaran configIssues().
+        $inventorySimpleIssues = collect();
+        if (config('app.inventory_simple_enabled')) {
+            $inventorySimpleIssues = InventoryCountTemplateItem::query()
+                ->where('tenant_id', $item->tenant_id)
+                ->where('item_id', $item->id)
+                ->where('is_active', true)
+                ->with('template:id,name')
+                ->get()
+                ->flatMap(fn (InventoryCountTemplateItem $templateItem) => $templateItem->configIssues($item));
+        }
+
         return view('master-data.items.show', array_merge($this->formData($request), [
             'item' => $item,
+            'inventorySimpleIssues' => $inventorySimpleIssues,
             'aliases' => $item->brandAliases->map(fn (ItemBrandAlias $alias): array => $this->aliasPayload($alias))->values(),
             'conversions' => $item->conversions->map(fn ($conversion): array => [
                 'id' => $conversion->id,

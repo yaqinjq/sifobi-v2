@@ -76,6 +76,27 @@
                             @endif
                         </p>
                     </div>
+
+                    {{-- Banner Inventory Simple "Perlu Perhatian" -- murni
+                         informatif (saran keputusan), TIDAK ada tombol
+                         terapkan otomatis. Kosong total kalau item ini
+                         tidak dipakai template manapun atau konfigurasinya
+                         sudah valid. --}}
+                    @isset($inventorySimpleIssues)
+                        @foreach($inventorySimpleIssues as $issue)
+                            <div class="rounded-2xl border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+                                <p class="font-semibold">
+                                    <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+                                    {{ $issue['template_name'] ?? 'Template Inventory Simple' }} &mdash; {{ $issue['message'] }}
+                                </p>
+                                @if($issue['type'] === 'location_unit_mismatch')
+                                    <p class="mt-1">Saran keputusan: (1) pisahkan jadi SKU terpisah per lokasi, atau (2) perluas skema untuk mendukung satuan resmi per-lokasi.</p>
+                                @else
+                                    <p class="mt-1">Lengkapi Satuan Inventori &amp; Rasio Konversi di card ini lewat tombol Edit.</p>
+                                @endif
+                            </div>
+                        @endforeach
+                    @endisset
                 </div>
             </x-sf.card>
         </div>

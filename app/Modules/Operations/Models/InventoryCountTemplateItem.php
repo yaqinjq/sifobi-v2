@@ -53,4 +53,62 @@ class InventoryCountTemplateItem extends Model
     {
         return $this->belongsTo(Item::class);
     }
+
+    /**
+     * @return array<string, int> lokasi => unit override yang TIDAK cocok
+     *         dengan unit dasar item (mis. Simple Syrup: Gln di Gudang vs
+     *         Kg di Bar Area -- lihat temuan UAT 2026-10-13 Section I.3).
+     */
+    public function locationUnitMismatches(Item $item): array
+    {
+        $masterUnitId = $item->masterUnitId();
+        $mismatches = [];
+
+        foreach ((array) ($this->location_units ?? []) as $location => $overrideUnitId) {
+            if ($overrideUnitId === null) {
+                continue;
+            }
+
+            $matches = $masterUnitId !== null && (int) $overrideUnitId === (int) $masterUnitId;
+            if (! $matches) {
+                $mismatches[$location] = (int) $overrideUnitId;
+            }
+        }
+
+        return $mismatches;
+    }
+
+    /**
+     * Dipakai badge/banner "Perlu Perhatian" di Master Data > Items --
+     * SATU sumber kebenaran yang sama dengan
+     * InventoryCountService::resolveLineConfig() (lihat Item::hasValidInventoryRatio()).
+     *
+     * @return list<array{type: string, template_id: int, template_name: ?string, message: string, locations?: array<string, int>}>
+     */
+    public function configIssues(Item $item): array
+    {
+        $issues = [];
+
+        if ($this->requires_conversion && ! $item->hasValidInventoryRatio()) {
+            $issues[] = [
+                'type' => 'ratio_unresolved',
+                'template_id' => $this->template_id,
+                'template_name' => $this->template?->name,
+                'message' => 'Rasio konversi Utuh/Ecer belum dikonfigurasi untuk item ini.',
+            ];
+        }
+
+        $mismatches = $this->locationUnitMismatches($item);
+        if ($mismatches !== []) {
+            $issues[] = [
+                'type' => 'location_unit_mismatch',
+                'template_id' => $this->template_id,
+                'template_name' => $this->template?->name,
+                'message' => 'Satuan override per lokasi tidak sama dengan satuan dasar item.',
+                'locations' => $mismatches,
+            ];
+        }
+
+        return $issues;
+    }
 }

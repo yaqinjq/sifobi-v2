@@ -154,12 +154,11 @@ class InventoryCountService
         $overrideUnitId = $templateItem->location_units[$location] ?? null;
 
         if ($overrideUnitId !== null) {
-            $masterUnitId = $item->base_unit_id ?: $item->inventory_unit_id;
-            $overrideMatchesMaster = $masterUnitId !== null && (int) $overrideUnitId === (int) $masterUnitId;
+            $configValid = ! array_key_exists($location, $templateItem->locationUnitMismatches($item));
 
             return [
                 'requires_conversion' => false,
-                'config_valid' => $overrideMatchesMaster,
+                'config_valid' => $configValid,
                 'whole_unit_id' => (int) $overrideUnitId,
                 'loose_unit_id' => null,
                 'conversion_factor' => null,
@@ -176,13 +175,7 @@ class InventoryCountService
             ];
         }
 
-        $hasValidRatio = $item->inventory_unit_id
-            && $item->base_unit_id
-            && (int) $item->inventory_unit_id !== (int) $item->base_unit_id
-            && $item->inventory_ratio
-            && bccomp((string) $item->inventory_ratio, '0', 6) > 0;
-
-        if ($hasValidRatio) {
+        if ($item->hasValidInventoryRatio()) {
             return [
                 'requires_conversion' => true,
                 'config_valid' => true,

@@ -171,6 +171,7 @@
     .badge-pending  { @apply inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-amber-100 text-amber-800; }
     .badge-approved { @apply inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-emerald-100 text-emerald-800; }
     .badge-rejected { @apply inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-red-100 text-red-700; }
+    .badge-danger   { @apply inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-red-100 text-red-700; }
     .badge-active   { @apply inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-primary-100 text-primary-800; }
     .badge-inactive { @apply inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-gray-100 text-gray-600; }
     .badge-diproses { @apply inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-blue-100 text-blue-700; }
