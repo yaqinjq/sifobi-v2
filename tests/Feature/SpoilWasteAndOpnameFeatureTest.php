@@ -195,6 +195,66 @@ test('duplicate spoil photo is detected by sha256 hash', function (): void {
         ->and($second->duplicate_ref_id)->toBe($first->id);
 });
 
+test('spoil with no stock balance at all gives an actionable message pointing to Opname, not a bare "stok tidak cukup"', function (): void {
+    $user = operationUser('STAFF_BAR');
+    // SENGAJA tidak seedDailyBalance() -- item ini belum pernah tercatat
+    // stoknya sama sekali di outlet ini.
+
+    $service = app(SpoilWasteService::class);
+    $caught = null;
+
+    try {
+        $service->record([
+            'tenant_id' => $this->tenant->id,
+            'outlet_id' => $this->outlet->id,
+            'department_id' => $this->department->id,
+            'item_id' => $this->item->id,
+            'unit_id' => $this->unit,
+            'qty' => '1',
+            'recorded_date' => '2026-07-01',
+            'reason_category' => SpoilWaste::REASON_RUSAK,
+        ], $user->id);
+    } catch (\App\Exceptions\InsufficientStockException $exception) {
+        $caught = $exception;
+    }
+
+    expect($caught)->not->toBeNull()
+        ->and($caught->getMessage())->toContain('belum pernah tercatat')
+        ->and($caught->getMessage())->toContain('Opname')
+        ->and($caught->getMessage())->toContain($this->item->name);
+
+    expect(SpoilWaste::query()->count())->toBe(0);
+});
+
+test('spoil with an insufficient (but non-zero) balance reports the actual qty on hand and suggests Opname', function (): void {
+    $user = operationUser('STAFF_BAR');
+    seedDailyBalance($this, '3'); // cuma 3 tersedia, staf coba spoil 10.
+
+    $service = app(SpoilWasteService::class);
+    $caught = null;
+
+    try {
+        $service->record([
+            'tenant_id' => $this->tenant->id,
+            'outlet_id' => $this->outlet->id,
+            'department_id' => $this->department->id,
+            'item_id' => $this->item->id,
+            'unit_id' => $this->unit,
+            'qty' => '10',
+            'recorded_date' => '2026-07-01',
+            'reason_category' => SpoilWaste::REASON_RUSAK,
+        ], $user->id);
+    } catch (\App\Exceptions\InsufficientStockException $exception) {
+        $caught = $exception;
+    }
+
+    expect($caught)->not->toBeNull()
+        ->and($caught->getMessage())->toContain('3')
+        ->and($caught->getMessage())->toContain('Opname');
+
+    expect(SpoilWaste::query()->count())->toBe(0);
+});
+
 test('rejecting spoil creates void reversal and restores balance', function (): void {
     // $this->unit = $this->item->inventory_unit_id, dan untuk item seeder
     // ini (MKO-AJINOMOTO-500GR) inventory_unit_id SAMA PERSIS dengan

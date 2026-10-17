@@ -72,9 +72,20 @@ class SpoilWasteService
                 ->first();
 
             if (! $balance || bccomp((string) $balance->qty_on_hand, $qtyInBase, 6) < 0) {
-                throw new InsufficientStockException(
-                    'Stok tidak cukup untuk spoil. Tersedia: '.($balance?->qty_on_hand ?? '0').' (base unit)'
-                );
+                // Pesan dibedakan supaya staf tahu HARUS ngapain, bukan cuma
+                // "stok tidak cukup" -- validasi sendiri TIDAK diubah (tetap
+                // menolak spoil tanpa stok tercatat, demi akurasi ledger),
+                // tapi sekarang mengarahkan ke jalur yang sudah ada dan
+                // sudah mereka kenal: Opname. Lihat approve() di
+                // OpnameService -- begitu sesi Opname disetujui, hasil
+                // hitung fisik OTOMATIS jadi stok resmi (termasuk dari nol
+                // kalau belum pernah tercatat sama sekali), tidak perlu
+                // Input Stok Awal terpisah.
+                $message = $balance === null
+                    ? "Stok untuk item \"{$item->name}\" di outlet ini belum pernah tercatat di sistem. Lakukan Opname (hitung fisik) untuk item ini dulu, lalu minta atasan/manager Anda menyetujuinya -- setelah disetujui, stok otomatis tercatat dan Spoil & Waste bisa langsung dipakai."
+                    : "Stok untuk item \"{$item->name}\" tercatat hanya {$balance->qty_on_hand} (base unit), tidak cukup untuk jumlah yang mau di-spoil. Kalau menurut hitungan fisik sebenarnya lebih banyak, lakukan Opname ulang dan minta atasan/manager Anda menyetujuinya dulu sebelum mencoba Spoil lagi.";
+
+                throw new InsufficientStockException($message);
             }
 
             [$photoPath, $photoHash, $photoMeta, $duplicate] = $this->handlePhoto($data['photo_file'] ?? null, $tenantId);
