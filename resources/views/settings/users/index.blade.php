@@ -3,8 +3,28 @@
 @section('title', 'Manajemen User')
 
 @section('content')
+<div x-data="{
+        selected: [],
+        chosenAction: 'deactivate',
+        outletId: '',
+        actionRoutes: {
+            activate: @js(route('settings.users.bulk-toggle-status')),
+            deactivate: @js(route('settings.users.bulk-toggle-status')),
+            change_outlet: @js(route('settings.users.bulk-change-outlet')),
+            delete: @js(route('settings.users.bulk-delete')),
+        },
+        confirmMessages: {
+            activate: 'Aktifkan __COUNT__ user terpilih?',
+            deactivate: 'Nonaktifkan __COUNT__ user terpilih?',
+            change_outlet: 'Pindahkan outlet __COUNT__ user terpilih?',
+            delete: 'HAPUS __COUNT__ user terpilih? Tindakan ini tidak bisa dibatalkan.',
+        },
+     }">
 <x-sf.page-header title="Manajemen User" subtitle="Kelola akun pengguna sistem">
     <x-slot:actions>
+        <a href="{{ route('settings.users.import.form') }}" class="sf-btn-secondary text-sm min-h-11">
+            Import User
+        </a>
         <a href="{{ route('settings.users.create') }}" class="sf-btn-primary text-sm min-h-11">
             Tambah User
         </a>
@@ -47,6 +67,9 @@
         @php $isActive = strtoupper((string) $user->status) === 'ACTIVE'; @endphp
         <article class="sf-card p-4">
             <div class="flex items-center gap-3">
+                @if($user->id !== auth()->id())
+                    <input type="checkbox" x-model="selected" value="{{ $user->id }}" class="rounded border-gray-300 text-primary-700 shrink-0">
+                @endif
                 <img src="{{ $user->avatar_url }}"
                      class="w-11 h-11 rounded-full object-cover shrink-0"
                      alt="{{ $user->name }}">
@@ -111,13 +134,20 @@
     </div>
 </div>
 
-<div class="hidden md:block p-6 pb-8" x-data="{ selectedActive: [], selectedInactive: [] }">
+<div class="hidden md:block p-6 pb-8">
+    @php $selectableIds = $users->where('id', '!=', auth()->id())->pluck('id')->values(); @endphp
     <div class="sf-card overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-100">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 w-10"></th>
+                        <th class="px-4 py-3 w-10">
+                            @if($selectableIds->isNotEmpty())
+                                <input type="checkbox" title="Pilih semua di halaman ini" class="rounded border-gray-300 text-primary-700"
+                                       :checked="selected.length === {{ $selectableIds->count() }} && {{ $selectableIds->count() }} > 0"
+                                       @change="selected = $event.target.checked ? @js($selectableIds) : []">
+                            @endif
+                        </th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">User</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Role</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Outlet</th>
@@ -132,11 +162,7 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3">
                                 @if($user->id !== auth()->id())
-                                    @if($isActive)
-                                        <input type="checkbox" x-model="selectedActive" value="{{ $user->id }}" class="rounded border-gray-300 text-primary-700">
-                                    @else
-                                        <input type="checkbox" x-model="selectedInactive" value="{{ $user->id }}" class="rounded border-gray-300 text-primary-700">
-                                    @endif
+                                    <input type="checkbox" x-model="selected" value="{{ $user->id }}" class="rounded border-gray-300 text-primary-700">
                                 @endif
                             </td>
                             <td class="px-4 py-3">
@@ -210,24 +236,51 @@
         </div>
     </div>
 
-    <x-sf.bulk-action-bar
-        selected-var="selectedActive"
-        route="{{ route('settings.users.bulk-toggle-status') }}"
-        confirm-message="Nonaktifkan __COUNT__ user terpilih?"
-        button-label="Nonaktifkan Terpilih"
-        button-icon="ti-user-off"
-    >
-        <input type="hidden" name="status" value="INACTIVE">
-    </x-sf.bulk-action-bar>
+</div>
 
-    <x-sf.bulk-action-bar
-        selected-var="selectedInactive"
-        route="{{ route('settings.users.bulk-toggle-status') }}"
-        confirm-message="Aktifkan __COUNT__ user terpilih?"
-        button-label="Aktifkan Terpilih"
-        button-icon="ti-user-check"
-    >
-        <input type="hidden" name="status" value="ACTIVE">
-    </x-sf.bulk-action-bar>
+{{-- Bar aksi massal tunggal dgn dropdown pilihan -- BUKAN beberapa bar
+     fixed terpisah (akan tumpang-tindih kalau lebih dari 1 aktif
+     bersamaan, karena semuanya posisinya sama: fixed bottom). Satu
+     array `selected` dipakai utk SEMUA aksi -- backend bulkToggleStatus
+     yg sudah ada sudah aman menerima campuran user aktif+non-aktif
+     sekaligus (dia filter ulang by status saat ini di server). --}}
+<div x-show="selected.length > 0" x-cloak
+     class="fixed inset-x-0 bottom-16 z-30 border-t border-gray-200 bg-white px-4 py-3 shadow-lg md:bottom-0 md:px-6">
+    <form method="POST" :action="actionRoutes[chosenAction]"
+          class="mx-auto flex max-w-7xl flex-wrap items-center gap-3"
+          @submit="if (chosenAction === 'change_outlet' && ! outletId) { $event.preventDefault(); return; }
+                    if (! confirm(confirmMessages[chosenAction].replace('__COUNT__', selected.length))) { $event.preventDefault(); }">
+        @csrf
+        <template x-for="id in selected" :key="id">
+            <input type="hidden" name="ids[]" :value="id">
+        </template>
+        <input type="hidden" name="status" :value="chosenAction === 'activate' ? 'ACTIVE' : 'INACTIVE'" x-show="chosenAction === 'activate' || chosenAction === 'deactivate'">
+        <input type="hidden" name="outlet_id" :value="outletId" x-show="chosenAction === 'change_outlet'">
+
+        <p class="text-sm text-gray-600 shrink-0">
+            <span class="font-semibold text-gray-900" x-text="selected.length"></span> user terpilih
+        </p>
+
+        <select x-model="chosenAction" class="sf-input min-h-11 text-sm w-auto">
+            <option value="deactivate">Nonaktifkan</option>
+            <option value="activate">Aktifkan</option>
+            <option value="change_outlet">Ganti Outlet</option>
+            <option value="delete">Hapus (hanya yang belum pernah login)</option>
+        </select>
+
+        <select x-model="outletId" x-show="chosenAction === 'change_outlet'" x-cloak class="sf-input min-h-11 text-sm w-auto">
+            <option value="">Pilih outlet tujuan...</option>
+            @foreach($outlets as $outlet)
+                <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+            @endforeach
+        </select>
+
+        <button type="submit" class="sf-btn-primary min-h-11 px-4 ml-auto"
+                :class="chosenAction === 'delete' ? 'bg-red-600! hover:bg-red-700!' : ''">
+            <i class="ti ti-check text-base" aria-hidden="true"></i>
+            Terapkan
+        </button>
+    </form>
+</div>
 </div>
 @endsection

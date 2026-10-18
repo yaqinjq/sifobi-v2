@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\BulkChangeOutletUserRequest;
+use App\Http\Requests\Settings\BulkDeleteUserRequest;
 use App\Http\Requests\Settings\BulkToggleUserStatusRequest;
 use App\Models\User;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
+use App\Support\Concerns\AssignsUserRoles;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +23,7 @@ use Spatie\Permission\PermissionRegistrar;
 
 class UserController extends Controller
 {
+    use AssignsUserRoles;
     use HasBulkAction;
     use HasPerPageSelector;
 
@@ -85,7 +89,7 @@ class UserController extends Controller
     {
         $tenantId = (int) $request->user()->tenant_id;
         $data = $this->validated($request, $tenantId);
-        $this->assertMayAssignRole($request, $data['role']);
+        $this->assertMayAssignRole($request->user(), $data['role']);
 
         DB::transaction(function () use ($data, $tenantId, $request): void {
             $user = User::withoutGlobalScopes()->create([
@@ -137,7 +141,7 @@ class UserController extends Controller
         $this->authorizeUser($request, $user);
         $tenantId = (int) $request->user()->tenant_id;
         $data = $this->validated($request, $tenantId, $user);
-        $this->assertMayAssignRole($request, $data['role']);
+        $this->assertMayAssignRole($request->user(), $data['role']);
 
         DB::transaction(function () use ($data, $user, $request): void {
             $payload = [
@@ -214,6 +218,56 @@ class UserController extends Controller
         $label = $targetStatus === 'ACTIVE' ? 'diaktifkan' : 'dinonaktifkan';
 
         return $this->bulkActionRedirect('settings.users.index', $result, "{$result['processed']} user berhasil {$label}.");
+    }
+
+    public function bulkChangeOutlet(BulkChangeOutletUserRequest $request): RedirectResponse
+    {
+        $tenantId = (int) $request->user()->tenant_id;
+
+        $users = User::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->get();
+
+        $result = $this->runBulkAction(
+            $users,
+            fn (User $user) => $user->update(['outlet_id' => $request->integer('outlet_id')]),
+            fn (User $user) => $user->name
+        );
+
+        return $this->bulkActionRedirect('settings.users.index', $result, "{$result['processed']} user berhasil dipindah outlet.");
+    }
+
+    /**
+     * Hapus PERMANEN -- sengaja dibatasi HANYA utk user yang belum pernah
+     * login sama sekali (last_login_at null). User yang pernah login
+     * kemungkinan py riwayat transaksi tertaut (goods_receipts.created_by
+     * dkk) -- gunakan nonaktifkan, bukan hapus, utk akun semacam itu.
+     * Baris yang lolos filter tapi tetap bentrok FK (restrictOnDelete)
+     * otomatis diisolasi per-baris oleh runBulkAction(), tidak
+     * menggagalkan baris lain.
+     */
+    public function bulkDelete(BulkDeleteUserRequest $request): RedirectResponse
+    {
+        $tenantId = (int) $request->user()->tenant_id;
+
+        $users = User::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->where('id', '!=', $request->user()->id)
+            ->whereNull('last_login_at')
+            ->get();
+
+        $result = $this->runBulkAction(
+            $users,
+            function (User $user): void {
+                $user->syncRoles([]);
+                $user->delete();
+            },
+            fn (User $user) => $user->name
+        );
+
+        return $this->bulkActionRedirect('settings.users.index', $result, "{$result['processed']} user berhasil dihapus.");
     }
 
     public function resetPassword(Request $request, User $user): RedirectResponse
@@ -312,27 +366,9 @@ class UserController extends Controller
         abort_unless((int) $user->tenant_id === (int) $request->user()->tenant_id, 403, 'Tidak berwenang.');
     }
 
-    /**
-     * Validasi 'role' cuma cek role itu ADA (Rule::exists), tidak cek siapa
-     * yang boleh MEMBERIKANnya — sebelum fix ini, siapa pun dengan
-     * manage_users (bukan cuma SUPER_ADMIN) bisa assign role SUPER_ADMIN ke
-     * user manapun, termasuk ke akun sendiri (eskalasi privilese instan,
-     * tidak ada pengecekan hierarki role sama sekali di codebase ini).
-     * Cegah khusus untuk SUPER_ADMIN: cuma SUPER_ADMIN yang sudah ada yang
-     * boleh assign role SUPER_ADMIN ke siapa pun.
-     */
-    private function assertMayAssignRole(Request $request, string $roleName): void
-    {
-        if (strtoupper($roleName) !== 'SUPER_ADMIN') {
-            return;
-        }
-
-        abort_unless(
-            $request->user()->hasRole('SUPER_ADMIN'),
-            403,
-            'Hanya SUPER_ADMIN yang boleh memberikan role SUPER_ADMIN.'
-        );
-    }
+    // assertMayAssignRole() dipindah ke trait App\Support\Concerns\AssignsUserRoles
+    // supaya dipakai bersama oleh NewUserRowsImport (import massal) --
+    // SATU sumber kebenaran, bukan disalin.
 
     private function statusToDatabase(?string $status): ?string
     {
