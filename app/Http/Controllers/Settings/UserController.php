@@ -8,15 +8,20 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\BulkChangeOutletUserRequest;
 use App\Http\Requests\Settings\BulkDeleteUserRequest;
 use App\Http\Requests\Settings\BulkToggleUserStatusRequest;
+use App\Imports\DeactivateTrialUserRowsImport;
+use App\Imports\NewUserRowsImport;
+use App\Imports\UserImport;
 use App\Models\User;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Support\Concerns\AssignsUserRoles;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -268,6 +273,60 @@ class UserController extends Controller
         );
 
         return $this->bulkActionRedirect('settings.users.index', $result, "{$result['processed']} user berhasil dihapus.");
+    }
+
+    public function importForm(): View
+    {
+        return view('settings.users.import');
+    }
+
+    /**
+     * Baca file yang diupload, kembalikan preview JSON -- TIDAK menulis
+     * apa pun ke database. Pola sama persis dgn
+     * ImportExportController::previewPoTags().
+     */
+    public function importPreview(Request $request): JsonResponse
+    {
+        $tenantId = (int) $request->user()->tenant_id;
+        $file = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
+        ])['file'];
+
+        $import = new UserImport();
+        Excel::import($import, $file);
+
+        return response()->json($import->preview($tenantId));
+    }
+
+    /**
+     * Terapkan baris yang sudah direview admin di browser. Validasi ULANG
+     * semua field di server (lihat NewUserRowsImport::applyChanges()) --
+     * data dari client HANYA dipakai sbg daftar "baris mana yang mau
+     * diproses", bukan dipercaya langsung.
+     */
+    public function importApply(Request $request): JsonResponse
+    {
+        $tenantId = (int) $request->user()->tenant_id;
+        $validated = $request->validate([
+            'new_users' => ['present', 'array'],
+            'deactivations' => ['present', 'array'],
+        ]);
+
+        $newUsersResult = (new NewUserRowsImport())->applyChanges(
+            $validated['new_users'],
+            $tenantId,
+            $request->user()
+        );
+        $deactivationResult = (new DeactivateTrialUserRowsImport())->applyChanges(
+            $validated['deactivations'],
+            $tenantId,
+            $request->user()
+        );
+
+        return response()->json([
+            'new_users' => $newUsersResult,
+            'deactivations' => $deactivationResult,
+        ]);
     }
 
     public function resetPassword(Request $request, User $user): RedirectResponse
