@@ -12,8 +12,38 @@
 </x-sf.page-header>
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-5xl mx-auto w-full space-y-4">
+    @if($isSuperAdmin)
+        <x-sf.card title="Pilih Outlet & Departemen">
+            <form method="GET" action="{{ route('operations.inventory-count.history') }}" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <select name="outlet_id" class="sf-input min-h-11" onchange="this.form.submit()">
+                    <option value="">Pilih outlet...</option>
+                    @foreach($outlets as $o)
+                        <option value="{{ $o->id }}" @selected((string) request('outlet_id') === (string) $o->id)>{{ $o->name }}</option>
+                    @endforeach
+                </select>
+                <select name="department_id" class="sf-input min-h-11" onchange="this.form.submit()">
+                    <option value="">Pilih departemen...</option>
+                    @foreach($departments as $d)
+                        <option value="{{ $d->id }}" @selected((string) request('department_id') === (string) $d->id)>{{ $d->name }}</option>
+                    @endforeach
+                </select>
+            </form>
+        </x-sf.card>
+    @endif
+
+    @if(! $hasValidScope)
+        <x-sf.empty-state
+            icon="INV"
+            title="Belum ada scope outlet & departemen yang sah"
+            description="{{ $isSuperAdmin ? 'Pilih outlet & departemen di atas untuk melihat riwayat.' : 'Akun Anda belum ditetapkan ke outlet & departemen. Hubungi Super Admin.' }}"
+        />
+    @else
     <x-sf.card>
         <form method="GET" action="{{ route('operations.inventory-count.history') }}" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            @if($isSuperAdmin)
+                <input type="hidden" name="outlet_id" value="{{ request('outlet_id') }}">
+                <input type="hidden" name="department_id" value="{{ request('department_id') }}">
+            @endif
             <select name="status" class="sf-input min-h-11" onchange="this.form.submit()">
                 <option value="">Semua status</option>
                 <option value="DRAFT" @selected(request('status') === 'DRAFT')>Draft</option>
@@ -47,5 +77,6 @@
     <div class="flex items-center justify-center">
         {{ $documents->links() }}
     </div>
+    @endif
 </div>
 @endsection

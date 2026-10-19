@@ -106,7 +106,7 @@
             @empty
                 <p class="text-sm text-gray-500">Belum ada riwayat.</p>
             @endforelse
-            <a href="{{ route('operations.inventory-count.history') }}" class="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700">
+            <a href="{{ route('operations.inventory-count.history', $isSuperAdmin ? array_filter(['outlet_id' => request('outlet_id'), 'department_id' => request('department_id')]) : []) }}" class="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700">
                 Lihat semua riwayat <i class="ti ti-arrow-right" aria-hidden="true"></i>
             </a>
         </x-sf.card>

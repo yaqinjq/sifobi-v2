@@ -21,6 +21,17 @@
 @endphp
 
 <div x-data="{ selectedDraft: [], selectedSubmitted: [] }" class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4">
+    @if(config('app.inventory_simple_enabled') && auth()->user()->can('input_opname'))
+        <a href="{{ route('operations.inventory-count.index') }}"
+           class="flex items-center justify-between gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm">
+            <span class="font-semibold text-primary-800">
+                <i class="ti ti-clipboard-list" aria-hidden="true"></i>
+                Coba Inventory Simple (pendataan fisik lebih sederhana)
+            </span>
+            <i class="ti ti-chevron-right text-primary-700" aria-hidden="true"></i>
+        </a>
+    @endif
+
     <x-sf.card>
         <form method="GET" action="{{ route('operations.opname.index') }}" class="flex flex-wrap gap-2">
             @if($canFilterOutlet)

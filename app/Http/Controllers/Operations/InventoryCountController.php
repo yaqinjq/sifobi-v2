@@ -258,6 +258,7 @@ class InventoryCountController extends Controller
     {
         $tenantId = $this->tenantId($request);
         $scope = $this->resolveInventorySimpleScope($request);
+        $isSuperAdmin = $this->isSuperAdmin($request);
 
         $documents = InventoryCountDocument::query()
             ->with(['template', 'outlet', 'department'])
@@ -274,6 +275,10 @@ class InventoryCountController extends Controller
         return view('operations.inventory-count.history', [
             'documents' => $documents,
             'templates' => $scope ? $this->service->availableTemplates($tenantId, $scope[1]) : collect(),
+            'hasValidScope' => (bool) $scope,
+            'isSuperAdmin' => $isSuperAdmin,
+            'outlets' => $isSuperAdmin ? Outlet::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get() : collect(),
+            'departments' => $isSuperAdmin ? Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
         ]);
     }
 
