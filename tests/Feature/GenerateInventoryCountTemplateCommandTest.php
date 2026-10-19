@@ -90,3 +90,29 @@ test('fails cleanly when the department has no eligible items', function (): voi
 
     expect(InventoryCountTemplate::query()->where('department_id', $empty->id)->exists())->toBeFalse();
 });
+
+test('fails cleanly when neither a department code nor --all is given', function (): void {
+    $this->artisan('inventory-count:generate-template')
+        ->assertFailed();
+});
+
+test('--all processes every department with eligible items in one run, skipping empty ones', function (): void {
+    $kitchen = Department::query()->where('code', 'KITCHEN')->firstOrFail();
+    $kitchenItem = Item::query()->where('canonical_sku', 'MKO-GULA-PASIR')->firstOrFail();
+    $kitchenItem->update(['primary_department_id' => $kitchen->id]);
+
+    Department::query()->create([
+        'tenant_id' => $this->tenant->id,
+        'code' => 'EMPTYDEPT',
+        'name' => 'Empty Dept',
+        'is_operational' => true,
+        'status' => 'ACTIVE',
+    ]);
+
+    $this->artisan('inventory-count:generate-template', ['--all' => true, '--tenant' => 'MKO'])
+        ->assertSuccessful();
+
+    expect(InventoryCountTemplate::query()->where('department_id', $this->bar->id)->exists())->toBeTrue()
+        ->and(InventoryCountTemplate::query()->where('department_id', $kitchen->id)->exists())->toBeTrue()
+        ->and(InventoryCountTemplate::query()->where('department_id', '!=', $this->bar->id)->where('department_id', '!=', $kitchen->id)->exists())->toBeFalse();
+});

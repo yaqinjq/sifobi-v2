@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Modules\Core\Models\Department;
+use App\Modules\Core\Models\Tenant;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Operations\Models\InventoryCountTemplate;
 use App\Modules\Operations\Models\InventoryCountTemplateItem;
@@ -10,10 +11,11 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Bikin/perbarui 1 InventoryCountTemplate untuk 1 departemen, pakai item
- * ASLI yang SUDAH terdaftar ke departemen itu lewat jalur yang SAMA dengan
- * Opname biasa (primary_department_id / relasi departments many-to-many,
- * is_active, track_stock) -- BUKAN data sintetis, BUKAN mapping manual baru.
+ * Bikin/perbarui InventoryCountTemplate untuk 1 departemen (atau SEMUA
+ * departemen tenant lewat --all), pakai item ASLI yang SUDAH terdaftar ke
+ * departemen itu lewat jalur yang SAMA dengan Opname biasa
+ * (primary_department_id / relasi departments many-to-many, is_active,
+ * track_stock) -- BUKAN data sintetis, BUKAN mapping manual baru.
  *
  * SENGAJA tidak set requires_conversion / location_units override sama
  * sekali (1 lokasi generik "Gudang", unit langsung dari item) supaya
@@ -28,15 +30,25 @@ use Illuminate\Support\Facades\DB;
  */
 class GenerateInventoryCountTemplate extends Command
 {
-    protected $signature = 'inventory-count:generate-template {department_code}';
+    protected $signature = 'inventory-count:generate-template {department_code?} {--all : Proses SEMUA departemen tenant, bukan cuma 1} {--tenant= : Kode tenant (wajib kalau pakai --all dan ada >1 tenant)}';
 
-    protected $description = 'Generate/update an Inventory Simple template for a department using real, already-assigned items (safe for production)';
+    protected $description = 'Generate/update Inventory Simple template(s) using real, already-assigned items (safe for production)';
 
     public function handle(): int
     {
-        $code = strtoupper((string) $this->argument('department_code'));
+        if ($this->option('all')) {
+            return $this->handleAll();
+        }
 
-        $department = Department::query()->where('code', $code)->first();
+        $code = $this->argument('department_code');
+
+        if (! $code) {
+            $this->error('Isi kode departemen, atau pakai --all untuk semua departemen.');
+
+            return self::FAILURE;
+        }
+
+        $department = Department::query()->where('code', strtoupper((string) $code))->first();
 
         if (! $department) {
             $this->error("Departemen dengan kode '{$code}' tidak ditemukan.");
@@ -44,6 +56,77 @@ class GenerateInventoryCountTemplate extends Command
             return self::FAILURE;
         }
 
+        [$added, $total] = $this->generateForDepartment($department);
+
+        if ($total === 0) {
+            $this->error("Tidak ada item aktif (track_stock) yang terdaftar ke departemen '{$department->code}'. Tidak ada template dibuat.");
+
+            return self::FAILURE;
+        }
+
+        $this->info("{$department->name}: {$added} item baru ditambahkan, total {$total} item.");
+
+        return self::SUCCESS;
+    }
+
+    private function handleAll(): int
+    {
+        $tenantCode = $this->option('tenant');
+
+        if ($tenantCode) {
+            $tenant = Tenant::query()->where('code', strtoupper((string) $tenantCode))->first();
+            if (! $tenant) {
+                $this->error("Tenant dengan kode '{$tenantCode}' tidak ditemukan.");
+
+                return self::FAILURE;
+            }
+        } else {
+            $count = Tenant::query()->count();
+            if ($count !== 1) {
+                $this->error("Ada {$count} tenant -- wajib tentukan --tenant=KODE kalau pakai --all.");
+
+                return self::FAILURE;
+            }
+            $tenant = Tenant::query()->firstOrFail();
+        }
+
+        $departments = Department::query()->where('tenant_id', $tenant->id)->orderBy('name')->get();
+
+        if ($departments->isEmpty()) {
+            $this->error("Tenant '{$tenant->code}' tidak punya departemen sama sekali.");
+
+            return self::FAILURE;
+        }
+
+        $anyCreated = false;
+
+        foreach ($departments as $department) {
+            [$added, $total] = $this->generateForDepartment($department);
+
+            if ($total === 0) {
+                $this->line("{$department->name} ({$department->code}): dilewati, tidak ada item aktif terdaftar.");
+
+                continue;
+            }
+
+            $anyCreated = true;
+            $this->info("{$department->name} ({$department->code}): {$added} item baru ditambahkan, total {$total} item.");
+        }
+
+        if (! $anyCreated) {
+            $this->error('Tidak ada satu pun departemen yang punya item aktif -- tidak ada template dibuat.');
+
+            return self::FAILURE;
+        }
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * @return array{0: int, 1: int} [item baru ditambahkan, total item di template]
+     */
+    private function generateForDepartment(Department $department): array
+    {
         $tenantId = (int) $department->tenant_id;
 
         $items = Item::query()
@@ -58,16 +141,14 @@ class GenerateInventoryCountTemplate extends Command
             ->get();
 
         if ($items->isEmpty()) {
-            $this->error("Tidak ada item aktif (track_stock) yang terdaftar ke departemen '{$code}'. Tidak ada template dibuat.");
-
-            return self::FAILURE;
+            return [0, 0];
         }
 
-        DB::transaction(function () use ($tenantId, $department, $code, $items): void {
+        return DB::transaction(function () use ($tenantId, $department, $items): array {
             $template = InventoryCountTemplate::query()->firstOrCreate(
                 ['tenant_id' => $tenantId, 'department_id' => $department->id, 'frequency' => InventoryCountTemplate::FREQUENCY_DAILY],
                 [
-                    'code' => $code.'_DAILY',
+                    'code' => $department->code.'_DAILY',
                     'name' => $department->name.' - Harian',
                     'locations' => ['Gudang'],
                     'is_generic' => false,
@@ -97,9 +178,7 @@ class GenerateInventoryCountTemplate extends Command
                 $added++;
             }
 
-            $this->info("Template '{$template->name}' (ID {$template->id}): {$added} item baru ditambahkan, total ".$template->items()->count().' item.');
+            return [$added, $template->items()->count()];
         });
-
-        return self::SUCCESS;
     }
 }
