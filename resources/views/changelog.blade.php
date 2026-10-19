@@ -8,12 +8,31 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.27 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.27 &mdash; 19 Oktober 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Opname, Spoil &amp; Waste, dan Purchase Order (daftar &amp; detail) sekarang menampilkan <strong>"Diinput Oleh"</strong> / "Dicatat oleh" &mdash; nama &amp; jabatan orang yang mencatat data itu, atas permintaan pimpinan &amp; tim operasional supaya lebih mudah ditelusuri</li>
+                    <li>Purchase Order: info "Dibuat oleh" yang sudah ada sebelumnya sekarang dilengkapi juga outlet asal si pembuat PO</li>
+                    <li>Data PO yang dikirim ke Wipro (Central Kitchen) sekarang ikut membawa jabatan &amp; outlet asal pembuat PO, sebelumnya cuma nama</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.26 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.26 &mdash; 19 Oktober 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
