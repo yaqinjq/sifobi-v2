@@ -109,6 +109,9 @@
             <a href="{{ route('operations.inventory-count.history', $isSuperAdmin ? array_filter(['outlet_id' => request('outlet_id'), 'department_id' => request('department_id')]) : []) }}" class="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700">
                 Lihat semua riwayat <i class="ti ti-arrow-right" aria-hidden="true"></i>
             </a>
+            <a href="{{ route('operations.inventory-count.opname-history', $isSuperAdmin ? array_filter(['outlet_id' => request('outlet_id'), 'department_id' => request('department_id')]) : []) }}" class="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-gray-600">
+                Lihat data Opname (yang sudah diisi) <i class="ti ti-arrow-right" aria-hidden="true"></i>
+            </a>
         </x-sf.card>
     @endif
 </div>

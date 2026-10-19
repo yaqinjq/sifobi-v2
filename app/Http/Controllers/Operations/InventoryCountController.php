@@ -282,6 +282,43 @@ class InventoryCountController extends Controller
         ]);
     }
 
+    /**
+     * READ-ONLY: tampilkan data Opname BIASA (OpnameSession) yang sudah
+     * diisi staf, di dalam bagian Inventory Simple -- murni supaya
+     * kelihatan tanpa perlu isi ulang lewat Inventory Simple. TIDAK ADA
+     * tulis/edit apa pun di sini, detail per sesi tetap pakai halaman
+     * Opname biasa yang sudah ada (operations.opname.show) -- bukan
+     * dibangun ulang. Sengaja terpisah dari history() di atas (yang query
+     * InventoryCountDocument, bukan OpnameSession -- dua sumber data
+     * yang beda sama sekali).
+     */
+    public function opnameHistory(Request $request): View
+    {
+        $tenantId = $this->tenantId($request);
+        $scope = $this->resolveInventorySimpleScope($request);
+        $isSuperAdmin = $this->isSuperAdmin($request);
+
+        $sessions = \App\Modules\Operations\Models\OpnameSession::query()
+            ->with(['outlet', 'department'])
+            ->withCount(['items', 'items as counted_items_count' => fn ($q) => $q->where('is_counted', true)])
+            ->when($scope, function ($query) use ($scope): void {
+                [$outletId, $departmentId] = $scope;
+                $query->where('outlet_id', $outletId)->where('department_id', $departmentId);
+            }, fn ($query) => $query->whereRaw('1 = 0'))
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')->upper()->toString()))
+            ->latest('business_date')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('operations.inventory-count.opname-history', [
+            'sessions' => $sessions,
+            'hasValidScope' => (bool) $scope,
+            'isSuperAdmin' => $isSuperAdmin,
+            'outlets' => $isSuperAdmin ? Outlet::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get() : collect(),
+            'departments' => $isSuperAdmin ? Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
+        ]);
+    }
+
     public function export(Request $request): \Symfony\Component\HttpFoundation\BinaryFileResponse
     {
         $tenantId = $this->tenantId($request);
