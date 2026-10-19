@@ -36,6 +36,41 @@
         </div>
     </x-sf.card>
 
+    {{-- v2.25.2 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.25.2 &mdash; 17 Oktober 2026</h3>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Spoil &amp; Waste: pesan error "stok tidak cukup" sekarang menjelaskan apa yang harus dilakukan (lakukan Opname dulu untuk item itu, minta atasan approve) &mdash; sebelumnya cuma pesan generik yang bikin staf buntu tidak tahu harus ngapain</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- v2.25.1 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.25.1 &mdash; 6&ndash;7 Oktober 2026</h3>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Spoil &amp; Waste: data sekarang terisolasi rapi per outlet &amp; departemen &mdash; staf satu outlet/departemen tidak lagi bisa melihat atau memproses data Spoil &amp; Waste milik outlet/departemen lain (hanya Super Admin yang boleh lintas outlet/departemen)</li>
+                    <li>Notifikasi persetujuan Spoil &amp; Waste sekarang hanya dikirim ke orang yang memang berwenang menyetujui data itu, tidak lagi "nyasar" ke akun yang sebenarnya tidak bisa membukanya</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.25 --}}
     <x-sf.card>
         <x-slot:header>
