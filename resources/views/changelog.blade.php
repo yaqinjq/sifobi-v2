@@ -22,7 +22,7 @@
                 <ul class="space-y-1 text-gray-600 pl-4 list-disc">
                     <li>Settings &gt; Manajemen User: centang "pilih semua" (desktop &amp; HP) dan aksi massal untuk user terpilih &mdash; Aktifkan, Nonaktifkan, Ganti Outlet, atau Hapus (khusus user yang belum pernah login, demi keamanan)</li>
                     <li>Settings &gt; Manajemen User: tombol <strong>Import User</strong> &mdash; upload file Excel berisi user baru &amp; akun trial yang perlu dinonaktifkan, bisa di-preview dulu (termasuk peringatan kalau ada password yang kelihatannya salah ketik) sebelum benar-benar disimpan</li>
-                    <li><strong>Inventory Simple (Pendataan)</strong> &mdash; cara mencatat hasil hitung fisik yang lebih ringkas dari Opname biasa (3 tampilan: Kartu/List/Tabel), sekarang aktif untuk semua departemen. Menunya ada di dalam Opname &gt; Inventory Simple (Pendataan)</li>
+                    <li><strong>Inventory Simple (Pendataan) resmi diaktifkan</strong> untuk semua departemen &mdash; modul ini sudah dikerjakan bertahap sejak 8 Oktober (lihat entri di bawah untuk rincian prosesnya), hari ini statusnya pindah dari "dalam pengembangan &amp; pengujian" ke "aktif &amp; bisa dipakai". Menunya ada di dalam Opname &gt; Inventory Simple (Pendataan)</li>
                     <li>Di dalam Inventory Simple, sekarang ada juga <strong>"Lihat data Opname (yang sudah diisi)"</strong> dan <strong>"Rekap Mingguan Opname"</strong> &mdash; menampilkan hasil Opname biasa yang sudah dicatat staf dalam bentuk tabel mingguan (item x 7 hari), murni untuk dilihat</li>
                 </ul>
             </div>
@@ -36,11 +36,11 @@
         </div>
     </x-sf.card>
 
-    {{-- v2.25.2 --}}
+    {{-- v2.25.7 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
-                <h3 class="font-heading font-bold text-gray-900">v2.25.2 &mdash; 17 Oktober 2026</h3>
+                <h3 class="font-heading font-bold text-gray-900">v2.25.7 &mdash; 17 Oktober 2026</h3>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
@@ -48,6 +48,112 @@
                 <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
                 <ul class="space-y-1 text-gray-600 pl-4 list-disc">
                     <li>Spoil &amp; Waste: pesan error "stok tidak cukup" sekarang menjelaskan apa yang harus dilakukan (lakukan Opname dulu untuk item itu, minta atasan approve) &mdash; sebelumnya cuma pesan generik yang bikin staf buntu tidak tahu harus ngapain</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- v2.25.6 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.25.6 &mdash; 14 Oktober 2026</h3>
+                <span class="badge-draft text-xs">Inventory Simple -- pengembangan</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Master Data &gt; Data Item: badge <strong>"Perlu Perhatian"</strong> &mdash; otomatis menandai item yang konfigurasinya belum lengkap untuk Inventory Simple, supaya gampang ditemukan &amp; dibereskan satu per satu sebelum fitur ini diaktifkan ke staf</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- v2.25.5 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.25.5 &mdash; 13 Oktober 2026</h3>
+                <span class="badge-draft text-xs">Inventory Simple -- pengembangan</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan &amp; Pengujian Menyeluruh</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Hari pengujian keamanan penuh sebelum fitur ini boleh dipakai siapa pun &mdash; ditemukan &amp; ditutup celah: staf berpotensi mencatat data item departemen lain yang bukan tanggung jawabnya</li>
+                    <li>Riwayat alasan revisi yang sempat hilang dari tampilan setelah diminta revisi ulang oleh atasan, diperbaiki supaya selalu terlihat</li>
+                    <li>Tombol "Stok Nol" dirapikan jalurnya supaya konsisten dengan cara penyimpanan data lainnya</li>
+                    <li>Tombol "Kirim" di HP yang sempat tertutup menu navigasi bawah (tidak bisa dipencet), diperbaiki</li>
+                    <li>File hasil export ditandai jelas kalau ada baris dengan satuan belum valid, supaya tidak disalahartikan sebagai angka pasti</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- v2.25.4 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.25.4 &mdash; 10 Oktober 2026</h3>
+                <span class="badge-draft text-xs">Inventory Simple -- pengembangan</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Rekap Mingguan: tambah kotak pencarian nama item + filter Kategori</li>
+                    <li>Label kategori tidak lagi ikut bergeser posisinya saat tabel di-scroll ke samping</li>
+                    <li>Kolom nama item tidak lagi "tertindih" kolom lain saat tabel di-scroll ke samping</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- v2.25.3 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.25.3 &mdash; 9 Oktober 2026</h3>
+                <span class="badge-draft text-xs">Inventory Simple -- pengembangan</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Rekap Mingguan Inventory Simple (tahap awal)</li>
+                    <li>Konfigurasi template pendataan untuk 5 departemen (Bar, Kitchen, Pastry, Service, Office)</li>
+                    <li>Mode tampilan ke-3: <strong>Mode Tabel</strong> (selain Mode Kartu &amp; Mode List yang sudah ada)</li>
+                    <li>Nomor urut baris + filter Lokasi/Kategori di semua mode tampilan</li>
+                    <li>Urutkan item A-Z di Mode Tabel &amp; Rekap Mingguan</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>2 bug nyata ditemukan &amp; langsung diperbaiki dari hasil uji coba langsung di browser</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- v2.25.2 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.25.2 &mdash; 8 Oktober 2026</h3>
+                <span class="badge-draft text-xs">Inventory Simple -- pengembangan dimulai</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Mulai pembangunan <strong>Inventory Simple</strong> &mdash; cara mencatat hasil hitung fisik stok yang lebih ringkas dari Opname biasa. Tahap awal: alur Draft &rarr; Terkirim untuk semua departemen (masih tahap pengembangan &amp; pengujian internal, belum aktif untuk staf)</li>
                 </ul>
             </div>
         </div>
