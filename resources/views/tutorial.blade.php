@@ -29,6 +29,8 @@
                 <li><a href="#laporan" class="hover:underline">Laporan & Monitoring</a></li>
                 <li><a href="#gudang" class="hover:underline">Cek Saldo Stok (Gudang)</a></li>
                 <li><a href="#roles" class="hover:underline">Roles & Hak Akses</a></li>
+                <li><a href="#user-management" class="hover:underline">Manajemen User</a></li>
+                <li><a href="#inventory-simple" class="hover:underline">Inventory Simple (Pendataan)</a></li>
                 <li><a href="#wipro" class="hover:underline">Integrasi Wipro (Central Kitchen)</a></li>
                 <li><a href="#pos" class="hover:underline">Modul POS/Kasir</a></li>
                 <li><a href="#troubleshoot" class="hover:underline">Troubleshooting Umum</a></li>
@@ -580,7 +582,7 @@
             </div>
             <div class="rounded-xl bg-gray-50 border border-gray-100 px-3 py-2 text-xs text-gray-700">
                 <p class="font-semibold text-gray-800 mb-1">Aksi massal (centang beberapa baris sekaligus) kini tersedia di:</p>
-                Open Stock (Post), Opname (Submit/Approve), Penerimaan Barang (Submit), Transfer Stok (Submit), Spoil &amp; Waste (Approve), Purchase Order (Approve), Manajemen User (Aktifkan/Nonaktifkan), Master Data Item (Aktifkan/Nonaktifkan), Menu &amp; Resep (Hapus), Kalkulator HPP (Hapus riwayat), Kalender Event (Hapus), Konfigurasi Stok (Hapus), dan Notifikasi (Tandai dibaca). Tombol aksi massal muncul di bagian bawah layar begitu ada baris yang dicentang.
+                Open Stock (Post), Opname (Submit/Approve), Penerimaan Barang (Submit), Transfer Stok (Submit), Spoil &amp; Waste (Approve), Purchase Order (Approve), Manajemen User (Aktifkan/Nonaktifkan/Ganti Outlet/Hapus &mdash; lihat bagian 10), Master Data Item (Aktifkan/Nonaktifkan), Menu &amp; Resep (Hapus), Kalkulator HPP (Hapus riwayat), Kalender Event (Hapus), Konfigurasi Stok (Hapus), dan Notifikasi (Tandai dibaca). Tombol aksi massal muncul di bagian bawah layar begitu ada baris yang dicentang.
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-xs border-separate" style="border-spacing: 0">
@@ -650,11 +652,114 @@
         </div>
     </x-sf.card>
 
-    {{-- 10. WIPRO --}}
-    <x-sf.card id="wipro">
+    {{-- 10. MANAJEMEN USER --}}
+    <x-sf.card id="user-management">
         <x-slot:header>
             <div class="flex items-center gap-3">
                 <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold text-sm shrink-0">10</span>
+                <h3 class="font-heading font-bold text-gray-900">Manajemen User</h3>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm text-gray-700">
+            <p class="text-xs text-gray-500">Settings &gt; Manajemen User &mdash; khusus role dengan akses pengaturan user (mis. Admin/Super Admin).</p>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">1. Centang &amp; Aksi Massal</p>
+                <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Centang kotak di samping nama user yang mau diproses &mdash; atau centang kotak di header tabel (desktop) untuk pilih semua user di halaman itu sekaligus</li>
+                    <li>Setelah ada yang dicentang, muncul bar aksi di bagian bawah layar dengan pilihan: <strong>Aktifkan</strong>, <strong>Nonaktifkan</strong>, <strong>Ganti Outlet</strong>, atau <strong>Hapus</strong></li>
+                    <li>Untuk Ganti Outlet, pilih dulu outlet tujuannya dari dropdown yang muncul, baru klik Terapkan</li>
+                    <li>Akun milik diri sendiri tidak ikut bisa dicentang/diproses &mdash; supaya tidak tidak sengaja menonaktifkan/menghapus akun sendiri</li>
+                </ol>
+            </div>
+
+            <div class="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800">
+                <strong>Hapus hanya untuk user yang belum pernah login sama sekali</strong> (biasanya akun baru yang salah input atau akun trial yang tidak jadi dipakai). User yang sudah pernah login tidak bisa dihapus lewat aksi massal ini &mdash; kalau perlu dinonaktifkan, pakai pilihan "Nonaktifkan" saja, bukan "Hapus".
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">2. Import User lewat Excel</p>
+                <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Klik tombol <strong>"Import User"</strong> di pojok kanan atas halaman Manajemen User</li>
+                    <li>Upload file Excel dengan 2 sheet: sheet pertama daftar user baru yang mau dibuat, sheet kedua daftar akun lama yang mau dinonaktifkan</li>
+                    <li>Sistem akan menampilkan <strong>pratinjau</strong> dulu &mdash; baris yang emailnya sudah terdaftar otomatis ditandai "duplikat" (dilewati), baris yang datanya tidak lengkap ditandai "error", dan baris yang password-nya kelihatan terlalu pendek (kemungkinan salah ketik/angka nol di depan hilang) ditandai peringatan kuning</li>
+                    <li>Centang/hapus centang baris mana saja yang mau diproses, lalu klik <strong>Terapkan</strong> &mdash; data baru belum tersimpan sama sekali sebelum langkah ini</li>
+                </ol>
+            </div>
+
+            <div class="rounded-xl bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-800">
+                Peran <strong>SUPER_ADMIN</strong> cuma bisa diberikan oleh sesama SUPER_ADMIN &mdash; baik lewat form tambah/edit user biasa maupun lewat Import Excel, admin biasa tidak bisa menaikkan peran siapa pun (termasuk dirinya sendiri) jadi SUPER_ADMIN.
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- 11. INVENTORY SIMPLE --}}
+    <x-sf.card id="inventory-simple">
+        <x-slot:header>
+            <div class="flex items-center gap-3">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold text-sm shrink-0">11</span>
+                <h3 class="font-heading font-bold text-gray-900">Inventory Simple (Pendataan)</h3>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm text-gray-700">
+            <p class="text-xs text-gray-500">Cara mencatat hasil hitung fisik stok yang lebih ringkas dari Opname biasa &mdash; menunya ada di dalam menu <strong>Opname &gt; Inventory Simple (Pendataan)</strong> di sidebar.</p>
+
+            <div class="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800">
+                Form ini murni untuk <strong>mencatat hasil hitung fisik saja &mdash; belum mengubah saldo stok sistem</strong>. Ini beda dari Opname biasa (yang hasilnya, setelah disetujui, langsung menyesuaikan catatan stok). Pakai Inventory Simple untuk pendataan yang lebih cepat/ringan; pakai Opname biasa kalau hasil hitungnya memang mau dijadikan dasar penyesuaian stok resmi.
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">1. Mulai Mengisi</p>
+                <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Buka <strong>Opname &gt; Inventory Simple (Pendataan)</strong></li>
+                    <li>SUPER_ADMIN perlu pilih dulu Outlet &amp; Departemen di bagian atas; staf dengan outlet/departemen tetap akan langsung masuk ke departemennya sendiri</li>
+                    <li>Klik <strong>"Mulai"</strong> pada template yang sesuai (nama template biasanya sama dengan nama departemen)</li>
+                    <li>Isi angka hasil hitung fisik per item &mdash; boleh pakai koma untuk angka desimal (mis. <code class="bg-gray-100 px-1 rounded">7,25</code>)</li>
+                    <li>Item yang stoknya memang nol, pakai tombol <strong>"Stok Nol"</strong> &mdash; beda dari item yang belum sempat dihitung sama sekali ("Belum dihitung")</li>
+                    <li>Setelah semua item terisi, tombol <strong>"Kirim"</strong> aktif &mdash; kalau masih ada yang kosong, sistem menolak dengan pesan jelas item mana yang kurang</li>
+                </ol>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">2. 3 Pilihan Tampilan</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                    <div class="rounded-lg bg-gray-50 px-3 py-2">
+                        <p class="font-medium text-gray-700">Mode Kartu</p>
+                        <p class="text-gray-500 mt-0.5">1 kartu besar per item, cocok untuk HP.</p>
+                    </div>
+                    <div class="rounded-lg bg-gray-50 px-3 py-2">
+                        <p class="font-medium text-gray-700">Mode List</p>
+                        <p class="text-gray-500 mt-0.5">Daftar padat 1 baris per item, cepat untuk scroll panjang.</p>
+                    </div>
+                    <div class="rounded-lg bg-gray-50 px-3 py-2">
+                        <p class="font-medium text-gray-700">Mode Tabel</p>
+                        <p class="text-gray-500 mt-0.5">Tampilan tabel ringkas, cocok untuk layar lebar/desktop.</p>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Ketiga mode menampilkan data yang sama persis &mdash; cuma beda cara menampilkannya. Ada juga kotak pencarian nama item dan filter Lokasi/Kategori di setiap mode.</p>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">3. Riwayat &amp; Revisi</p>
+                <p class="text-xs text-gray-600">Dokumen yang sudah dikirim bisa dilihat lagi lewat <strong>"Riwayat"</strong>. Kalau atasan minta revisi (ada input yang keliru), dokumen kembali berstatus Draft dan bisa diisi ulang &mdash; alasan revisi (siapa, kapan, kenapa) selalu terlihat di halaman dokumen itu.</p>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">4. Lihat Data Opname &amp; Rekap Mingguan (read-only)</p>
+                <p class="text-xs text-gray-600 mb-2">Di halaman utama Inventory Simple, ada 2 link tambahan yang murni untuk <strong>melihat</strong> (tidak bisa input apa pun lewat sini):</p>
+                <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
+                    <li><strong>"Lihat data Opname (yang sudah diisi)"</strong> &mdash; daftar sesi Opname biasa yang sudah dicatat staf, klik salah satu untuk membuka detailnya di halaman Opname seperti biasa</li>
+                    <li><strong>"Lihat Rekap Mingguan Opname (tampilan tabel)"</strong> &mdash; data Opname yang sama, tapi ditampilkan sebagai tabel mingguan (item x 7 hari), sama persis gayanya dengan Rekap Hasil Hitung Mingguan milik Inventory Simple sendiri. Hanya sesi yang sudah <strong>Terkirim</strong> yang dihitung sebagai hasil final; sesi yang masih Draft tetap tampil "Belum dihitung"</li>
+                </ol>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- 12. WIPRO --}}
+    <x-sf.card id="wipro">
+        <x-slot:header>
+            <div class="flex items-center gap-3">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold text-sm shrink-0">12</span>
                 <h3 class="font-heading font-bold text-gray-900">Integrasi Wipro (Central Kitchen)</h3>
             </div>
         </x-slot:header>
@@ -738,7 +843,7 @@
     <x-sf.card id="pos">
         <x-slot:header>
             <div class="flex items-center gap-3">
-                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold text-sm shrink-0">11</span>
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold text-sm shrink-0">13</span>
                 <h3 class="font-heading font-bold text-gray-900">Modul POS/Kasir</h3>
             </div>
         </x-slot:header>
