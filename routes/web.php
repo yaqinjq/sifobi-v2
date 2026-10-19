@@ -206,6 +206,18 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                 ->names('suppliers');
 
             Route::middleware('permission:manage_users')->group(function (): void {
+                // Route literal 'users/import*' WAJIB terdaftar SEBELUM
+                // Route::resource('users', ...) di bawah -- pelajaran
+                // route-ordering yang sama berulang kali ditemukan di
+                // modul lain: segmen literal harus menang sebelum
+                // wildcard {user} mencoba meresolusinya sbg ID.
+                Route::get('users/import', [UserController::class, 'importForm'])
+                    ->name('users.import.form');
+                Route::post('users/import/preview', [UserController::class, 'importPreview'])
+                    ->name('users.import.preview');
+                Route::post('users/import/apply', [UserController::class, 'importApply'])
+                    ->name('users.import.apply');
+
                 Route::resource('users', UserController::class)
                     ->only(['index', 'create', 'store', 'edit', 'update'])
                     ->names('users');
@@ -213,6 +225,10 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                     ->name('users.toggle-status');
                 Route::post('users/bulk-toggle-status', [UserController::class, 'bulkToggleStatus'])
                     ->name('users.bulk-toggle-status');
+                Route::post('users/bulk-change-outlet', [UserController::class, 'bulkChangeOutlet'])
+                    ->name('users.bulk-change-outlet');
+                Route::post('users/bulk-delete', [UserController::class, 'bulkDelete'])
+                    ->name('users.bulk-delete');
                 Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])
                     ->name('users.reset-password');
 

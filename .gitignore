@@ -32,3 +32,10 @@ Thumbs.db
 # Capacitor native projects (dibuat lokal per developer)
 /android
 /ios
+
+# docs/data berisi data pribadi staf asli (nama/email/telp/password
+# awal, mis. docs/data/BARU) -- sengaja TIDAK PERNAH masuk git sama
+# sekali, bukan cuma "belum di-add", supaya tidak ada risiko
+# ter-commit tanpa sengaja lewat `git add -A`/`git add .` di sesi
+# mana pun.
+/docs/data/

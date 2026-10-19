@@ -1,12 +1,39 @@
 <?php
 
 use App\Models\User;
+use App\Modules\Core\Models\Brand;
+use App\Modules\Core\Models\LegalEntity;
 use App\Modules\Core\Models\Outlet;
+use App\Modules\Core\Models\Tenant;
 use Database\Seeders\MinimumMasterDataSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+/**
+ * Tidak ada factory utk Brand/LegalEntity/Outlet di codebase ini --
+ * pola yang sama dgn foreignOutletInNewTenant() di
+ * SpoilWasteDepartmentScopingFeatureTest.php, cuma diberi nama beda
+ * supaya tidak bentrok (Pest memuat semua file test dlm 1 namespace
+ * global utk fungsi top-level).
+ */
+function foreignOutletInNewTenantForUserTest(): Outlet
+{
+    $suffix = uniqid();
+    $otherTenant = Tenant::query()->create(['code' => 'OTHERTEN_'.$suffix, 'name' => 'Other Tenant '.$suffix, 'status' => 'ACTIVE']);
+    $otherBrand = Brand::withoutGlobalScopes()->create(['tenant_id' => $otherTenant->id, 'code' => 'OTB_'.$suffix, 'name' => 'Other Brand', 'status' => 'ACTIVE']);
+    $otherLegalEntity = LegalEntity::withoutGlobalScopes()->create(['tenant_id' => $otherTenant->id, 'code' => 'OTLE_'.$suffix, 'name' => 'Other Legal Entity', 'status' => 'ACTIVE']);
+
+    return Outlet::withoutGlobalScopes()->create([
+        'tenant_id' => $otherTenant->id,
+        'brand_id' => $otherBrand->id,
+        'legal_entity_id' => $otherLegalEntity->id,
+        'code' => 'OTO_'.$suffix,
+        'name' => 'Foreign Outlet',
+        'status' => 'ACTIVE',
+    ]);
+}
 
 beforeEach(function (): void {
     $this->seed([
@@ -117,4 +144,49 @@ test('bulk toggle status activates selected inactive users', function (): void {
         ->assertRedirect(route('settings.users.index'));
 
     expect($user1->refresh()->status)->toBe('ACTIVE');
+});
+
+test('bulk change outlet moves only the selected users to the chosen outlet', function (): void {
+    $outletFrom = Outlet::query()->where('tenant_id', $this->admin->tenant_id)->where('code', 'MKO_OUTLET_1')->firstOrFail();
+    $outletTo = Outlet::query()->where('tenant_id', $this->admin->tenant_id)->where('code', 'MKO_OUTLET_2')->firstOrFail();
+
+    $moved = User::factory()->create(['tenant_id' => $this->admin->tenant_id, 'outlet_id' => $outletFrom->id]);
+    $untouched = User::factory()->create(['tenant_id' => $this->admin->tenant_id, 'outlet_id' => $outletFrom->id]);
+
+    $this->actingAs($this->admin)
+        ->post(route('settings.users.bulk-change-outlet'), [
+            'outlet_id' => $outletTo->id,
+            'ids' => [$moved->id],
+        ])
+        ->assertRedirect(route('settings.users.index'));
+
+    expect($moved->refresh()->outlet_id)->toBe($outletTo->id)
+        ->and($untouched->refresh()->outlet_id)->toBe($outletFrom->id);
+});
+
+test('bulk change outlet to an outlet from another tenant is rejected', function (): void {
+    $foreignOutlet = foreignOutletInNewTenantForUserTest();
+    $user = User::factory()->create(['tenant_id' => $this->admin->tenant_id]);
+
+    $this->actingAs($this->admin)
+        ->post(route('settings.users.bulk-change-outlet'), [
+            'outlet_id' => $foreignOutlet->id,
+            'ids' => [$user->id],
+        ])
+        ->assertSessionHasErrors('outlet_id');
+});
+
+test('bulk delete removes only users who never logged in, skips the rest and own account', function (): void {
+    $neverLoggedIn = User::factory()->create(['tenant_id' => $this->admin->tenant_id, 'last_login_at' => null]);
+    $hasLoggedIn = User::factory()->create(['tenant_id' => $this->admin->tenant_id, 'last_login_at' => now()->subDay()]);
+
+    $this->actingAs($this->admin)
+        ->post(route('settings.users.bulk-delete'), [
+            'ids' => [$neverLoggedIn->id, $hasLoggedIn->id, $this->admin->id],
+        ])
+        ->assertRedirect(route('settings.users.index'));
+
+    expect(User::query()->find($neverLoggedIn->id))->toBeNull()
+        ->and(User::query()->find($hasLoggedIn->id))->not->toBeNull()
+        ->and(User::query()->find($this->admin->id))->not->toBeNull();
 });
