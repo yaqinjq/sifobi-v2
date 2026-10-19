@@ -447,3 +447,75 @@ test('sort mode form forces show all items and ignores per_page selection', func
         ->assertViewHas('perPage', 'all')
         ->assertViewHas('paginator', null);
 });
+
+test('submit no longer blocks when some items are uncounted, and approve skips them without zeroing stock', function (): void {
+    $susuItem = \App\Modules\Inventory\Models\Item::query()->where('canonical_sku', 'MKO-SUSU-UHT')->firstOrFail();
+    $susuItem->update(['primary_department_id' => $this->bar->id]);
+
+    app(StockLedgerService::class)->openStock([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'item_id' => $susuItem->id,
+        'unit_id' => $susuItem->base_unit_id,
+        'stock_target' => StockMutation::TARGET_OUTLET_DAILY,
+        'qty' => '200',
+        'performed_by' => User::query()->where('email', 'admin@sifobi.test')->value('id'),
+    ]);
+
+    $staff = opnameUser('STAFF_BAR', 'BAR');
+    $admin = User::query()->where('email', 'admin@sifobi.test')->firstOrFail();
+
+    $session = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->bar->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => now()->toDateString(),
+    ], $staff->id);
+
+    $barRow = $session->items->firstWhere('item_id', $this->barItem->id);
+    $susuRow = $session->items->firstWhere('item_id', $susuItem->id);
+
+    // Hanya barItem yang dihitung (990, system=1000 -> variance 10). susuRow
+    // SENGAJA dibiarkan is_counted=false (belum dihitung sama sekali).
+    // loose (bukan whole) dipakai supaya physicalBase = 990 persis, terlepas
+    // dari inventory_ratio item ini (whole dikali ratio, loose tidak).
+    app(OpnameService::class)->updateItem($barRow, '0', '990');
+
+    $session = app(OpnameService::class)->submit($session->fresh(), $staff->id);
+
+    expect($session->status)->toBe(OpnameSession::STATUS_SUBMITTED);
+
+    app(OpnameService::class)->approve($session->fresh(), $admin->id);
+
+    $barRow->refresh();
+    $susuRow->refresh();
+
+    expect($barRow->mutation_id)->not->toBeNull()
+        ->and($susuRow->mutation_id)->toBeNull();
+
+    $barBalance = \App\Modules\Stock\Models\StockBalance::query()
+        ->where('tenant_id', $this->tenant->id)->where('outlet_id', $this->outlet->id)
+        ->where('item_id', $this->barItem->id)->first();
+    $susuBalance = \App\Modules\Stock\Models\StockBalance::query()
+        ->where('tenant_id', $this->tenant->id)->where('outlet_id', $this->outlet->id)
+        ->where('item_id', $susuItem->id)->first();
+
+    expect((string) $barBalance->qty_on_hand)->toBe('990.000000')
+        ->and((string) $susuBalance->qty_on_hand)->toBe('200.000000'); // TIDAK berubah/dianggap nol -- tetap seperti sebelum opname.
+});
+
+test('submit still blocked when literally zero items have been counted', function (): void {
+    $staff = opnameUser('STAFF_BAR', 'BAR');
+
+    $session = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->bar->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => now()->toDateString(),
+    ], $staff->id);
+
+    expect(fn () => app(OpnameService::class)->submit($session, $staff->id))
+        ->toThrow(ValidationException::class);
+});

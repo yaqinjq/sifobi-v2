@@ -258,9 +258,14 @@ class OpnameService
                 ]);
             }
 
-            if ($session->items->contains(fn (OpnameItem $item): bool => ! $item->is_counted)) {
+            // Item yang belum dihitung BOLEH ikut submit (DILEWATI saat approve,
+            // BUKAN dianggap nol -- lihat approve() di bawah) supaya staf tidak
+            // terjebak kalau ada 1-2 item yang genuinely belum sempat dihitung.
+            // Tapi minimal 1 item harus terhitung, kalau tidak submit tidak ada
+            // artinya sama sekali.
+            if ($session->items->doesntContain(fn (OpnameItem $item): bool => $item->is_counted)) {
                 throw ValidationException::withMessages([
-                    'items' => 'Semua item wajib diisi sebelum submit.',
+                    'items' => 'Minimal 1 item harus dihitung sebelum submit.',
                 ]);
             }
 
@@ -304,6 +309,18 @@ class OpnameService
             foreach ($itemGroups as $itemId => $rows) {
                 // Skip jika sudah ada mutasi di salah satu baris (idempoten)
                 if ($rows->contains(fn (OpnameItem $r): bool => $r->mutation_id !== null)) {
+                    continue;
+                }
+
+                // Item yang ADA baris belum dihitung (is_counted=false) DILEWATI
+                // TOTAL -- bukan dianggap fisik=0 (akan salah merusak ledger jadi
+                // nol), dan bukan cuma mengecualikan baris itu dari penjumlahan
+                // (system_qty_base adalah total GABUNGAN semua lokasi, jadi
+                // mengecualikan 1 lokasi dari penjumlahan tanpa ikut mengecualikan
+                // dari system_qty_base akan membuat variance salah lebih besar
+                // dari yang sebenarnya). Stok item ini tetap seperti sebelumnya,
+                // perlu opname susulan khusus item ini kalau mau diproses.
+                if ($rows->contains(fn (OpnameItem $r): bool => ! $r->is_counted)) {
                     continue;
                 }
 

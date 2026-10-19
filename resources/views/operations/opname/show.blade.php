@@ -423,10 +423,14 @@ function opnameViewSwitcher(config) {
 function checkBeforeSubmit(event) {
     event.preventDefault();
     var anomalies = [];
+    var uncountedNames = [];
     document.querySelectorAll('[data-opname-item]').forEach(function (el) {
         var itemName    = el.dataset.itemName || 'Item';
         var physDisplay = el.dataset.physicalDisplay || '-';
         var itemId      = el.id.replace('opname-item-', '');
+        if (el.dataset.counted !== 'true') {
+            uncountedNames.push(itemName);
+        }
         if (el.dataset.overSystem === 'true') {
             anomalies.push({
                 itemId: itemId,
@@ -446,19 +450,29 @@ function checkBeforeSubmit(event) {
             });
         }
     });
+    if (uncountedNames.length > 0) {
+        anomalies.unshift({
+            itemId: null,
+            icon: 'ti-circle-dashed',
+            color: 'text-gray-500',
+            bg: 'bg-gray-50 border-gray-200',
+            message: '<strong>' + uncountedNames.length + ' item belum dihitung</strong> akan DILEWATI (stoknya tidak diubah, bukan dianggap nol): ' + uncountedNames.slice(0, 5).join(', ') + (uncountedNames.length > 5 ? ', dst.' : ''),
+        });
+    }
     if (anomalies.length === 0) {
         document.getElementById('opname-submit-form').submit();
         return;
     }
     var list = document.getElementById('anomali-list');
     list.innerHTML = anomalies.map(function (a) {
+        var clickable = a.itemId !== null;
         return '<div class="flex items-start gap-2 p-2.5 rounded-xl border ' + a.bg +
-            ' cursor-pointer hover:opacity-80 transition-opacity"' +
-            ' onclick="scrollToOpnameItem(\'' + a.itemId + '\')" title="Klik untuk ke item ini">' +
+            (clickable ? ' cursor-pointer hover:opacity-80 transition-opacity' : '') + '"' +
+            (clickable ? ' onclick="scrollToOpnameItem(\'' + a.itemId + '\')" title="Klik untuk ke item ini"' : '') + '>' +
             '<i class="ti ' + a.icon + ' ' + a.color + ' flex-shrink-0 mt-0.5 text-sm" aria-hidden="true"></i>' +
             '<div class="flex-1">' +
             '<p class="text-xs text-gray-700">' + a.message + '</p>' +
-            '<p class="text-xs text-gray-400 mt-0.5">Klik untuk ke item ini →</p>' +
+            (clickable ? '<p class="text-xs text-gray-400 mt-0.5">Klik untuk ke item ini →</p>' : '') +
             '</div>' +
             '</div>';
     }).join('');

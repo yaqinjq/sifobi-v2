@@ -32,7 +32,7 @@
          wasCounted: @js((bool) $opnameItem->is_counted)
       })"
       x-init="fetchSuggestion()"
-      x-effect="$el.dataset.overSystem = isOverSystemStock; $el.dataset.suspicious = isSuspiciousWhenZero; $el.dataset.physicalDisplay = physicalBaseDisplay">
+      x-effect="$el.dataset.overSystem = isOverSystemStock; $el.dataset.suspicious = isSuspiciousWhenZero; $el.dataset.physicalDisplay = physicalBaseDisplay; $el.dataset.counted = wasCounted">
     <div class="flex items-start justify-between gap-3">
         <div class="shrink-0">
             @if($item?->photo)
