@@ -8,12 +8,39 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.26 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.26 &mdash; 19 Oktober 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Settings &gt; Manajemen User: centang "pilih semua" (desktop &amp; HP) dan aksi massal untuk user terpilih &mdash; Aktifkan, Nonaktifkan, Ganti Outlet, atau Hapus (khusus user yang belum pernah login, demi keamanan)</li>
+                    <li>Settings &gt; Manajemen User: tombol <strong>Import User</strong> &mdash; upload file Excel berisi user baru &amp; akun trial yang perlu dinonaktifkan, bisa di-preview dulu (termasuk peringatan kalau ada password yang kelihatannya salah ketik) sebelum benar-benar disimpan</li>
+                    <li><strong>Inventory Simple (Pendataan)</strong> &mdash; cara mencatat hasil hitung fisik yang lebih ringkas dari Opname biasa (3 tampilan: Kartu/List/Tabel), sekarang aktif untuk semua departemen. Menunya ada di dalam Opname &gt; Inventory Simple (Pendataan)</li>
+                    <li>Di dalam Inventory Simple, sekarang ada juga <strong>"Lihat data Opname (yang sudah diisi)"</strong> dan <strong>"Rekap Mingguan Opname"</strong> &mdash; menampilkan hasil Opname biasa yang sudah dicatat staf dalam bentuk tabel mingguan (item x 7 hari), murni untuk dilihat</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Dropdown "Tampilkan ... per halaman" (muncul di hampir semua halaman daftar/tabel) sekarang benar-benar berfungsi &mdash; sebelumnya bisa gagal diam-diam tanpa pesan error di sebagian browser (terutama kalau ada ekstensi Chrome tertentu terpasang)</li>
+                    <li>Opname: sekarang boleh dikirim untuk disetujui meski ada 1-2 item yang belum sempat dihitung &mdash; item yang belum dihitung otomatis dilewati (stoknya TIDAK berubah/dianggap nol), tidak lagi memblokir pengiriman seluruh sesi hanya karena ada 1 item yang terlewat</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.25 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.25 &mdash; 5 Oktober 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
