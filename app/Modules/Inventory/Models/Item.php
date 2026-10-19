@@ -168,6 +168,27 @@ class Item extends Model
         return $this->brandAliases->firstWhere('brand_id', $brandId);
     }
 
+    public function masterUnitId(): ?int
+    {
+        return $this->base_unit_id ?: $this->inventory_unit_id;
+    }
+
+    /**
+     * Dipakai Inventory Simple (InventoryCountService::resolveLineConfig(),
+     * InventoryCountTemplateItem::configIssues()) -- SATU sumber kebenaran
+     * utk "apakah item ini punya pasangan unit+rasio yang valid utk
+     * konversi Utuh/Ecer", supaya logika blokir submit dan badge Master
+     * Data tidak pernah divergen.
+     */
+    public function hasValidInventoryRatio(): bool
+    {
+        return $this->inventory_unit_id
+            && $this->base_unit_id
+            && (int) $this->inventory_unit_id !== (int) $this->base_unit_id
+            && $this->inventory_ratio
+            && bccomp((string) $this->inventory_ratio, '0', 6) > 0;
+    }
+
     protected static function booted(): void
     {
         static::addGlobalScope(new TenantScope);

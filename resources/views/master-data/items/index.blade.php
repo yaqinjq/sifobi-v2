@@ -147,6 +147,7 @@
                 };
                 $statusKey = $item->is_active ? 'active' : 'inactive';
                 $photoUrl = $item->photo ? asset('storage/'.$item->photo) : null;
+                $inventorySimpleIssues = $inventorySimpleIssuesByItemId->get($item->id, collect());
             @endphp
             <div x-show="matches(@js($searchable), @js($item->item_type), @js($statusKey))"
                  class="sf-card p-4">
@@ -175,6 +176,11 @@
                     <span class="{{ $item->is_active ? 'badge-active' : 'badge-inactive' }}">
                         {{ $item->is_active ? 'AKTIF' : 'NON-AKTIF' }}
                     </span>
+                    @if($inventorySimpleIssues->isNotEmpty())
+                        <span class="badge-danger" title="{{ $inventorySimpleIssues->pluck('message')->implode(' ') }}">
+                            <i class="ti ti-alert-triangle" aria-hidden="true"></i> Perlu Perhatian
+                        </span>
+                    @endif
                 </div>
 
                 <div class="mt-3 grid grid-cols-2 gap-2 text-sm text-gray-600">
@@ -373,6 +379,7 @@
                                 };
                                 $statusKey = $item->is_active ? 'active' : 'inactive';
                                 $photoUrl = $item->photo ? asset('storage/'.$item->photo) : null;
+                                $inventorySimpleIssues = $inventorySimpleIssuesByItemId->get($item->id, collect());
                             @endphp
                             <tr x-show="matches(@js($searchable), @js($item->item_type), @js($statusKey))" class="odd:bg-white even:bg-gray-50/60">
                                 <td class="px-4 py-3">
@@ -396,7 +403,14 @@
                                 </td>
                                 <td class="px-4 py-3 font-semibold text-gray-900">{{ $item->canonical_sku }}</td>
                                 <td class="px-4 py-3 text-gray-700">
-                                    <p class="font-semibold text-gray-900">{{ $item->name }}</p>
+                                    <p class="font-semibold text-gray-900">
+                                        {{ $item->name }}
+                                        @if($inventorySimpleIssues->isNotEmpty())
+                                            <span class="badge-danger ml-1" title="{{ $inventorySimpleIssues->pluck('message')->implode(' ') }}">
+                                                <i class="ti ti-alert-triangle" aria-hidden="true"></i> Perlu Perhatian
+                                            </span>
+                                        @endif
+                                    </p>
                                     <p class="text-xs text-gray-400">{{ $item->keterangan_pembeda ?: 'Stok: -' }}</p>
                                 </td>
                                 <td class="px-4 py-3 text-gray-600">
@@ -510,6 +524,7 @@
                     ];
                     $jenisClass = $jenisBadge[$item->jenis?->code] ?? 'bg-gray-500 text-white';
                     $photoUrl = $item->photo ? asset('storage/'.$item->photo) : null;
+                    $inventorySimpleIssues = $inventorySimpleIssuesByItemId->get($item->id, collect());
                 @endphp
                 <a href="{{ route('master-data.items.show', $item) }}"
                    x-show="matches(@js($searchable), @js($item->item_type), @js($statusKey))"
@@ -532,6 +547,12 @@
                                 <span class="block h-2 w-2 rounded-full bg-gray-300 ring-2 ring-white"></span>
                             @endif
                         </div>
+
+                        @if($inventorySimpleIssues->isNotEmpty())
+                            <div class="absolute left-2.5 top-2.5" title="{{ $inventorySimpleIssues->pluck('message')->implode(' ') }}">
+                                <span class="block h-2.5 w-2.5 rounded-full bg-red-600 ring-2 ring-white"></span>
+                            </div>
+                        @endif
 
                         @if($item->jenis)
                             <div class="absolute bottom-0 left-0 right-0 px-2 pb-2">
