@@ -648,6 +648,7 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                     Route::post('/start', [InventoryCountController::class, 'startOrResume'])->name('start');
                     Route::get('/history', [InventoryCountController::class, 'history'])->name('history');
                     Route::get('/opname-history', [InventoryCountController::class, 'opnameHistory'])->name('opname-history');
+                    Route::get('/opname-recap', [InventoryCountController::class, 'opnameRecap'])->name('opname-recap');
                     Route::get('/export', [InventoryCountController::class, 'export'])->name('export');
 
                     // ── Rekap Mingguan saldo mandiri (BUKAN ledger resmi) ──

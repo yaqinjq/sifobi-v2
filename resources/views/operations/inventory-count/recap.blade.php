@@ -1,9 +1,11 @@
 @extends('layouts.app')
 
+@php $isOpnameRecap = $isOpnameRecap ?? false; @endphp
+
 @section('title', 'Rekap Hasil Hitung Mingguan')
 
 @section('content')
-<x-sf.page-header title="Rekap Hasil Hitung Mingguan" subtitle="{{ $template->name }} -- {{ $outlet?->name }} / {{ $department?->name }}" back="{{ route('operations.inventory-count.index') }}" />
+<x-sf.page-header title="Rekap Hasil Hitung Mingguan{{ $isOpnameRecap ? ' (Data Opname)' : '' }}" subtitle="{{ $isOpnameRecap ? 'Opname' : $template->name }} -- {{ $outlet?->name }} / {{ $department?->name }}" back="{{ $isOpnameRecap ? route('operations.inventory-count.opname-history') : route('operations.inventory-count.index') }}" />
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4"
      x-data
@@ -14,20 +16,29 @@
         Dokumen yang masih Draft (belum dikirim, atau sedang direvisi) TIDAK dianggap hasil final -- hari itu tampil "Belum dihitung". Angka di sini APA ADANYA dari hasil hitung fisik, TIDAK ada perhitungan IN/OUT atau saldo berjalan.
     </div>
 
+    @php
+        $prevWeekParams = array_filter(['week' => $weekStart->copy()->subDays(7)->toDateString(), 'outlet_id' => $isSuperAdmin ? $outlet?->id : null, 'department_id' => $isSuperAdmin ? $department?->id : null]);
+        $nextWeekParams = array_filter(['week' => $weekStart->copy()->addDays(7)->toDateString(), 'outlet_id' => $isSuperAdmin ? $outlet?->id : null, 'department_id' => $isSuperAdmin ? $department?->id : null]);
+        if (! $isOpnameRecap) {
+            $prevWeekParams['template_id'] = $template->id;
+            $nextWeekParams['template_id'] = $template->id;
+        }
+        $recapRouteName = $isOpnameRecap ? 'operations.inventory-count.opname-recap' : 'operations.inventory-count.recap.index';
+    @endphp
     <x-sf.card>
         <div class="flex items-center justify-between gap-3">
-            <a href="{{ route('operations.inventory-count.recap.index', array_filter(['template_id' => $template->id, 'week' => $weekStart->copy()->subDays(7)->toDateString(), 'outlet_id' => $isSuperAdmin ? $outlet?->id : null, 'department_id' => $isSuperAdmin ? $department?->id : null])) }}"
+            <a href="{{ route($recapRouteName, $prevWeekParams) }}"
                class="sf-btn-secondary min-h-10 px-3 text-sm"><i class="ti ti-chevron-left" aria-hidden="true"></i> Minggu Lalu</a>
             <div class="text-center">
                 <p class="text-xs text-gray-500">Minggu</p>
                 <p class="font-semibold text-gray-900">{{ $weekStart->translatedFormat('d M') }} &ndash; {{ $weekStart->copy()->addDays(6)->translatedFormat('d M Y') }}</p>
             </div>
-            <a href="{{ route('operations.inventory-count.recap.index', array_filter(['template_id' => $template->id, 'week' => $weekStart->copy()->addDays(7)->toDateString(), 'outlet_id' => $isSuperAdmin ? $outlet?->id : null, 'department_id' => $isSuperAdmin ? $department?->id : null])) }}"
+            <a href="{{ route($recapRouteName, $nextWeekParams) }}"
                class="sf-btn-secondary min-h-10 px-3 text-sm">Minggu Depan <i class="ti ti-chevron-right" aria-hidden="true"></i></a>
         </div>
     </x-sf.card>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+    <div class="grid grid-cols-1 sm:grid-cols-{{ $isOpnameRecap ? '2' : '3' }} gap-2">
         <div class="relative sm:col-span-1">
             <i class="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true"></i>
             <input type="search" x-model="$store.recap.search" placeholder="Cari nama item..." class="sf-input pl-9 min-h-11 text-sm">
@@ -38,10 +49,12 @@
                 <option value="{{ $category }}">{{ $category }}</option>
             @endforeach
         </select>
+        @unless($isOpnameRecap)
         <a href="{{ route('operations.inventory-count.recap.export', array_filter(['template_id' => $template->id, 'week' => $weekStart->toDateString(), 'outlet_id' => $isSuperAdmin ? $outlet?->id : null, 'department_id' => $isSuperAdmin ? $department?->id : null])) }}"
            class="sf-btn-secondary min-h-11 flex items-center justify-center gap-1.5 text-sm">
             <i class="ti ti-download" aria-hidden="true"></i> Export
         </a>
+        @endunless
     </div>
 
     <div class="overflow-x-auto rounded-xl border border-gray-200 -mx-4 lg:mx-0 max-h-[75vh] overflow-y-auto">
@@ -72,7 +85,7 @@
                         @include('operations.inventory-count.partials.recap-row', ['row' => $row])
                     @endforeach
                 @empty
-                    <tr><td colspan="9" class="px-3 py-6 text-center text-gray-400">Belum ada item di template ini.</td></tr>
+                    <tr><td colspan="9" class="px-3 py-6 text-center text-gray-400">{{ $isOpnameRecap ? 'Belum ada item terdaftar untuk departemen ini.' : 'Belum ada item di template ini.' }}</td></tr>
                 @endforelse
             </tbody>
         </table>

@@ -470,7 +470,13 @@ class OpnameService
     /**
      * @return Collection<int, Item>
      */
-    private function itemsForOpname(int $tenantId, int $outletId, string $type, ?int $departmentId = null): Collection
+    /**
+     * Publik (bukan private) supaya bisa dipakai controller/laporan lain
+     * yang butuh daftar item resmi per departemen Opname (mis. rekap
+     * mingguan read-only di Inventory Simple) tanpa menduplikasi query
+     * ini -- logic TIDAK diubah sama sekali, murni visibilitas.
+     */
+    public function itemsForOpname(int $tenantId, int $outletId, string $type, ?int $departmentId = null): Collection
     {
         $frequency = $type === OpnameSession::TYPE_MONTHLY ? 'MONTHLY' : 'DAILY';
 

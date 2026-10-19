@@ -3,7 +3,13 @@
 @section('title', 'Data Opname')
 
 @section('content')
-<x-sf.page-header title="Data Opname" subtitle="Read-only -- data Opname biasa yang sudah diisi staf, cuma ditampilkan di sini." back="{{ route('operations.inventory-count.index') }}" />
+<x-sf.page-header title="Data Opname" subtitle="Read-only -- data Opname biasa yang sudah diisi staf, cuma ditampilkan di sini." back="{{ route('operations.inventory-count.index') }}">
+    <x-slot:actions>
+        <a href="{{ route('operations.inventory-count.opname-recap', $isSuperAdmin ? array_filter(['outlet_id' => request('outlet_id'), 'department_id' => request('department_id')]) : []) }}" class="sf-btn-secondary min-h-11 px-3 text-xs">
+            <i class="ti ti-table" aria-hidden="true"></i> Tampilan Tabel Mingguan
+        </a>
+    </x-slot:actions>
+</x-sf.page-header>
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-5xl mx-auto w-full space-y-4">
     @if($isSuperAdmin)

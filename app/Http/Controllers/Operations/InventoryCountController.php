@@ -10,7 +10,9 @@ use App\Modules\Core\Models\Outlet;
 use App\Modules\Operations\Models\InventoryCountDocument;
 use App\Modules\Operations\Models\InventoryCountLine;
 use App\Modules\Operations\Models\InventoryCountTemplate;
+use App\Modules\Operations\Models\OpnameSession;
 use App\Services\InventoryCountService;
+use App\Services\OpnameService;
 use App\Support\Decimal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -23,8 +25,10 @@ class InventoryCountController extends Controller
 {
     use EnforcesInventorySimpleScope;
 
-    public function __construct(private readonly InventoryCountService $service)
-    {
+    public function __construct(
+        private readonly InventoryCountService $service,
+        private readonly OpnameService $opnameService
+    ) {
     }
 
     /**
@@ -316,6 +320,88 @@ class InventoryCountController extends Controller
             'isSuperAdmin' => $isSuperAdmin,
             'outlets' => $isSuperAdmin ? Outlet::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get() : collect(),
             'departments' => $isSuperAdmin ? Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
+        ]);
+    }
+
+    /**
+     * READ-ONLY: versi "Rekap Hasil Hitung Mingguan" (grid item x 7 hari)
+     * tapi sumber datanya OpnameSession/OpnameItem (Opname biasa), BUKAN
+     * InventoryCountDocument/Line -- reuse view yang SAMA PERSIS dengan
+     * Rekap Mingguan Inventory Simple (operations.inventory-count.recap)
+     * supaya tampilannya identik seperti yang diminta user, tapi datanya
+     * data Opname asli yang sudah ada. Sesi berstatus DRAFT TIDAK
+     * dianggap hasil final (sama seperti aturan Rekap Mingguan Inventory
+     * Simple) -- hari itu tampil "Belum dihitung".
+     */
+    public function opnameRecap(Request $request): View
+    {
+        $tenantId = $this->tenantId($request);
+        $scope = $this->resolveInventorySimpleScope($request);
+
+        abort_if(! $scope, 403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah.');
+
+        [$outletId, $departmentId] = $scope;
+
+        $weekStartParam = $request->date('week');
+        $weekStart = ($weekStartParam ? Carbon::instance($weekStartParam) : now())
+            ->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
+        $weekEnd = $weekStart->copy()->addDays(6);
+
+        $sessions = OpnameSession::query()
+            ->where('tenant_id', $tenantId)
+            ->where('outlet_id', $outletId)
+            ->where('department_id', $departmentId)
+            ->whereIn('status', [OpnameSession::STATUS_SUBMITTED, OpnameSession::STATUS_APPROVED, OpnameSession::STATUS_PROCESSED])
+            ->whereBetween('business_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+            ->with(['items.item', 'items.unit'])
+            ->get();
+
+        $byDateItem = [];
+        foreach ($sessions as $session) {
+            $dateKey = $session->business_date->toDateString();
+            foreach ($session->items as $opnameItem) {
+                $byDateItem[$dateKey][$opnameItem->item_id] = $opnameItem;
+            }
+        }
+
+        $items = $this->opnameService->itemsForOpname($tenantId, $outletId, OpnameSession::TYPE_DAILY, $departmentId);
+
+        $rows = collect();
+        foreach ($items as $item) {
+            $days = [];
+            for ($i = 0; $i < 7; $i++) {
+                $date = $weekStart->copy()->addDays($i);
+                $dateKey = $date->toDateString();
+                $opnameItem = $byDateItem[$dateKey][$item->id] ?? null;
+
+                $days[] = [
+                    'date' => $dateKey,
+                    'counted' => (bool) ($opnameItem?->is_counted),
+                    'qty_whole' => $opnameItem?->is_counted ? (string) $opnameItem->physical_qty_base : null,
+                    'qty_loose' => null,
+                    'whole_unit' => $opnameItem?->unit?->abbreviation ?? $opnameItem?->unit?->code,
+                    'loose_unit' => null,
+                    'config_valid' => true,
+                ];
+            }
+
+            $rows->push([
+                'item' => $item,
+                'location' => 'GENERIC',
+                'subcategory' => $item->categoryForDepartment($departmentId)?->name ?: 'Lainnya',
+                'days' => $days,
+            ]);
+        }
+
+        return view('operations.inventory-count.recap', [
+            'template' => null,
+            'outlet' => Outlet::query()->find($outletId),
+            'department' => Department::query()->find($departmentId),
+            'weekStart' => $weekStart,
+            'rows' => $rows,
+            'distinctCategories' => $rows->pluck('subcategory')->unique()->sort()->values(),
+            'isSuperAdmin' => $this->isSuperAdmin($request),
+            'isOpnameRecap' => true,
         ]);
     }
 
