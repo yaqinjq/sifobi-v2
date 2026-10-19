@@ -60,7 +60,7 @@ class PurchaseOrderController extends Controller
             ->pluck('total', 'status');
 
         $pos = (clone $baseQuery)
-            ->with(['outlet', 'department', 'requestedBy'])
+            ->with(['outlet', 'department', 'requestedBy.roles', 'requestedBy.outlet'])
             ->withCount('items')
             ->when(isset($tabStatusMap[$tab]), fn ($q) => $q->where('status', $tabStatusMap[$tab]))
             ->latest('id')
@@ -187,7 +187,8 @@ class PurchaseOrderController extends Controller
             'outlet',
             'department',
             'supplier',
-            'requestedBy',
+            'requestedBy.roles',
+            'requestedBy.outlet',
             'submittedBy',
             'approvedBy',
             'rejectedBy',

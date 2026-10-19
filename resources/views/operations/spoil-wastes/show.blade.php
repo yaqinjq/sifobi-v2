@@ -47,6 +47,13 @@
                 <p class="text-gray-500">Alasan</p>
                 <p class="font-semibold text-gray-900">{{ $spoil->reason_label }}</p>
             </div>
+            <div>
+                <p class="text-gray-500">Dicatat oleh</p>
+                <p class="font-semibold text-gray-900">{{ $spoil->createdBy?->name ?? '-' }}</p>
+                @if($spoil->createdBy)
+                    <p class="text-xs text-gray-500">{{ $spoil->createdBy->primary_role }}</p>
+                @endif
+            </div>
         </div>
 
         @if($spoil->reason_detail)

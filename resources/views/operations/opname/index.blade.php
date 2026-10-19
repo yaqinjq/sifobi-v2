@@ -93,6 +93,7 @@
                             <p class="text-sm text-gray-500">{{ $session->department?->name ?? 'Semua Departemen' }}</p>
                             <p class="text-sm text-gray-500">{{ optional($session->opname_date)->format('d M Y') }} | {{ $session->shift ?: '-' }}</p>
                             <p class="text-sm text-gray-500">{{ $session->items_count }} item</p>
+                            <p class="text-xs text-gray-400 mt-1">Diinput oleh {{ $session->createdBy?->name ?? '-' }}@if($session->createdBy) ({{ $session->createdBy->primary_role }})@endif</p>
                         </div>
                     </div>
                     <x-icon-btn
@@ -133,6 +134,7 @@
                             <th class="px-4 py-3">Outlet</th>
                             <th class="px-4 py-3">Departemen</th>
                             <th class="px-4 py-3">Shift</th>
+                            <th class="px-4 py-3">Diinput Oleh</th>
                             <th class="px-4 py-3 text-right">Items</th>
                             <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3 text-right">Aksi</th>
@@ -157,6 +159,12 @@
                                 <td class="px-4 py-3 font-semibold text-gray-900">{{ $session->outlet?->name ?? '-' }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ $session->department?->name ?? 'Semua Departemen' }}</td>
                                 <td class="px-4 py-3">{{ $session->shift ?: '-' }}</td>
+                                <td class="px-4 py-3 text-gray-600">
+                                    {{ $session->createdBy?->name ?? '-' }}
+                                    @if($session->createdBy)
+                                        <span class="block text-xs text-gray-400">{{ $session->createdBy->primary_role }}</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-right">{{ $session->items_count }}</td>
                                 <td class="px-4 py-3"><span class="{{ $session->status_badge_class }}">{{ $session->status }}</span></td>
                                 <td class="px-4 py-3 text-right">
@@ -171,7 +179,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="px-4 py-10 text-center text-gray-500">Belum ada sesi opname.</td>
+                                <td colspan="10" class="px-4 py-10 text-center text-gray-500">Belum ada sesi opname.</td>
                             </tr>
                         @endforelse
                     </tbody>

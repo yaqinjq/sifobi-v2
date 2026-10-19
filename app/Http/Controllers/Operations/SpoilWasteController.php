@@ -40,7 +40,7 @@ class SpoilWasteController extends Controller
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
 
         $query = SpoilWaste::query()
-            ->with(['outlet', 'department', 'item', 'unit', 'createdBy'])
+            ->with(['outlet', 'department', 'item', 'unit', 'createdBy.roles'])
             ->where('tenant_id', $tenantId);
         $query = $this->applySpoilRecordScope($query, $request);
 
@@ -146,7 +146,7 @@ class SpoilWasteController extends Controller
             'item.baseUnit',
             'item.inventoryUnit',
             'unit',
-            'createdBy',
+            'createdBy.roles',
             'approvedBy',
             'duplicateReference.createdBy',
             'mutation',

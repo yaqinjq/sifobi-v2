@@ -59,6 +59,7 @@
                             <p class="font-semibold text-gray-900 truncate">{{ $spoil->item?->name ?? '-' }}</p>
                             <p class="text-sm text-gray-500">Dept: {{ $spoil->department?->name ?? '-' }} | Qty: {{ $spoil->qty }} {{ $spoil->unit?->abbreviation }}</p>
                             <p class="text-sm text-gray-500">Alasan: {{ $spoil->reason_label }}</p>
+                            <p class="text-xs text-gray-400 mt-1">Diinput oleh {{ $spoil->createdBy?->name ?? '-' }}@if($spoil->createdBy) ({{ $spoil->createdBy->primary_role }})@endif</p>
                             @if($spoil->is_duplicate_photo)
                                 <p class="text-xs font-semibold text-red-700 mt-1">Foto duplikat</p>
                             @endif
@@ -105,6 +106,7 @@
                             <th class="px-4 py-3">Dept</th>
                             <th class="px-4 py-3 text-right">Qty</th>
                             <th class="px-4 py-3">Alasan</th>
+                            <th class="px-4 py-3">Diinput Oleh</th>
                             <th class="px-4 py-3">Foto</th>
                             <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3 text-right">Aksi</th>
@@ -126,6 +128,12 @@
                                 <td class="px-4 py-3">{{ $spoil->department?->name ?? '-' }}</td>
                                 <td class="px-4 py-3 text-right">{{ $spoil->qty }} {{ $spoil->unit?->abbreviation }}</td>
                                 <td class="px-4 py-3">{{ $spoil->reason_label }}</td>
+                                <td class="px-4 py-3 text-gray-600">
+                                    {{ $spoil->createdBy?->name ?? '-' }}
+                                    @if($spoil->createdBy)
+                                        <span class="block text-xs text-gray-400">{{ $spoil->createdBy->primary_role }}</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3">
                                     @if($spoil->is_duplicate_photo)
                                         <span class="badge-rejected">Duplikat</span>
@@ -148,7 +156,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="px-4 py-10 text-center text-gray-500">Belum ada spoil.</td>
+                                <td colspan="11" class="px-4 py-10 text-center text-gray-500">Belum ada spoil.</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -35,6 +35,16 @@
         <div class="mt-4 h-2 rounded-full bg-gray-100 overflow-hidden">
             <div class="h-full bg-primary-700 transition-all" :style="`width: ${total === 0 ? 0 : (counted / total) * 100}%`"></div>
         </div>
+        <div class="mt-4 pt-3 border-t border-gray-50 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <p class="text-gray-500">
+                Dicatat oleh
+                <span class="font-semibold text-gray-700">{{ $session->createdBy?->name ?? '-' }}</span>
+                @if($session->createdBy)
+                    <span class="text-gray-400">({{ $session->createdBy->primary_role }})</span>
+                @endif
+            </p>
+            <p class="text-gray-400">{{ $session->created_at?->format('d M Y H:i') }}</p>
+        </div>
     </x-sf.card>
 
     <div class="sticky top-0 z-10 -mx-4 border-y border-gray-100 bg-white px-4 py-3 lg:mx-0 lg:rounded-2xl lg:border">

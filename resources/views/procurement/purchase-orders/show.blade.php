@@ -61,7 +61,12 @@
             </dd>
 
             <dt class="text-gray-500">Dibuat oleh</dt>
-            <dd class="text-right text-gray-600">{{ $purchaseOrder->requestedBy?->name ?? '—' }}</dd>
+            <dd class="text-right text-gray-600">
+                {{ $purchaseOrder->requestedBy?->name ?? '—' }}
+                @if($purchaseOrder->requestedBy)
+                    <span class="block text-xs text-gray-400">{{ $purchaseOrder->requestedBy->primary_role }} &middot; {{ $purchaseOrder->requestedBy->outlet?->name ?? '-' }}</span>
+                @endif
+            </dd>
 
             <dt class="text-gray-500">Dibuat pada</dt>
             <dd class="text-right text-gray-500 text-xs">{{ $purchaseOrder->created_at->format('d M Y H:i') }}</dd>

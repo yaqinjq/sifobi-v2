@@ -169,7 +169,7 @@
                             </p>
                             <p class="text-xs text-gray-400 mt-0.5">
                                 {{ $po->created_at->format('d M Y') }}
-                                &middot; oleh {{ $po->requestedBy?->name ?? '—' }}
+                                &middot; oleh {{ $po->requestedBy?->name ?? '—' }}{{ $po->requestedBy ? ' ('.$po->requestedBy->primary_role.')' : '' }}
                                 @if($po->needed_at)
                                     &middot; dibutuhkan {{ $po->needed_at->format('d M Y') }}
                                 @endif

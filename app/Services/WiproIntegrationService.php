@@ -45,7 +45,7 @@ class WiproIntegrationService
             throw new RuntimeException('Integrasi WIPRO belum dikonfigurasi atau tidak aktif untuk tenant ini.');
         }
 
-        $po->loadMissing(['outlet', 'requestedBy', 'items.item', 'items.unit']);
+        $po->loadMissing(['outlet', 'requestedBy.roles', 'requestedBy.outlet', 'items.item', 'items.unit']);
 
         $path = (string) (data_get($profile->meta, 'order_path') ?: '/api/fbi/orders');
         $fullUrl = $this->url($profile, $path);
@@ -118,6 +118,8 @@ class WiproIntegrationService
             'requested_date' => optional($po->needed_at)->toDateString() ?: now()->toDateString(),
             'needed_at' => optional($po->needed_at)->toDateString(),
             'requested_by_name' => $po->requestedBy?->name,
+            'requested_by_role' => $po->requestedBy?->primary_role,
+            'requested_by_outlet' => $po->requestedBy?->outlet?->name,
             'notes' => $po->notes,
             'items' => ($items ?? $po->items)->map(fn ($item) => [
                 'external_item_id' => $item->item_id,

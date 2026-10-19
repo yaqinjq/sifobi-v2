@@ -50,7 +50,7 @@ class OpnameController extends Controller
             ->when($userDepartmentId, fn ($q) => $q->where(
                 fn ($dq) => $dq->where('department_id', $userDepartmentId)->orWhereNull('department_id')
             ))
-            ->with(['outlet', 'department', 'createdBy', 'approvedBy'])
+            ->with(['outlet', 'department', 'createdBy.roles', 'approvedBy'])
             ->withCount('items')
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->upper()->toString()))
             ->when($request->filled('date'), fn ($query) => $query->whereDate('opname_date', $request->date('date')))
@@ -272,7 +272,7 @@ class OpnameController extends Controller
         $session->load([
             'outlet',
             'department',
-            'createdBy',
+            'createdBy.roles',
             'submittedBy',
             'approvedBy',
         ]);
