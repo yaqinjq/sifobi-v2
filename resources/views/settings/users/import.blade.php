@@ -40,7 +40,9 @@
                 <h3 class="text-sm font-semibold text-gray-900">
                     Akun Baru &mdash;
                     <span x-text="preview?.new_users?.creatable"></span> bisa dibuat,
-                    <span x-text="preview?.new_users?.skip_duplicate"></span> email sudah ada (dilewati),
+                    <span x-text="preview?.new_users?.duplicate_update"></span> akan diperbarui (sudah ada),
+                    <span x-text="preview?.new_users?.duplicate_no_change"></span> sudah sama (tidak ada perubahan),
+                    <span x-text="preview?.new_users?.skip_duplicate"></span> dilewati (tenant lain),
                     <span x-text="preview?.new_users?.error"></span> error
                 </h3>
             </div>
@@ -58,9 +60,9 @@
                     </thead>
                     <tbody class="divide-y divide-gray-50">
                         <template x-for="(row, idx) in (preview?.new_users?.rows ?? [])" :key="idx">
-                            <tr :class="row.row_status === 'error' ? 'bg-red-50' : (row.row_status === 'skip_duplicate' ? 'bg-gray-50 text-gray-400' : '')">
+                            <tr :class="row.row_status === 'error' ? 'bg-red-50' : (row.row_status === 'duplicate_update' ? 'bg-blue-50' : ((row.row_status === 'skip_duplicate' || row.row_status === 'duplicate_no_change') ? 'bg-gray-50 text-gray-400' : ''))">
                                 <td class="px-3 py-2">
-                                    <input type="checkbox" x-model="row._include" :disabled="row.row_status !== 'creatable'" class="rounded border-gray-300 text-primary-700">
+                                    <input type="checkbox" x-model="row._include" :disabled="row.row_status !== 'creatable' && row.row_status !== 'duplicate_update'" class="rounded border-gray-300 text-primary-700">
                                 </td>
                                 <td class="px-3 py-2" x-text="row.nama"></td>
                                 <td class="px-3 py-2 font-mono" x-text="row.email"></td>
@@ -71,8 +73,22 @@
                                 </td>
                                 <td class="px-3 py-2">
                                     <span x-show="row.row_status === 'creatable'" class="text-green-700">Akan dibuat</span>
-                                    <span x-show="row.row_status === 'skip_duplicate'" class="text-gray-400">Email sudah ada</span>
+                                    <span x-show="row.row_status === 'duplicate_no_change'" class="text-gray-400">Sudah sama, tidak ada perubahan</span>
+                                    <span x-show="row.row_status === 'skip_duplicate'" class="text-gray-400" x-text="row.message"></span>
                                     <span x-show="row.row_status === 'error'" class="text-red-600" x-text="row.message"></span>
+                                    <div x-show="row.row_status === 'duplicate_update'">
+                                        <p class="text-blue-700 font-medium">Akan diperbarui (sudah terdaftar):</p>
+                                        <ul class="mt-0.5 space-y-0.5">
+                                            <template x-for="(change, field) in (row.changes ?? {})" :key="field">
+                                                <li class="text-gray-600">
+                                                    <span x-text="change.label"></span>:
+                                                    <span class="line-through text-gray-400" x-text="change.from ?? '(kosong)'"></span>
+                                                    &rarr;
+                                                    <span class="text-blue-700 font-medium" x-text="change.to ?? '(kosong)'"></span>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
                                 </td>
                             </tr>
                         </template>
@@ -138,10 +154,14 @@
 
     {{-- Hasil --}}
     <div x-show="applied" x-cloak class="space-y-3">
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-3 gap-3">
             <div class="rounded-xl bg-green-50 border border-green-100 px-4 py-4 text-center">
                 <p class="text-2xl font-bold text-green-700" x-text="applied?.new_users?.created"></p>
                 <p class="text-sm text-green-800 mt-0.5">akun baru dibuat</p>
+            </div>
+            <div class="rounded-xl bg-blue-50 border border-blue-100 px-4 py-4 text-center">
+                <p class="text-2xl font-bold text-blue-700" x-text="applied?.new_users?.updated"></p>
+                <p class="text-sm text-blue-800 mt-0.5">akun diperbarui</p>
             </div>
             <div class="rounded-xl bg-amber-50 border border-amber-100 px-4 py-4 text-center">
                 <p class="text-2xl font-bold text-amber-700" x-text="applied?.deactivations?.processed"></p>
@@ -206,7 +226,11 @@
                     if (! res.ok) {
                         this.error = data.message || 'Gagal membaca file.';
                     } else {
-                        // default centang baris yg memang bisa diproses.
+                        // Default centang baris baru (creatable) saja. Baris
+                        // "akan diperbarui" (duplicate_update) SENGAJA default
+                        // TIDAK dicentang -- ini mengubah data user yang SUDAH
+                        // ADA, jadi admin harus review & centang sendiri per
+                        // baris, bukan ter-apply otomatis tanpa sadar.
                         data.new_users.rows.forEach(r => { r._include = r.row_status === 'creatable'; });
                         data.deactivations.rows.forEach(r => { r._include = r.status === 'will_deactivate'; });
                         this.preview = data;
