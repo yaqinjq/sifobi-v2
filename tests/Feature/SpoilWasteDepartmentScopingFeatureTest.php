@@ -822,8 +822,12 @@ test('duplicate photo badge count respects department and outlet scope, not the 
     // SAMA-SAMA punya 1 laporan pending berstatus duplikat (dan terbukti
     // scope-nya tidak saling bocor), tiap departemen posting FOTO YANG
     // SAMA dua kali dengan fotonya sendiri-sendiri (2 pasang, 2 foto beda).
-    $barPhoto = UploadedFile::fake()->image('bukti-bar.jpg', 200, 200);
-    $pastryPhoto = UploadedFile::fake()->image('bukti-pastry.jpg', 200, 200);
+    // createWithContent (bukan ->image()) supaya byte-nya BENAR-BENAR
+    // beda antar departemen -- UploadedFile::fake()->image() menghasilkan
+    // konten biner yang identik untuk dimensi yang sama terlepas dari nama
+    // filenya, jadi 2 foto "beda" di atas ternyata collide (hash sama).
+    $barPhoto = UploadedFile::fake()->createWithContent('bukti-bar.jpg', 'foto-bar-content');
+    $pastryPhoto = UploadedFile::fake()->createWithContent('bukti-pastry.jpg', 'foto-pastry-content');
 
     $postSpoil = function (User $user, Department $department, Item $item, UploadedFile $photo) {
         return $this->actingAs($user)->post(route('operations.spoil-wastes.store'), [

@@ -82,12 +82,13 @@ test('guest cannot access spoil and opname pages', function (): void {
     $this->get(route('operations.opname.index'))->assertRedirect('/login');
 });
 
-test('recording spoil decreases stock balance through ledger', function (): void {
+test('recording spoil only creates an observation -- ledger is untouched until approved', function (): void {
     Storage::fake('public');
-    $user = operationUser('STAFF_BAR');
+    $staff = operationUser('STAFF_BAR');
+    $pic = operationUser('PIC_OUTLET');
     seedDailyBalance($this, '5000');
 
-    $this->actingAs($user)
+    $this->actingAs($staff)
         ->post(route('operations.spoil-wastes.store'), [
             'outlet_id' => $this->outlet->id,
             'department_id' => $this->department->id,
@@ -105,15 +106,30 @@ test('recording spoil decreases stock balance through ledger', function (): void
 
     expect($spoil->status)->toBe(SpoilWaste::STATUS_PENDING)
         ->and((string) $spoil->qty_in_base_unit)->toBe('1000.000000')
-        ->and($spoil->mutation_id)->not->toBeNull();
+        ->and($spoil->mutation_id)->toBeNull(); // belum menyentuh ledger sama sekali.
 
-    $balance = StockBalance::query()
+    $balanceAfterRecord = StockBalance::query()
         ->where('item_id', $this->item->id)
         ->where('outlet_id', $this->outlet->id)
         ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
         ->firstOrFail();
 
-    expect((string) $balance->qty_on_hand)->toBe('4000.000000');
+    expect((string) $balanceAfterRecord->qty_on_hand)->toBe('5000.000000'); // tidak berubah.
+
+    $this->actingAs($pic)
+        ->post(route('operations.spoil-wastes.approve', $spoil), ['approval_notes' => 'OK.'])
+        ->assertRedirect();
+
+    expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_APPROVED)
+        ->and($spoil->mutation_id)->not->toBeNull(); // baru sekarang ledger tersentuh.
+
+    $balanceAfterApprove = StockBalance::query()
+        ->where('item_id', $this->item->id)
+        ->where('outlet_id', $this->outlet->id)
+        ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
+        ->firstOrFail();
+
+    expect((string) $balanceAfterApprove->qty_on_hand)->toBe('4000.000000');
 });
 
 test('recording spoil with both whole and loose qty combines them into base unit correctly', function (): void {
@@ -195,64 +211,74 @@ test('duplicate spoil photo is detected by sha256 hash', function (): void {
         ->and($second->duplicate_ref_id)->toBe($first->id);
 });
 
-test('spoil with no stock balance at all gives an actionable message pointing to Opname, not a bare "stok tidak cukup"', function (): void {
-    $user = operationUser('STAFF_BAR');
+test('spoil with no stock balance at all can still be RECORDED, but approve gives an actionable message pointing to Opname', function (): void {
+    $staff = operationUser('STAFF_BAR');
+    $pic = operationUser('PIC_OUTLET');
     // SENGAJA tidak seedDailyBalance() -- item ini belum pernah tercatat
     // stoknya sama sekali di outlet ini.
 
-    $service = app(SpoilWasteService::class);
+    $spoil = app(SpoilWasteService::class)->record([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->department->id,
+        'item_id' => $this->item->id,
+        'unit_id' => $this->unit,
+        'qty' => '1',
+        'recorded_date' => '2026-07-01',
+        'reason_category' => SpoilWaste::REASON_RUSAK,
+    ], $staff->id);
+
+    expect($spoil->status)->toBe(SpoilWaste::STATUS_PENDING); // RECORD berhasil walau belum ada stok.
+
     $caught = null;
 
     try {
-        $service->record([
-            'tenant_id' => $this->tenant->id,
-            'outlet_id' => $this->outlet->id,
-            'department_id' => $this->department->id,
-            'item_id' => $this->item->id,
-            'unit_id' => $this->unit,
-            'qty' => '1',
-            'recorded_date' => '2026-07-01',
-            'reason_category' => SpoilWaste::REASON_RUSAK,
-        ], $user->id);
-    } catch (\App\Exceptions\InsufficientStockException $exception) {
+        app(SpoilWasteService::class)->approve($spoil, $pic->id);
+    } catch (ValidationException $exception) {
         $caught = $exception;
     }
 
-    expect($caught)->not->toBeNull()
-        ->and($caught->getMessage())->toContain('belum pernah tercatat')
-        ->and($caught->getMessage())->toContain('Opname')
-        ->and($caught->getMessage())->toContain($this->item->name);
+    $message = $caught ? collect($caught->errors())->flatten()->implode(' ') : '';
 
-    expect(SpoilWaste::query()->count())->toBe(0);
+    expect($caught)->not->toBeNull()
+        ->and($message)->toContain('belum pernah tercatat')
+        ->and($message)->toContain('Opname')
+        ->and($message)->toContain($this->item->name)
+        ->and($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_PENDING); // tetap PENDING, bisa dicoba lagi.
 });
 
-test('spoil with an insufficient (but non-zero) balance reports the actual qty on hand and suggests Opname', function (): void {
-    $user = operationUser('STAFF_BAR');
+test('spoil with an insufficient (but non-zero) balance reports the actual qty on hand and suggests Opname, at approve time', function (): void {
+    $staff = operationUser('STAFF_BAR');
+    $pic = operationUser('PIC_OUTLET');
     seedDailyBalance($this, '3'); // cuma 3 tersedia, staf coba spoil 10.
 
-    $service = app(SpoilWasteService::class);
+    $spoil = app(SpoilWasteService::class)->record([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->department->id,
+        'item_id' => $this->item->id,
+        'unit_id' => $this->unit,
+        'qty' => '10',
+        'recorded_date' => '2026-07-01',
+        'reason_category' => SpoilWaste::REASON_RUSAK,
+    ], $staff->id);
+
+    expect($spoil->status)->toBe(SpoilWaste::STATUS_PENDING);
+
     $caught = null;
 
     try {
-        $service->record([
-            'tenant_id' => $this->tenant->id,
-            'outlet_id' => $this->outlet->id,
-            'department_id' => $this->department->id,
-            'item_id' => $this->item->id,
-            'unit_id' => $this->unit,
-            'qty' => '10',
-            'recorded_date' => '2026-07-01',
-            'reason_category' => SpoilWaste::REASON_RUSAK,
-        ], $user->id);
-    } catch (\App\Exceptions\InsufficientStockException $exception) {
+        app(SpoilWasteService::class)->approve($spoil, $pic->id);
+    } catch (ValidationException $exception) {
         $caught = $exception;
     }
 
-    expect($caught)->not->toBeNull()
-        ->and($caught->getMessage())->toContain('3')
-        ->and($caught->getMessage())->toContain('Opname');
+    $message = $caught ? collect($caught->errors())->flatten()->implode(' ') : '';
 
-    expect(SpoilWaste::query()->count())->toBe(0);
+    expect($caught)->not->toBeNull()
+        ->and($message)->toContain('3')
+        ->and($message)->toContain('Opname')
+        ->and($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_PENDING);
 });
 
 test('rejecting spoil creates void reversal and restores balance', function (): void {
@@ -295,7 +321,8 @@ test('rejecting spoil creates void reversal and restores balance', function (): 
         'reason_category' => SpoilWaste::REASON_RUSAK,
     ], $staff->id);
 
-    expect((string) $spoil->qty_in_base_unit)->toBe('2.000000');
+    expect((string) $spoil->qty_in_base_unit)->toBe('2.000000')
+        ->and($spoil->mutation_id)->toBeNull(); // record() tidak lagi memotong stok.
 
     $this->actingAs($pic)
         ->post(route('operations.spoil-wastes.reject', $spoil), [
@@ -303,9 +330,9 @@ test('rejecting spoil creates void reversal and restores balance', function (): 
         ])
         ->assertRedirect();
 
-    $this->assertDatabaseHas('stock_mutations', [
+    // Tidak ada yang perlu di-void -- belum pernah ada mutasi sama sekali.
+    $this->assertDatabaseMissing('stock_mutations', [
         'mutation_type' => StockMutation::TYPE_VOID_REVERSAL,
-        'qty_change' => '2.000000',
     ]);
 
     $balance = StockBalance::query()
@@ -315,7 +342,7 @@ test('rejecting spoil creates void reversal and restores balance', function (): 
         ->firstOrFail();
 
     expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_REJECTED)
-        ->and((string) $balance->qty_on_hand)->toBe('5000.000000');
+        ->and((string) $balance->qty_on_hand)->toBe('5000.000000'); // tidak pernah berubah dari awal.
 });
 
 test('recording and rejecting a spoil in a unit that genuinely differs from the base unit applies inventory_ratio', function (): void {
@@ -364,15 +391,16 @@ test('recording and rejecting a spoil in a unit that genuinely differs from the 
         'reason_category' => SpoilWaste::REASON_RUSAK,
     ], $staff->id);
 
-    expect((string) $spoil->qty_in_base_unit)->toBe('1000.000000');
+    expect((string) $spoil->qty_in_base_unit)->toBe('1000.000000')
+        ->and($spoil->mutation_id)->toBeNull(); // record() tidak lagi memotong stok.
 
-    $balanceAfterSpoil = StockBalance::query()
+    $balanceAfterRecord = StockBalance::query()
         ->where('item_id', $itemWithRatio->id)
         ->where('outlet_id', $this->outlet->id)
         ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
         ->firstOrFail();
 
-    expect((string) $balanceAfterSpoil->qty_on_hand)->toBe('4000.000000');
+    expect((string) $balanceAfterRecord->qty_on_hand)->toBe('5000.000000'); // tidak berubah.
 
     $this->actingAs($pic)
         ->post(route('operations.spoil-wastes.reject', $spoil), [
@@ -380,9 +408,8 @@ test('recording and rejecting a spoil in a unit that genuinely differs from the 
         ])
         ->assertRedirect();
 
-    $this->assertDatabaseHas('stock_mutations', [
+    $this->assertDatabaseMissing('stock_mutations', [
         'mutation_type' => StockMutation::TYPE_VOID_REVERSAL,
-        'qty_change' => '1000.000000',
     ]);
 
     $balanceAfterReject = StockBalance::query()
@@ -393,6 +420,59 @@ test('recording and rejecting a spoil in a unit that genuinely differs from the 
 
     expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_REJECTED)
         ->and((string) $balanceAfterReject->qty_on_hand)->toBe('5000.000000');
+});
+
+test('full real-world flow: spoil recorded with no stock, Opname establishes it afterward, spoil approve then succeeds', function (): void {
+    $staff = operationUser('STAFF_BAR');
+    $pic = operationUser('PIC_OUTLET');
+    // SENGAJA tidak seedDailyBalance() -- persis skenario yang dilaporkan:
+    // staf mencatat spoil duluan untuk item yang belum ada stoknya sama
+    // sekali.
+
+    $spoil = app(SpoilWasteService::class)->record([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->department->id,
+        'item_id' => $this->item->id,
+        'unit_id' => $this->unit,
+        'qty' => '5',
+        'recorded_date' => '2026-07-01',
+        'reason_category' => SpoilWaste::REASON_RUSAK,
+    ], $staff->id);
+
+    expect($spoil->status)->toBe(SpoilWaste::STATUS_PENDING);
+
+    // Gagal dulu -- belum ada stok sama sekali.
+    expect(fn () => app(SpoilWasteService::class)->approve($spoil, $pic->id))
+        ->toThrow(ValidationException::class);
+    expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_PENDING);
+
+    // Opname menyusul: staf hitung fisik (20), PIC approve -> stok 20 resmi tercatat.
+    $session = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->department->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => now()->toDateString(),
+    ], $staff->id);
+    $row = $session->items->firstWhere('item_id', $this->item->id);
+    app(OpnameService::class)->updateItem($row, '0', '20');
+    app(OpnameService::class)->submit($session->fresh(), $staff->id);
+    app(OpnameService::class)->approve($session->fresh(), $pic->id);
+
+    // Sekarang spoil yang tadi gagal, berhasil di-approve.
+    app(SpoilWasteService::class)->approve($spoil->fresh(), $pic->id);
+
+    expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_APPROVED)
+        ->and($spoil->mutation_id)->not->toBeNull();
+
+    $balance = StockBalance::query()
+        ->where('item_id', $this->item->id)
+        ->where('outlet_id', $this->outlet->id)
+        ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
+        ->firstOrFail();
+
+    expect((string) $balance->qty_on_hand)->toBe('15.000000'); // 20 (opname) - 5 (spoil).
 });
 
 test('bulk approve only processes pending spoil waste rows', function (): void {

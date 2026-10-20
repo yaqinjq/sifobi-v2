@@ -94,7 +94,7 @@
                     <form method="POST" action="{{ route('operations.spoil-wastes.reject', $spoil) }}" class="space-y-3">
                         @csrf
                         <textarea name="approval_notes" rows="3" class="sf-input text-base" placeholder="Alasan penolakan" required></textarea>
-                        <button type="submit" class="sf-btn-danger min-h-11 w-full">Tolak & Void Stok</button>
+                        <button type="submit" class="sf-btn-danger min-h-11 w-full">{{ $spoil->mutation_id ? 'Tolak & Void Stok' : 'Tolak' }}</button>
                     </form>
                 </div>
             </x-sf.card>

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Operations;
 
-use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Concerns\EnforcesSuperAdminScope;
 use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
@@ -122,20 +121,16 @@ class SpoilWasteController extends Controller
             $validated['department_id'] = (int) $user->department_id;
         }
 
-        try {
-            $spoil = $this->spoilWasteService->record(array_merge($validated, [
-                'tenant_id' => $tenantId,
-                'photo_file' => $request->file('photo'),
-                'device_info' => $request->userAgent(),
-                'ip_address' => $request->ip(),
-            ]), (int) $user->id);
-        } catch (InsufficientStockException $exception) {
-            return back()->withInput()->with('error', $exception->getMessage());
-        }
+        $spoil = $this->spoilWasteService->record(array_merge($validated, [
+            'tenant_id' => $tenantId,
+            'photo_file' => $request->file('photo'),
+            'device_info' => $request->userAgent(),
+            'ip_address' => $request->ip(),
+        ]), (int) $user->id);
 
         return redirect()
             ->route('operations.spoil-wastes.show', $spoil)
-            ->with('success', 'Spoil berhasil dicatat dan stok langsung berkurang.');
+            ->with('success', 'Spoil berhasil dicatat, menunggu approval untuk pemotongan stok.');
     }
 
     public function show(Request $request, SpoilWaste $spoil): View

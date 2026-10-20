@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Exceptions\InsufficientStockException;
 use App\Models\User;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
@@ -61,33 +60,15 @@ class SpoilWasteService
                 $qtyLoose = null;
             }
 
-            $stockTarget = $data['stock_target'] ?? StockMutation::TARGET_OUTLET_DAILY;
-
-            $balance = StockBalance::query()
-                ->where('tenant_id', $tenantId)
-                ->where('outlet_id', $outletId)
-                ->where('item_id', $item->id)
-                ->where('stock_target', $stockTarget)
-                ->lockForUpdate()
-                ->first();
-
-            if (! $balance || bccomp((string) $balance->qty_on_hand, $qtyInBase, 6) < 0) {
-                // Pesan dibedakan supaya staf tahu HARUS ngapain, bukan cuma
-                // "stok tidak cukup" -- validasi sendiri TIDAK diubah (tetap
-                // menolak spoil tanpa stok tercatat, demi akurasi ledger),
-                // tapi sekarang mengarahkan ke jalur yang sudah ada dan
-                // sudah mereka kenal: Opname. Lihat approve() di
-                // OpnameService -- begitu sesi Opname disetujui, hasil
-                // hitung fisik OTOMATIS jadi stok resmi (termasuk dari nol
-                // kalau belum pernah tercatat sama sekali), tidak perlu
-                // Input Stok Awal terpisah.
-                $message = $balance === null
-                    ? "Stok untuk item \"{$item->name}\" di outlet ini belum pernah tercatat di sistem. Lakukan Opname (hitung fisik) untuk item ini dulu, lalu minta atasan/manager Anda menyetujuinya -- setelah disetujui, stok otomatis tercatat dan Spoil & Waste bisa langsung dipakai."
-                    : "Stok untuk item \"{$item->name}\" tercatat hanya {$balance->qty_on_hand} (base unit), tidak cukup untuk jumlah yang mau di-spoil. Kalau menurut hitungan fisik sebenarnya lebih banyak, lakukan Opname ulang dan minta atasan/manager Anda menyetujuinya dulu sebelum mencoba Spoil lagi.";
-
-                throw new InsufficientStockException($message);
-            }
-
+            // Pengecekan stok TIDAK dilakukan di sini lagi -- record() cuma
+            // mencatat OBSERVASI (staf lihat ada barang rusak/terbuang),
+            // persis seperti form kertas. Pemotongan stok resmi (termasuk
+            // pengecekan cukup/tidaknya) dipindah ke approve() di bawah --
+            // sama persis dengan pola Opname (submit() tidak pernah
+            // menyentuh ledger, cuma approve() yang menyentuh). Ini supaya
+            // staf tidak lagi terblokir mencatat spoil hanya karena item-nya
+            // belum ada stok tercatat -- pencatatan tetap jalan, atasan yang
+            // approve nanti akan melihat kalau stoknya belum cukup.
             [$photoPath, $photoHash, $photoMeta, $duplicate] = $this->handlePhoto($data['photo_file'] ?? null, $tenantId);
 
             $recordedAt = Carbon::parse($data['recorded_at'] ?? now());
@@ -120,27 +101,6 @@ class SpoilWasteService
                 'notes' => $data['reason_detail'] ?? null,
             ]);
 
-            $mutation = $this->stockLedgerService->spoilWaste([
-                'tenant_id' => $tenantId,
-                'outlet_id' => $outletId,
-                'item_id' => $item->id,
-                'unit_id' => $item->base_unit_id ?: $unitId,
-                'stock_target' => $stockTarget,
-                'qty_change' => $qtyInBase,
-                'reference_type' => SpoilWaste::class,
-                'reference_id' => $spoil->id,
-                'performed_by' => $userId,
-                'performed_at' => $recordedAt,
-                'notes' => "Spoil: {$spoil->reason_category}",
-                'metadata' => [
-                    'spoil_waste_id' => $spoil->id,
-                    'stock_target' => $stockTarget,
-                    'duplicate_ref_id' => $duplicate?->id,
-                ],
-            ]);
-
-            $spoil->update(['mutation_id' => $mutation->id]);
-
             return $spoil->refresh()->load(['outlet', 'department', 'item', 'unit', 'mutation', 'duplicateReference']);
         });
 
@@ -158,7 +118,7 @@ class SpoilWasteService
     public function approve(SpoilWaste $spoil, int $userId, string $notes = ''): SpoilWaste
     {
         $spoil = DB::transaction(function () use ($spoil, $userId, $notes): SpoilWaste {
-            $spoil = SpoilWaste::query()->lockForUpdate()->findOrFail($spoil->id);
+            $spoil = SpoilWaste::query()->with('item')->lockForUpdate()->findOrFail($spoil->id);
 
             if ($spoil->status !== SpoilWaste::STATUS_PENDING) {
                 throw ValidationException::withMessages([
@@ -166,13 +126,63 @@ class SpoilWasteService
                 ]);
             }
 
-            $spoil->update([
-                'status' => SpoilWaste::STATUS_APPROVED,
-                'approval_status' => SpoilWaste::STATUS_APPROVED,
-                'approved_by' => $userId,
-                'approved_at' => now(),
-                'approval_notes' => $notes,
-            ]);
+            // Pemotongan stok resmi terjadi DI SINI (saat approve), bukan
+            // saat record() -- lihat catatan di record(). Guard mutation_id
+            // supaya idempoten (aman dipanggil ulang) DAN kompatibel dengan
+            // row lama dari sebelum perubahan ini (yang mutation_id-nya
+            // sudah terisi sejak record()).
+            if ($spoil->mutation_id === null) {
+                $stockTarget = StockMutation::TARGET_OUTLET_DAILY;
+
+                $balance = StockBalance::query()
+                    ->where('tenant_id', $spoil->tenant_id)
+                    ->where('outlet_id', $spoil->outlet_id)
+                    ->where('item_id', $spoil->item_id)
+                    ->where('stock_target', $stockTarget)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $balance || bccomp((string) $balance->qty_on_hand, (string) $spoil->qty_in_base_unit, 6) < 0) {
+                    // Pesan sama persis dengan yang dulu ada di record() --
+                    // cuma sekarang muncul saat approve, bukan saat staf
+                    // mencatat. Dilempar SEBELUM spoil di-update apa pun --
+                    // transaksi rollback, status tetap PENDING, PIC bisa
+                    // coba approve lagi nanti setelah Opname menyusul.
+                    $message = $balance === null
+                        ? "Stok untuk item \"{$spoil->item?->name}\" di outlet ini belum pernah tercatat di sistem. Lakukan Opname (hitung fisik) untuk item ini dulu, lalu minta atasan/manager Anda menyetujuinya -- setelah disetujui, stok otomatis tercatat dan spoil ini bisa langsung di-approve."
+                        : "Stok untuk item \"{$spoil->item?->name}\" tercatat hanya {$balance->qty_on_hand} (base unit), tidak cukup untuk jumlah yang di-spoil. Kalau menurut hitungan fisik sebenarnya lebih banyak, lakukan Opname ulang dan minta atasan/manager Anda menyetujuinya dulu sebelum approve spoil ini lagi.";
+
+                    throw ValidationException::withMessages(['status' => $message]);
+                }
+
+                $mutation = $this->stockLedgerService->spoilWaste([
+                    'tenant_id' => $spoil->tenant_id,
+                    'outlet_id' => $spoil->outlet_id,
+                    'item_id' => $spoil->item_id,
+                    'unit_id' => $spoil->item?->base_unit_id ?: $spoil->unit_id,
+                    'stock_target' => $stockTarget,
+                    'qty_change' => $spoil->qty_in_base_unit,
+                    'reference_type' => SpoilWaste::class,
+                    'reference_id' => $spoil->id,
+                    'performed_by' => $userId,
+                    'performed_at' => now(),
+                    'notes' => "Spoil: {$spoil->reason_category}",
+                    'metadata' => [
+                        'spoil_waste_id' => $spoil->id,
+                        'stock_target' => $stockTarget,
+                        'duplicate_ref_id' => $spoil->duplicate_ref_id,
+                    ],
+                ]);
+
+                $spoil->mutation_id = $mutation->id;
+            }
+
+            $spoil->status = SpoilWaste::STATUS_APPROVED;
+            $spoil->approval_status = SpoilWaste::STATUS_APPROVED;
+            $spoil->approved_by = $userId;
+            $spoil->approved_at = now();
+            $spoil->approval_notes = $notes;
+            $spoil->save();
 
             return $spoil->refresh();
         });
