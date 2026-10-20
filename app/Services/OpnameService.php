@@ -330,10 +330,19 @@ class OpnameService
                     '0.000000'
                 );
 
-                // system_qty_base sama di semua baris untuk item yang sama
-                $systemQtyBase = (string) $rows->first()->system_qty_base;
+                // SENGAJA ambil saldo LIVE saat ini (bukan $rows->first()->system_qty_base
+                // yang dibekukan sejak sesi dibuat) -- kalau sesi ini baru di-approve
+                // lama setelah dibuat/disubmit (staf isi, lalu nunggu approval
+                // beberapa hari), dan ada transaksi LAIN pada item yang sama di
+                // rentang waktu itu (spoil/opname lain), angka yang dibekukan sudah
+                // basi -- menghitung selisih terhadapnya bisa menghasilkan qty_change
+                // yang sudah tidak cocok dengan saldo real, bikin posting gagal
+                // ("insufficient balance") padahal datanya sendiri sebenarnya valid.
+                // Variance HARUS dihitung terhadap kondisi SEKARANG, persis saat
+                // mau diposting -- bukan kondisi saat sesi mulai dihitung.
+                $systemQtyBase = $this->systemQty((int) $session->tenant_id, (int) $session->outlet_id, (int) $itemId);
 
-                // Variance agregat: sistem - total fisik semua departemen
+                // Variance agregat: sistem (LIVE) - total fisik semua departemen
                 $aggregateVariance = bcsub($systemQtyBase, $totalPhysicalBase, 6);
 
                 if (bccomp($aggregateVariance, '0.000000', 6) === 0) {
@@ -342,24 +351,38 @@ class OpnameService
 
                 $firstRow = $rows->first();
 
-                $mutation = $this->stockLedgerService->opnameAdjustment([
-                    'tenant_id'      => $session->tenant_id,
-                    'outlet_id'      => $session->outlet_id,
-                    'item_id'        => $firstRow->item_id,
-                    'unit_id'        => $firstRow->item?->base_unit_id ?: $firstRow->unit_id,
-                    'stock_target'   => StockMutation::TARGET_OUTLET_DAILY,
-                    'opname_type'    => $session->type,
-                    'qty_change'     => bcmul('-1', $aggregateVariance, 6),
-                    'reference_type' => OpnameItem::class,
-                    'reference_id'   => $firstRow->id,
-                    'performed_by'   => $userId,
-                    'performed_at'   => now(),
-                    'notes'          => "Opname {$session->type} {$session->opname_date?->format('Y-m-d')}",
-                    'metadata'       => [
-                        'opname_session_id'  => $session->id,
-                        'opname_item_ids'    => $rows->pluck('id')->all(),
-                    ],
-                ]);
+                try {
+                    $mutation = $this->stockLedgerService->opnameAdjustment([
+                        'tenant_id'      => $session->tenant_id,
+                        'outlet_id'      => $session->outlet_id,
+                        'item_id'        => $firstRow->item_id,
+                        'unit_id'        => $firstRow->item?->base_unit_id ?: $firstRow->unit_id,
+                        'stock_target'   => StockMutation::TARGET_OUTLET_DAILY,
+                        'opname_type'    => $session->type,
+                        'qty_change'     => bcmul('-1', $aggregateVariance, 6),
+                        'reference_type' => OpnameItem::class,
+                        'reference_id'   => $firstRow->id,
+                        'performed_by'   => $userId,
+                        'performed_at'   => now(),
+                        'notes'          => "Opname {$session->type} {$session->opname_date?->format('Y-m-d')}",
+                        'metadata'       => [
+                            'opname_session_id'  => $session->id,
+                            'opname_item_ids'    => $rows->pluck('id')->all(),
+                        ],
+                    ]);
+                } catch (ValidationException $exception) {
+                    // "Stock balance is not sufficient..." mentah dari
+                    // StockLedgerService SENGAJA ditangkap & diterjemahkan di
+                    // sini -- jangan biarkan pesan teknis bahasa Inggris
+                    // bocor ke layar staf (dulu pernah kejadian nyata).
+                    // Dengan $systemQtyBase SUDAH live (lihat di atas), ini
+                    // SEHARUSNYA jarang terjadi lagi -- kalau tetap terjadi,
+                    // berarti selisih hitung fisiknya genuinely lebih besar
+                    // dari stok yang tercatat SEKARANG, perlu dicek manusia.
+                    throw ValidationException::withMessages([
+                        'status' => "Gagal memproses item \"{$firstRow->item?->name}\" -- selisih hasil hitung fisik lebih besar dari stok yang tercatat saat ini di sistem. Kemungkinan ada transaksi lain (Spoil/Opname lain) pada item ini setelah sesi ini mulai diisi. Cek ulang angka hasil hitung untuk item ini bersama atasan, atau hubungi admin kalau tetap gagal.",
+                    ]);
+                }
 
                 // Tautkan mutasi ke SEMUA baris departemen untuk item ini
                 $rows->each(fn (OpnameItem $r): bool => (bool) $r->update(['mutation_id' => $mutation->id]));
