@@ -401,7 +401,12 @@
             </div>
 
             <div>
-                <p class="font-semibold text-gray-800 mb-2">3. Filter & Mode Tampilan</p>
+                <p class="font-semibold text-gray-800 mb-2">3. Import Opname Bulanan (Super Admin)</p>
+                <p class="text-xs text-gray-600">Untuk mengisi data 1 bulan penuh sekaligus (misalnya data rutin yang sudah pasti), Super Admin bisa buka <strong>"Import Bulanan"</strong> di halaman daftar Opname: pilih outlet, departemen, dan bulan &rarr; download template Excel (baris = item, kolom = tiap tanggal di bulan itu) &rarr; isi hasil hitung fisik per tanggal &rarr; upload lagi untuk preview per minggu sebelum benar-benar disimpan. Begitu diterapkan, tiap tanggal langsung diproses otomatis (submit + approve) dan stok langsung disesuaikan -- prosesnya berjalan di belakang layar dengan progress yang bisa dipantau, tidak langsung selesai saat diklik.</p>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">4. Filter & Mode Tampilan</p>
                 <p class="text-xs text-gray-600 mb-2">Di halaman daftar Opname, role tinggi (SUPER_ADMIN, GENERAL_FINANCE, dll) bisa filter Brand, Outlet, dan Departemen. Di halaman detail 1 sesi opname, tersedia filter <strong>Kategori</strong> (cuma menampilkan kategori yang relevan untuk departemen sesi tsb &mdash; bukan semua kategori master, diatur lewat menu Settings &gt; "Mapping Departemen & Kategori Opname") dan pilihan <strong>Urutkan</strong>:</p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     <div class="rounded-lg bg-gray-50 px-3 py-2">
@@ -435,12 +440,12 @@
             </div>
 
             <div>
-                <p class="font-semibold text-gray-800 mb-2">4. Aksi Massal (Bulk Action)</p>
+                <p class="font-semibold text-gray-800 mb-2">5. Aksi Massal (Bulk Action)</p>
                 <p class="text-xs text-gray-600">Di halaman daftar Opname, centang beberapa sesi <strong>Draft</strong> sekaligus lalu klik <strong>"Submit Terpilih"</strong>, atau centang beberapa sesi <strong>Submitted</strong> lalu klik <strong>"Approve Terpilih"</strong> (khusus yang punya akses approve) &mdash; tidak perlu buka satu-satu.</p>
             </div>
 
             <div>
-                <p class="font-semibold text-gray-800 mb-2">5. Setup Mapping Kategori & Urutan Form (khusus Admin)</p>
+                <p class="font-semibold text-gray-800 mb-2">6. Setup Mapping Kategori & Urutan Form (khusus Admin)</p>
                 <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
                     <li>Buka <strong>Settings → Mapping Departemen & Kategori Opname</strong></li>
                     <li>Klik <strong>"Unduh Template"</strong>, isi kolom <em>departemen</em>, <em>kategori</em>, <em>urutan</em>, dan <em>sub_kategori</em> sesuai contoh dan petunjuk di sheet "PETUNJUK"</li>
@@ -454,7 +459,7 @@
             </div>
 
             <div>
-                <p class="font-semibold text-gray-800 mb-2">6. Item dengan Kategori Beda Antar Departemen</p>
+                <p class="font-semibold text-gray-800 mb-2">7. Item dengan Kategori Beda Antar Departemen</p>
                 <p class="text-xs text-gray-600 mb-2">Kadang 1 item dipakai lebih dari 1 departemen, tapi kategorinya beda-beda sesuai kebiasaan tiap departemen &mdash; misalnya <strong>Tepung Maizena</strong>: di BAR masuk kategori "Other", tapi di PASTRY masuk kategori "Rice &amp; Flour". Untuk kasus seperti ini:</p>
                 <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
                     <li>Buka <strong>Master Data → Item</strong>, edit item yang dimaksud</li>
@@ -506,6 +511,10 @@
                 <div class="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800 mt-2">
                     Qty langsung memotong stok <strong>saat ini</strong>, bukan saldo di tanggal historisnya — import sebaiknya berurutan dari data paling lama ke paling baru.
                 </div>
+            </div>
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2 text-xs">Import Spoil Bulanan (Super Admin)</p>
+                <p class="text-xs text-gray-500">Untuk data rutin 1 bulan penuh (beda dengan Import Histori di atas yang formatnya flat 1-baris-1-event): buka <strong>"Import Bulanan"</strong> di halaman daftar Spoil & Waste, pilih outlet/departemen/bulan, download template (grid item x tanggal, 1 kategori alasan default per item), isi, lalu upload untuk preview per minggu sebelum diterapkan. Sel yang cocok dengan laporan yang sudah final/approved sebelumnya butuh centang konfirmasi tambahan karena sistem akan membatalkan (void) catatan lama dan mencatat ulang. Proses penyimpanan berjalan di belakang layar dengan progress yang bisa dipantau.</p>
             </div>
         </div>
     </x-sf.card>
