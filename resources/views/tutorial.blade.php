@@ -491,7 +491,8 @@
                 <li>Cari & pilih item yang rusak/terbuang</li>
                 <li>Isi <strong>Jumlah Terbuang Utuh</strong> (satuan kemasan/inventory, mis. DUS/KARTON) dan/atau <strong>Jumlah Terbuang Ecer</strong> (satuan dasar, mis. PCS/GRAM) — isi salah satu saja kalau memang tidak ada sisa ecer/utuh</li>
                 <li>Isi alasan (Kadaluarsa, Tumpah, Rusak Proses, dll.)</li>
-                <li>Submit → stok berkurang otomatis di ledger</li>
+                <li>Submit → laporan tercatat status <strong>Pending</strong>. Stok <strong>belum</strong> berkurang di titik ini — laporan boleh dicatat walau item belum pernah punya stok tercatat di sistem</li>
+                <li>Atasan/PIC (permission Approve Spoil) membuka laporan ini dan <strong>Approve</strong> — baru di titik ini stok benar-benar dipotong dari ledger. Kalau stok saat itu belum cukup/belum tercatat, approve akan gagal dengan pesan yang mengarahkan untuk melakukan Opname dulu; laporan tetap Pending dan bisa di-approve lagi setelah Opname disetujui</li>
             </ol>
             <div class="border-t border-gray-100 pt-3">
                 <p class="font-semibold text-gray-800 mb-2 text-xs">Import Histori dari Excel</p>
