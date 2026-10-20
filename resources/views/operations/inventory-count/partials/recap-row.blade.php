@@ -17,9 +17,12 @@
     @foreach($row['days'] as $day)
         <td class="px-2 py-2 border-l border-gray-100 align-top text-center">
             @if($day['counted'])
-                <p class="font-semibold text-gray-900">{{ $day['qty_whole'] }} <span class="font-normal text-gray-400">{{ $day['whole_unit'] }}</span></p>
+                <p class="font-semibold {{ ($day['is_draft'] ?? false) ? 'text-amber-700' : 'text-gray-900' }}">{{ $day['qty_whole'] }} <span class="font-normal text-gray-400">{{ $day['whole_unit'] }}</span></p>
                 @if($day['qty_loose'] !== null)
                     <p class="text-gray-600">{{ $day['qty_loose'] }} <span class="text-gray-400">{{ $day['loose_unit'] }}</span></p>
+                @endif
+                @if($day['is_draft'] ?? false)
+                    <p class="text-[10px] text-amber-600 mt-0.5">Draft, belum final</p>
                 @endif
                 @if(! $day['config_valid'])
                     <p class="text-[10px] text-amber-600 mt-0.5"><i class="ti ti-alert-triangle" aria-hidden="true"></i> satuan belum valid</p>

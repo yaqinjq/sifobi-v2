@@ -10,21 +10,43 @@
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4"
      x-data
      x-init="Alpine.store('recap', { search: '', categoryFilter: '' })">
+    @php $includeDraft = $includeDraft ?? false; @endphp
     <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
         <i class="ti ti-info-circle" aria-hidden="true"></i>
-        <strong>Rekap hasil hitung fisik yang sudah dikirim (Terkirim) saja.</strong>
-        Dokumen yang masih Draft (belum dikirim, atau sedang direvisi) TIDAK dianggap hasil final -- hari itu tampil "Belum dihitung". Angka di sini APA ADANYA dari hasil hitung fisik, TIDAK ada perhitungan IN/OUT atau saldo berjalan.
+        @if($includeDraft)
+            <strong>Ikut menampilkan sesi yang masih Draft (belum dikirim).</strong>
+            Angka berwarna <span class="text-amber-700 font-semibold">kuning</span> di tabel bawah ini masih Draft, BELUM final -- bisa saja masih berubah. Angka hitam adalah hasil yang sudah Terkirim (final).
+        @else
+            <strong>Rekap hasil hitung fisik yang sudah dikirim (Terkirim) saja.</strong>
+            Dokumen yang masih Draft (belum dikirim, atau sedang direvisi) TIDAK dianggap hasil final -- hari itu tampil "Belum dihitung". Angka di sini APA ADANYA dari hasil hitung fisik, TIDAK ada perhitungan IN/OUT atau saldo berjalan.
+        @endif
     </div>
 
     @php
-        $prevWeekParams = array_filter(['week' => $weekStart->copy()->subDays(7)->toDateString(), 'outlet_id' => $isSuperAdmin ? $outlet?->id : null, 'department_id' => $isSuperAdmin ? $department?->id : null]);
-        $nextWeekParams = array_filter(['week' => $weekStart->copy()->addDays(7)->toDateString(), 'outlet_id' => $isSuperAdmin ? $outlet?->id : null, 'department_id' => $isSuperAdmin ? $department?->id : null]);
+        $prevWeekParams = array_filter(['week' => $weekStart->copy()->subDays(7)->toDateString(), 'outlet_id' => $isSuperAdmin ? $outlet?->id : null, 'department_id' => $isSuperAdmin ? $department?->id : null, 'include_draft' => $includeDraft ? 1 : null]);
+        $nextWeekParams = array_filter(['week' => $weekStart->copy()->addDays(7)->toDateString(), 'outlet_id' => $isSuperAdmin ? $outlet?->id : null, 'department_id' => $isSuperAdmin ? $department?->id : null, 'include_draft' => $includeDraft ? 1 : null]);
         if (! $isOpnameRecap) {
             $prevWeekParams['template_id'] = $template->id;
             $nextWeekParams['template_id'] = $template->id;
         }
         $recapRouteName = $isOpnameRecap ? 'operations.inventory-count.opname-recap' : 'operations.inventory-count.recap.index';
     @endphp
+
+    @if($isOpnameRecap)
+        <x-sf.card>
+            <form method="GET" action="{{ route($recapRouteName) }}" class="flex items-center gap-2">
+                <input type="hidden" name="week" value="{{ $weekStart->toDateString() }}">
+                @if($isSuperAdmin)
+                    <input type="hidden" name="outlet_id" value="{{ $outlet?->id }}">
+                    <input type="hidden" name="department_id" value="{{ $department?->id }}">
+                @endif
+                <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" name="include_draft" value="1" onchange="this.form.submit()" @checked($includeDraft) class="rounded border-gray-300 text-primary-700">
+                    Tampilkan juga yang masih Draft (belum final)
+                </label>
+            </form>
+        </x-sf.card>
+    @endif
     <x-sf.card>
         <div class="flex items-center justify-between gap-3">
             <a href="{{ route($recapRouteName, $prevWeekParams) }}"

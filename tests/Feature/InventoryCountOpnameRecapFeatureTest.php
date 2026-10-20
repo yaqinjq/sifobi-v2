@@ -86,6 +86,31 @@ test('draft sessions are NOT treated as final -- the day still shows as not coun
     $response->assertSee('Belum dihitung');
 });
 
+test('include_draft=1 shows a draft session count, marked as draft -- not as a confirmed final result', function (): void {
+    $staff = opnameUser('STAFF_BAR', 'BAR');
+
+    $session = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->bar->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => now()->toDateString(),
+    ], $staff->id);
+    $session->items()->where('item_id', $this->barItem->id)->update([
+        'physical_qty_base' => '17',
+        'is_counted' => true,
+    ]);
+    // Sengaja TIDAK di-submit -- tetap DRAFT.
+
+    $withoutDraft = $this->actingAs($staff)->get(route('operations.inventory-count.opname-recap'));
+    $withoutDraft->assertOk()->assertDontSee('17.000000');
+
+    $withDraft = $this->actingAs($staff)->get(route('operations.inventory-count.opname-recap', ['include_draft' => 1]));
+    $withDraft->assertOk();
+    $withDraft->assertSee('17.000000');
+    $withDraft->assertSee('Draft, belum final');
+});
+
 test('super admin must pick outlet and department before the page loads', function (): void {
     $admin = User::query()->where('email', 'admin@sifobi.test')->firstOrFail();
 

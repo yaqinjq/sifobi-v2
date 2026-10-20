@@ -347,18 +347,30 @@ class InventoryCountController extends Controller
             ->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
         $weekEnd = $weekStart->copy()->addDays(6);
 
+        // Opsional: ikut tampilkan sesi yang masih Draft (belum dikirim),
+        // atas permintaan user supaya bisa mengecek data yang baru sedang
+        // diisi -- SENGAJA ditandai berbeda di tampilan (lihat is_draft di
+        // bawah), bukan disamakan dengan hasil final yang sudah Terkirim.
+        $includeDraft = $request->boolean('include_draft');
+        $statuses = [OpnameSession::STATUS_SUBMITTED, OpnameSession::STATUS_APPROVED, OpnameSession::STATUS_PROCESSED];
+        if ($includeDraft) {
+            $statuses[] = OpnameSession::STATUS_DRAFT;
+        }
+
         $sessions = OpnameSession::query()
             ->where('tenant_id', $tenantId)
             ->where('outlet_id', $outletId)
             ->where('department_id', $departmentId)
-            ->whereIn('status', [OpnameSession::STATUS_SUBMITTED, OpnameSession::STATUS_APPROVED, OpnameSession::STATUS_PROCESSED])
+            ->whereIn('status', $statuses)
             ->whereBetween('business_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
             ->with(['items.item', 'items.unit'])
             ->get();
 
         $byDateItem = [];
+        $statusByDate = [];
         foreach ($sessions as $session) {
             $dateKey = $session->business_date->toDateString();
+            $statusByDate[$dateKey] = $session->status;
             foreach ($session->items as $opnameItem) {
                 $byDateItem[$dateKey][$opnameItem->item_id] = $opnameItem;
             }
@@ -382,6 +394,7 @@ class InventoryCountController extends Controller
                     'whole_unit' => $opnameItem?->unit?->abbreviation ?? $opnameItem?->unit?->code,
                     'loose_unit' => null,
                     'config_valid' => true,
+                    'is_draft' => ($statusByDate[$dateKey] ?? null) === OpnameSession::STATUS_DRAFT,
                 ];
             }
 
@@ -402,6 +415,7 @@ class InventoryCountController extends Controller
             'distinctCategories' => $rows->pluck('subcategory')->unique()->sort()->values(),
             'isSuperAdmin' => $this->isSuperAdmin($request),
             'isOpnameRecap' => true,
+            'includeDraft' => $includeDraft,
         ]);
     }
 
