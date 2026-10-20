@@ -21,6 +21,7 @@
                 <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
                 <ul class="space-y-1 text-gray-600 pl-4 list-disc">
                     <li>Rekap Mingguan Opname (di dalam Inventory Simple): checkbox baru <strong>"Tampilkan juga yang masih Draft (belum final)"</strong> &mdash; kalau diaktifkan, hasil hitung dari sesi yang belum dikirim ikut terlihat (ditandai warna kuning + label "Draft, belum final"), supaya bisa dicek dulu tanpa tertukar dengan data yang sudah pasti</li>
+                    <li>Import User: email yang sudah terdaftar sekarang ditawarkan untuk <strong>diperbarui</strong> (bukan cuma dilewati) &mdash; tampil jelas field apa saja yang akan berubah (nama/role/outlet/dll, format "lama &rarr; baru"), dicentang satu-satu sendiri oleh admin. <strong>Password user yang sudah ada tidak pernah ikut diubah</strong> lewat fitur ini</li>
                 </ul>
             </div>
         </div>
