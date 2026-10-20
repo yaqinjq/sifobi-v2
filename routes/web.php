@@ -18,7 +18,9 @@ use App\Http\Controllers\Operations\InventoryCountRecapController;
 use App\Http\Controllers\Operations\OpenStockImportController;
 use App\Http\Controllers\Operations\OpenStockController;
 use App\Http\Controllers\Operations\OpnameController;
+use App\Http\Controllers\Operations\OpnameMonthlyImportController;
 use App\Http\Controllers\Operations\SpoilWasteController;
+use App\Http\Controllers\Operations\SpoilWasteMonthlyImportController;
 use App\Http\Controllers\Receiving\GoodsReceiptController;
 use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Procurement\PurchaseOrderController;
@@ -502,6 +504,16 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             ->middleware('permission:approve_spoil')
             ->name('spoil-wastes.import-template');
 
+        // Import Spoil Bulanan (grid per-bulan) -- fitur baru terpisah dari
+        // import historis flat di atas, lihat SpoilWasteMonthlyImportController.
+        Route::prefix('spoil-wastes-import-bulanan')->name('spoil-wastes.import-bulanan.')->middleware('permission:approve_spoil')->group(function (): void {
+            Route::get('/', [SpoilWasteMonthlyImportController::class, 'form'])->name('form');
+            Route::get('/template', [SpoilWasteMonthlyImportController::class, 'template'])->name('template');
+            Route::post('/preview', [SpoilWasteMonthlyImportController::class, 'preview'])->name('preview');
+            Route::post('/apply', [SpoilWasteMonthlyImportController::class, 'apply'])->name('apply');
+            Route::get('/apply/status/{run}', [SpoilWasteMonthlyImportController::class, 'status'])->name('apply.status');
+        });
+
         Route::prefix('opname')->name('opname.')->group(function (): void {
             Route::get('/', [OpnameController::class, 'index'])
                 ->middleware('permission:input_opname')
@@ -524,6 +536,18 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::post('/bulk-approve', [OpnameController::class, 'bulkApprove'])
                 ->middleware('permission:approve_opname')
                 ->name('bulk-approve');
+
+            // Import Opname Bulanan -- WAJIB didaftarkan sebelum /{session}
+            // (literal path, bukan wildcard) supaya tidak collide dengan
+            // route-model-binding di bawah, pola sama seperti users/import*.
+            Route::prefix('import-bulanan')->name('import-bulanan.')->middleware('permission:approve_opname')->group(function (): void {
+                Route::get('/', [OpnameMonthlyImportController::class, 'form'])->name('form');
+                Route::get('/template', [OpnameMonthlyImportController::class, 'template'])->name('template');
+                Route::post('/preview', [OpnameMonthlyImportController::class, 'preview'])->name('preview');
+                Route::post('/apply', [OpnameMonthlyImportController::class, 'apply'])->name('apply');
+                Route::get('/apply/status/{run}', [OpnameMonthlyImportController::class, 'status'])->name('apply.status');
+            });
+
             Route::get('/{session}', [OpnameController::class, 'show'])
                 ->middleware('permission:input_opname')
                 ->name('show');

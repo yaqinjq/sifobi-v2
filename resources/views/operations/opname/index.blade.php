@@ -5,6 +5,9 @@
 @section('content')
 <x-sf.page-header title="Daily Opname" subtitle="Hitung fisik stok harian">
     <x-slot:actions>
+        @role('SUPER_ADMIN')
+            <a href="{{ route('operations.opname.import-bulanan.form') }}" class="sf-btn-secondary min-h-11 px-3 text-sm">Import Bulanan</a>
+        @endrole
         @can('input_opname')
             <a href="{{ route('operations.opname.create-historical') }}" class="sf-btn-secondary min-h-11 px-3 text-sm">Input Historis</a>
             <a href="{{ route('operations.opname.create') }}" class="sf-btn-primary min-h-11 px-3">

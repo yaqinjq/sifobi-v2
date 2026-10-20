@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\CleanupMonthlyImportTempFiles;
 use App\Console\Commands\SubmitPlannedPurchaseOrders;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -11,3 +12,6 @@ Artisan::command('inspire', function () {
 
 // Auto-submit plan orders daily at 06:00
 Schedule::command(SubmitPlannedPurchaseOrders::class)->dailyAt('06:00');
+
+// Bersihkan file upload sementara Import Opname/Spoil Bulanan yang tertinggal
+Schedule::command(CleanupMonthlyImportTempFiles::class)->dailyAt('03:00');
