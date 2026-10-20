@@ -25,6 +25,12 @@
                     <li>Laporan Mutasi, Kartu Stok Ringkasan, dan Kartu Stok Detail (layar &amp; export Excel): angka <strong>Spoil &amp; Waste sekarang dipisah dari "Keluar"</strong> &mdash; supaya "Keluar" murni mencerminkan barang yang benar-benar keluar (jual/transfer), bukan tercampur dengan susut/kerugian. Saldo akhir/sisa barang tetap menghitung spoil seperti biasa, tidak berubah</li>
                 </ul>
             </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Penting</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Opname: sesi yang baru sempat di-approve atasan beberapa hari setelah staf mengisi (ada transaksi lain di item yang sama di antaranya) tidak lagi gagal dengan pesan error bahasa Inggris &mdash; sekarang selalu memakai data stok TERKINI saat diproses, jadi approve tidak lagi tersendat hanya karena jeda waktu. Berlaku juga untuk approve massal (banyak sesi sekaligus)</li>
+                </ul>
+            </div>
         </div>
     </x-sf.card>
 
