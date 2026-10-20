@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
+use App\Models\User;
+use App\Services\SmtpConfigService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -20,6 +23,20 @@ class ForgotPasswordController extends Controller
         $request->validate([
             'email' => ['required', 'email'],
         ]);
+
+        // Password::sendResetLink() memicu notifikasi ResetPassword bawaan
+        // Laravel, yang TIDAK tahu soal SMTP per-tenant SIFOBI (beda dengan
+        // WorkflowNotification yang menerapkannya sendiri). Biasanya SMTP
+        // tenant diterapkan lewat View::composer('*') di AppServiceProvider,
+        // tapi request ini cuma redirect (tidak pernah merender view), jadi
+        // composer itu tidak pernah jalan -- akibatnya email reset terkirim
+        // (atau gagal senyap) lewat config mail default, bukan SMTP tenant
+        // yang sudah dikonfigurasi. Diterapkan eksplisit di sini, seperti
+        // yang dilakukan WorkflowNotification.
+        $user = User::withoutGlobalScopes()->where('email', $request->input('email'))->first();
+        if ($user) {
+            SmtpConfigService::applyFromSettings(AppSetting::forTenant((int) $user->tenant_id));
+        }
 
         $status = Password::sendResetLink($request->only('email'));
 
