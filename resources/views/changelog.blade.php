@@ -22,6 +22,7 @@
                 <ul class="space-y-1 text-gray-600 pl-4 list-disc">
                     <li>Rekap Mingguan Opname (di dalam Inventory Simple): checkbox baru <strong>"Tampilkan juga yang masih Draft (belum final)"</strong> &mdash; kalau diaktifkan, hasil hitung dari sesi yang belum dikirim ikut terlihat (ditandai warna kuning + label "Draft, belum final"), supaya bisa dicek dulu tanpa tertukar dengan data yang sudah pasti</li>
                     <li>Import User: email yang sudah terdaftar sekarang ditawarkan untuk <strong>diperbarui</strong> (bukan cuma dilewati) &mdash; tampil jelas field apa saja yang akan berubah (nama/role/outlet/dll, format "lama &rarr; baru"), dicentang satu-satu sendiri oleh admin. <strong>Password user yang sudah ada tidak pernah ikut diubah</strong> lewat fitur ini</li>
+                    <li>Laporan Mutasi, Kartu Stok Ringkasan, dan Kartu Stok Detail (layar &amp; export Excel): angka <strong>Spoil &amp; Waste sekarang dipisah dari "Keluar"</strong> &mdash; supaya "Keluar" murni mencerminkan barang yang benar-benar keluar (jual/transfer), bukan tercampur dengan susut/kerugian. Saldo akhir/sisa barang tetap menghitung spoil seperti biasa, tidak berubah</li>
                 </ul>
             </div>
         </div>
