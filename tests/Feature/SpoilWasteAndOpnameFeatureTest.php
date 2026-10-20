@@ -132,6 +132,51 @@ test('recording spoil only creates an observation -- ledger is untouched until a
     expect((string) $balanceAfterApprove->qty_on_hand)->toBe('4000.000000');
 });
 
+test('storing multiple spoil items in one submission creates one record per item', function (): void {
+    Storage::fake('public');
+    $staff = operationUser('STAFF_BAR');
+    seedDailyBalance($this, '5000');
+
+    $secondItem = Item::query()->where('canonical_sku', 'MKO-SUSU-UHT')->firstOrFail();
+    $secondItem->update(['primary_department_id' => $this->department->id]);
+
+    $this->actingAs($staff)
+        ->post(route('operations.spoil-wastes.store'), [
+            'outlet_id' => $this->outlet->id,
+            'department_id' => $this->department->id,
+            'recorded_date' => '2026-07-01',
+            'items' => [
+                [
+                    'item_id' => $this->item->id,
+                    'qty_whole' => '2',
+                    'qty_loose' => '0',
+                    'reason_category' => SpoilWaste::REASON_TUMPAH,
+                    'reason_detail' => 'Item pertama tumpah.',
+                ],
+                [
+                    'item_id' => $secondItem->id,
+                    'qty_whole' => '0',
+                    'qty_loose' => '3',
+                    'reason_category' => SpoilWaste::REASON_RUSAK,
+                    'reason_detail' => 'Item kedua rusak kemasan.',
+                ],
+            ],
+        ])
+        ->assertRedirect(route('operations.spoil-wastes.index'));
+
+    expect(SpoilWaste::query()->count())->toBe(2);
+
+    $first = SpoilWaste::query()->where('item_id', $this->item->id)->firstOrFail();
+    $second = SpoilWaste::query()->where('item_id', $secondItem->id)->firstOrFail();
+
+    expect($first->status)->toBe(SpoilWaste::STATUS_PENDING)
+        ->and($first->mutation_id)->toBeNull()
+        ->and($first->reason_detail)->toBe('Item pertama tumpah.')
+        ->and($second->status)->toBe(SpoilWaste::STATUS_PENDING)
+        ->and($second->mutation_id)->toBeNull()
+        ->and((string) $second->qty_in_base_unit)->toBe('3.000000');
+});
+
 test('recording spoil with both whole and loose qty combines them into base unit correctly', function (): void {
     // Reproduksi keluhan user: form Catat Spoil sebelumnya cuma 1 field qty
     // generik, tidak bisa mencatat "2 utuh (dus/karton) + sisa 50 ecer
@@ -175,7 +220,7 @@ test('recording spoil without any qty is rejected with a clear validation error'
             'recorded_date' => '2026-07-01',
             'reason_category' => SpoilWaste::REASON_TUMPAH,
         ])
-        ->assertSessionHasErrors('qty_whole');
+        ->assertSessionHasErrors('items.0.qty_whole');
 
     expect(SpoilWaste::query()->count())->toBe(0);
 });

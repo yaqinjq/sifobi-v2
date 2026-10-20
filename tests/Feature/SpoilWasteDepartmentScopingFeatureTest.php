@@ -365,7 +365,7 @@ test('store rejects an item that does not belong to the staff own department', f
             'recorded_date' => now()->toDateString(),
             'reason_category' => SpoilWaste::REASON_RUSAK,
         ])
-        ->assertSessionHasErrors('item_id');
+        ->assertSessionHasErrors('items.0.item_id');
 
     expect(SpoilWaste::query()->where('item_id', $this->pastryItem->id)->exists())->toBeFalse();
 });

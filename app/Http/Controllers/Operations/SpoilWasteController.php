@@ -109,7 +109,9 @@ class SpoilWasteController extends Controller
             abort(403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah untuk mencatat spoil. Hubungi Super Admin.');
         }
 
-        $validated = $this->validated($request, $tenantId, $isSuperAdmin);
+        $this->normalizeBatchInput($request);
+
+        $validated = $this->validatedBatch($request, $tenantId, $isSuperAdmin);
 
         // outlet_id/department_id yang DIKIRIM CLIENT cuma dipakai untuk
         // SUPER_ADMIN -- untuk staf non-superadmin (sudah dipastikan
@@ -121,16 +123,70 @@ class SpoilWasteController extends Controller
             $validated['department_id'] = (int) $user->department_id;
         }
 
-        $spoil = $this->spoilWasteService->record(array_merge($validated, [
-            'tenant_id' => $tenantId,
-            'photo_file' => $request->file('photo'),
-            'device_info' => $request->userAgent(),
-            'ip_address' => $request->ip(),
-        ]), (int) $user->id);
+        $spoils = [];
+        foreach ($validated['items'] as $index => $item) {
+            // Format lama (1 field flat `photo`) dan format baru (baris
+            // ke-N, `items[N][photo]`) harus sama-sama bisa diproses --
+            // lihat normalizeBatchInput(). File TIDAK ikut ter-merge ke
+            // `items[]` di sana (Request::merge() tidak menyentuh file
+            // bag), jadi untuk baris pertama fallback ke field `photo`
+            // kalau `items.0.photo` tidak ada.
+            $photoFile = $request->hasFile("items.{$index}.photo")
+                ? $request->file("items.{$index}.photo")
+                : ($index === 0 ? $request->file('photo') : null);
+
+            $spoils[] = $this->spoilWasteService->record([
+                'tenant_id' => $tenantId,
+                'outlet_id' => $validated['outlet_id'],
+                'department_id' => $validated['department_id'],
+                'recorded_date' => $validated['recorded_date'],
+                'item_id' => $item['item_id'],
+                'qty_whole' => $item['qty_whole'] ?? null,
+                'qty_loose' => $item['qty_loose'] ?? null,
+                'reason_category' => $item['reason_category'],
+                'reason_detail' => $item['reason_detail'] ?? null,
+                'photo_file' => $photoFile,
+                'device_info' => $request->userAgent(),
+                'ip_address' => $request->ip(),
+            ], (int) $user->id);
+        }
+
+        if (count($spoils) === 1) {
+            return redirect()
+                ->route('operations.spoil-wastes.show', $spoils[0])
+                ->with('success', 'Spoil berhasil dicatat, menunggu approval untuk pemotongan stok.');
+        }
 
         return redirect()
-            ->route('operations.spoil-wastes.show', $spoil)
-            ->with('success', 'Spoil berhasil dicatat, menunggu approval untuk pemotongan stok.');
+            ->route('operations.spoil-wastes.index')
+            ->with('success', count($spoils).' laporan spoil berhasil dicatat, menunggu approval untuk pemotongan stok.');
+    }
+
+    /**
+     * Form lama cuma punya 1 item per submit (field flat: item_id,
+     * qty_whole, dst). Form baru mendukung banyak item sekaligus lewat
+     * array `items[]`. Supaya validatedBatch() cuma perlu menangani SATU
+     * bentuk data, request lama dinormalisasi jadi `items[0]` di sini kalau
+     * belum ada key `items` sama sekali -- tidak menyentuh file upload
+     * (lihat catatan di store()).
+     */
+    private function normalizeBatchInput(Request $request): void
+    {
+        if ($request->has('items')) {
+            return;
+        }
+
+        $request->merge([
+            'items' => [
+                [
+                    'item_id' => $request->input('item_id'),
+                    'qty_whole' => $request->input('qty_whole'),
+                    'qty_loose' => $request->input('qty_loose'),
+                    'reason_category' => $request->input('reason_category'),
+                    'reason_detail' => $request->input('reason_detail'),
+                ],
+            ],
+        ]);
     }
 
     public function show(Request $request, SpoilWaste $spoil): View
@@ -391,9 +447,26 @@ class SpoilWasteController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validated(Request $request, int $tenantId, bool $isSuperAdmin): array
+    private function validatedBatch(Request $request, int $tenantId, bool $isSuperAdmin): array
     {
         $userDepartmentId = $request->user()->department_id;
+
+        $itemBelongsToDepartment = function (string $attribute, mixed $value, \Closure $fail) use ($tenantId, $userDepartmentId, $isSuperAdmin): void {
+            if ($isSuperAdmin || ! $userDepartmentId) {
+                return;
+            }
+
+            $belongsToDepartment = Item::withoutGlobalScopes()
+                ->where('tenant_id', $tenantId)
+                ->where('id', $value)
+                ->where(fn ($q) => $q->where('primary_department_id', $userDepartmentId)
+                    ->orWhereHas('departments', fn ($dq) => $dq->where('departments.id', $userDepartmentId)))
+                ->exists();
+
+            if (! $belongsToDepartment) {
+                $fail('Item ini bukan milik departemen Anda.');
+            }
+        };
 
         $validated = $request->validate([
             'outlet_id' => [
@@ -406,7 +479,9 @@ class SpoilWasteController extends Controller
                 'integer',
                 Rule::exists('departments', 'id')->where('tenant_id', $tenantId),
             ],
-            'item_id' => [
+            'recorded_date' => ['required', 'date'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.item_id' => [
                 'required',
                 'integer',
                 Rule::exists('items', 'id')->where('tenant_id', $tenantId),
@@ -417,27 +492,11 @@ class SpoilWasteController extends Controller
                 // boleh catat spoil untuk item departemen sendiri.
                 // SUPER_ADMIN dikecualikan sepenuhnya (lintas departemen
                 // memang wewenangnya).
-                function (string $attribute, mixed $value, \Closure $fail) use ($tenantId, $userDepartmentId, $isSuperAdmin): void {
-                    if ($isSuperAdmin || ! $userDepartmentId) {
-                        return;
-                    }
-
-                    $belongsToDepartment = Item::withoutGlobalScopes()
-                        ->where('tenant_id', $tenantId)
-                        ->where('id', $value)
-                        ->where(fn ($q) => $q->where('primary_department_id', $userDepartmentId)
-                            ->orWhereHas('departments', fn ($dq) => $dq->where('departments.id', $userDepartmentId)))
-                        ->exists();
-
-                    if (! $belongsToDepartment) {
-                        $fail('Item ini bukan milik departemen Anda.');
-                    }
-                },
+                $itemBelongsToDepartment,
             ],
-            'qty_whole' => ['nullable', Decimal::validationRule(6)],
-            'qty_loose' => ['nullable', Decimal::validationRule(6)],
-            'recorded_date' => ['required', 'date'],
-            'reason_category' => ['required', Rule::in([
+            'items.*.qty_whole' => ['nullable', Decimal::validationRule(6)],
+            'items.*.qty_loose' => ['nullable', Decimal::validationRule(6)],
+            'items.*.reason_category' => ['required', Rule::in([
                 SpoilWaste::REASON_EXPIRED,
                 SpoilWaste::REASON_RUSAK,
                 SpoilWaste::REASON_KESALAHAN_PRODUKSI,
@@ -445,17 +504,26 @@ class SpoilWasteController extends Controller
                 SpoilWaste::REASON_QUALITY_REJECT,
                 SpoilWaste::REASON_LAINNYA,
             ])],
-            'reason_detail' => ['nullable', 'string', 'max:2000'],
+            'items.*.reason_detail' => ['nullable', 'string', 'max:2000'],
+            // Dua rule foto di bawah ini menangani 2 bentuk request: form
+            // lama kirim 1 file lewat field flat `photo` (lihat
+            // normalizeBatchInput() -- file tidak ikut dinormalisasi ke
+            // items[], jadi divalidasi terpisah di sini), form baru kirim
+            // `items[N][photo]` per baris.
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'items.*.photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
-        $qtyWhole = Decimal::toFixed($validated['qty_whole'] ?? '0', 6);
-        $qtyLoose = Decimal::toFixed($validated['qty_loose'] ?? '0', 6);
+        foreach ($validated['items'] as $index => $item) {
+            $qtyWhole = Decimal::toFixed($item['qty_whole'] ?? '0', 6);
+            $qtyLoose = Decimal::toFixed($item['qty_loose'] ?? '0', 6);
 
-        if (bccomp($qtyWhole, '0.000000', 6) <= 0 && bccomp($qtyLoose, '0.000000', 6) <= 0) {
-            throw ValidationException::withMessages([
-                'qty_whole' => 'Isi minimal salah satu: Jumlah Terbuang Utuh atau Ecer, harus lebih dari 0.',
-            ]);
+            if (bccomp($qtyWhole, '0.000000', 6) <= 0 && bccomp($qtyLoose, '0.000000', 6) <= 0) {
+                $itemNumber = $index + 1;
+                throw ValidationException::withMessages([
+                    "items.{$index}.qty_whole" => "Item #{$itemNumber}: isi minimal salah satu Jumlah Terbuang Utuh atau Ecer, harus lebih dari 0.",
+                ]);
+            }
         }
 
         return $validated;

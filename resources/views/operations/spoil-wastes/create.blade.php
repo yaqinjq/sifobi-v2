@@ -3,7 +3,7 @@
 @section('title', 'Catat Spoil & Waste')
 
 @section('content')
-<x-sf.page-header title="Catat Spoil & Waste" subtitle="Stok langsung berkurang setelah disimpan" back="{{ route('operations.spoil-wastes.index') }}" />
+<x-sf.page-header title="Catat Spoil & Waste" subtitle="Tercatat menunggu approval, stok belum berkurang" back="{{ route('operations.spoil-wastes.index') }}" />
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full">
     @if($errors->any())
@@ -19,7 +19,7 @@
           class="space-y-4">
         @csrf
 
-        <x-sf.card title="Item & Qty">
+        <x-sf.card title="Outlet & Tanggal">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="sf-label">Outlet</label>
@@ -35,7 +35,7 @@
                     <label class="sf-label">Tanggal</label>
                     <input type="date" name="recorded_date" value="{{ old('recorded_date', now()->toDateString()) }}" class="sf-input text-base min-h-11" required>
                 </div>
-                <div>
+                <div class="md:col-span-2">
                     <label class="sf-label">Departemen *</label>
                     <select name="department_id" class="sf-input text-base min-h-11" required>
                         <option value="">Pilih departemen</option>
@@ -47,90 +47,101 @@
                     </select>
                 </div>
             </div>
-
-            <div class="relative mt-4">
-                <label class="sf-label">Item/Bahan Baku *</label>
-                <input type="hidden" name="item_id" :value="selectedItem?.id || ''">
-                <input type="text"
-                       x-model="searchQuery"
-                       @input="clearStaleSelection()"
-                       @input.debounce.300ms="searchItems()"
-                       @focus="searchItems()"
-                       @keydown.escape="showSearch = false"
-                       class="sf-input text-base min-h-11"
-                       placeholder="Ketik nama atau SKU item"
-                       autocomplete="off"
-                       required>
-                <div x-show="showSearch" x-cloak @click.outside="showSearch = false" class="absolute z-40 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
-                    <template x-for="item in searchResults" :key="item.id">
-                        <button type="button" @click="selectItem(item)" class="w-full text-left px-4 py-3 hover:bg-primary-50 border-b border-gray-100 last:border-0">
-                            <span class="block text-sm font-semibold text-gray-900" x-text="item.name"></span>
-                            <span class="block text-xs text-gray-500" x-text="`${item.sku} | Stok: ${item.qty_on_hand} ${item.base_unit}`"></span>
-                        </button>
-                    </template>
-                    <div x-show="searchResults.length === 0" class="px-4 py-3 text-sm text-gray-500">Item tidak ditemukan.</div>
-                </div>
-                <p class="text-xs text-amber-600 mt-1" x-show="searchQuery && !selectedItem" x-cloak>
-                    ⚠ Belum ada item terpilih -- klik salah satu hasil pencarian di atas dulu.
-                </p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                    <label class="sf-label">Jumlah Terbuang Utuh <span class="text-gray-400 font-normal normal-case" x-text="selectedItem ? `(${selectedItem.inventory_unit})` : ''"></span></label>
-                    <input type="text" name="qty_whole" x-model="qtyWhole" @input="calcBase()" inputmode="decimal" class="sf-input text-base min-h-11" placeholder="0">
-                </div>
-                <div>
-                    <label class="sf-label">Jumlah Terbuang Ecer <span class="text-gray-400 font-normal normal-case" x-text="selectedItem ? `(${selectedItem.base_unit})` : ''"></span></label>
-                    <input type="text" name="qty_loose" x-model="qtyLoose" @input="calcBase()" inputmode="decimal" class="sf-input text-base min-h-11" placeholder="0">
-                </div>
-            </div>
-            <p class="text-xs text-gray-400 mt-1.5">Isi minimal salah satu. <strong>Utuh</strong> = satuan kemasan/inventory (mis. DUS, KARTON). <strong>Ecer</strong> = satuan dasar/eceran (mis. PCS, GRAM).</p>
-
-            <div class="mt-4 rounded-xl bg-gray-50 px-4 py-3 text-sm">
-                <div class="flex justify-between gap-3">
-                    <span class="text-gray-500">Total (satuan dasar)</span>
-                    <span class="font-semibold text-gray-900" x-text="`${qtyInBase} ${selectedItem?.base_unit || ''}`"></span>
-                </div>
-            </div>
+            <p class="text-xs text-gray-400 mt-3">Berlaku untuk semua item di bawah -- kalau ada kejadian spoil di outlet/departemen/tanggal lain, catat sebagai laporan terpisah.</p>
         </x-sf.card>
 
-        <x-sf.card title="Alasan & Bukti">
-            <div class="space-y-4">
-                <div>
-                    <label class="sf-label">Kategori Alasan *</label>
-                    <select name="reason_category" class="sf-input text-base min-h-11" required>
-                        @foreach($reasonOptions as $value => $label)
-                            <option value="{{ $value }}" @selected(old('reason_category') === $value)>{{ $label }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="sf-label">Keterangan Detail</label>
-                    <textarea name="reason_detail" rows="3" class="sf-input text-base" placeholder="Jelaskan jika perlu">{{ old('reason_detail') }}</textarea>
-                </div>
-                <div>
-                    <label class="sf-label">Foto Bukti</label>
-                    <div class="rounded-xl border-2 border-dashed border-gray-200 p-6 text-center cursor-pointer" @click="$refs.photoInput.click()">
-                        <div x-show="!photoPreview">
-                            <p class="font-semibold text-gray-900">Tap untuk foto / pilih file</p>
-                            <p class="text-xs text-gray-400 mt-1">JPG/PNG/WebP, maks 5MB</p>
+        <template x-for="(row, index) in rows" :key="row.uid">
+            <x-sf.card>
+                <x-slot:header>
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-heading font-bold text-gray-900" x-text="`Item #${index + 1}`"></h3>
+                        <button type="button" @click="removeRow(index)" x-show="rows.length > 1" class="text-sm text-red-600">Hapus</button>
+                    </div>
+                </x-slot:header>
+                <div class="px-4 pb-4 space-y-4">
+                    <div class="relative">
+                        <label class="sf-label">Item/Bahan Baku *</label>
+                        <input type="hidden" :name="`items[${index}][item_id]`" :value="row.selectedItem?.id || ''">
+                        <input type="text"
+                               x-model="row.searchQuery"
+                               @input="clearStaleSelection(row)"
+                               @input.debounce.300ms="searchItems(row)"
+                               @focus="searchItems(row)"
+                               @keydown.escape="row.showSearch = false"
+                               class="sf-input text-base min-h-11"
+                               placeholder="Ketik nama atau SKU item"
+                               autocomplete="off"
+                               required>
+                        <div x-show="row.showSearch" x-cloak @click.outside="row.showSearch = false" class="absolute z-40 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+                            <template x-for="item in row.searchResults" :key="item.id">
+                                <button type="button" @click="selectItem(row, item)" class="w-full text-left px-4 py-3 hover:bg-primary-50 border-b border-gray-100 last:border-0">
+                                    <span class="block text-sm font-semibold text-gray-900" x-text="item.name"></span>
+                                    <span class="block text-xs text-gray-500" x-text="`${item.sku} | Stok: ${item.qty_on_hand} ${item.base_unit}`"></span>
+                                </button>
+                            </template>
+                            <div x-show="row.searchResults.length === 0" class="px-4 py-3 text-sm text-gray-500">Item tidak ditemukan.</div>
                         </div>
-                        <div x-show="photoPreview" x-cloak>
-                            <img :src="photoPreview" alt="Preview foto" class="max-h-48 mx-auto rounded-xl object-cover">
-                            <button type="button" @click.stop="clearPhoto()" class="text-sm text-red-600 mt-3">Hapus foto</button>
+                        <p class="text-xs text-amber-600 mt-1" x-show="row.searchQuery && !row.selectedItem" x-cloak>
+                            ⚠ Belum ada item terpilih -- klik salah satu hasil pencarian di atas dulu.
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="sf-label">Jumlah Terbuang Utuh <span class="text-gray-400 font-normal normal-case" x-text="row.selectedItem ? `(${row.selectedItem.inventory_unit})` : ''"></span></label>
+                            <input type="text" :name="`items[${index}][qty_whole]`" x-model="row.qtyWhole" @input="calcBase(row)" inputmode="decimal" class="sf-input text-base min-h-11" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="sf-label">Jumlah Terbuang Ecer <span class="text-gray-400 font-normal normal-case" x-text="row.selectedItem ? `(${row.selectedItem.base_unit})` : ''"></span></label>
+                            <input type="text" :name="`items[${index}][qty_loose]`" x-model="row.qtyLoose" @input="calcBase(row)" inputmode="decimal" class="sf-input text-base min-h-11" placeholder="0">
                         </div>
                     </div>
-                    <input type="file" x-ref="photoInput" name="photo" accept="image/*" capture="environment" @change="previewPhoto($event)" class="sr-only">
+                    <p class="text-xs text-gray-400">Isi minimal salah satu. <strong>Utuh</strong> = satuan kemasan/inventory (mis. DUS, KARTON). <strong>Ecer</strong> = satuan dasar/eceran (mis. PCS, GRAM).</p>
+
+                    <div class="rounded-xl bg-gray-50 px-4 py-3 text-sm">
+                        <div class="flex justify-between gap-3">
+                            <span class="text-gray-500">Total (satuan dasar)</span>
+                            <span class="font-semibold text-gray-900" x-text="`${row.qtyInBase} ${row.selectedItem?.base_unit || ''}`"></span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="sf-label">Kategori Alasan *</label>
+                        <select :name="`items[${index}][reason_category]`" class="sf-input text-base min-h-11" required>
+                            @foreach($reasonOptions as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="sf-label">Keterangan Detail</label>
+                        <textarea :name="`items[${index}][reason_detail]`" rows="2" class="sf-input text-base" placeholder="Jelaskan jika perlu"></textarea>
+                    </div>
+                    <div>
+                        <label class="sf-label">Foto Bukti</label>
+                        <label class="block rounded-xl border-2 border-dashed border-gray-200 p-6 text-center cursor-pointer">
+                            <div x-show="!row.photoPreview">
+                                <p class="font-semibold text-gray-900">Tap untuk foto / pilih file</p>
+                                <p class="text-xs text-gray-400 mt-1">JPG/PNG/WebP, maks 5MB</p>
+                            </div>
+                            <div x-show="row.photoPreview" x-cloak>
+                                <img :src="row.photoPreview" alt="Preview foto" class="max-h-48 mx-auto rounded-xl object-cover">
+                                <span @click.stop.prevent="clearPhoto(row, $event)" class="text-sm text-red-600 mt-3 block">Hapus foto</span>
+                            </div>
+                            <input type="file" :name="`items[${index}][photo]`" accept="image/*" capture="environment" @change="previewPhoto(row, $event)" class="sr-only">
+                        </label>
+                    </div>
                 </div>
-            </div>
-        </x-sf.card>
+            </x-sf.card>
+        </template>
+
+        <button type="button" @click="addRow()" class="sf-btn-secondary min-h-11 w-full">+ Tambah Item</button>
 
         <div class="sticky bottom-0 z-30 -mx-4 px-4 py-3 bg-white border-t border-gray-100 lg:static lg:mx-0 lg:px-0 lg:border-0 lg:bg-transparent"
              style="padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));">
             <div class="flex flex-col sm:flex-row gap-2 sm:justify-end">
                 <a href="{{ route('operations.spoil-wastes.index') }}" class="sf-btn-secondary min-h-11 px-4 text-center">Batal</a>
-                <button type="submit" class="sf-btn-primary min-h-11 px-4">Catat Spoil</button>
+                <button type="submit" class="sf-btn-primary min-h-11 px-4" x-text="rows.length > 1 ? `Catat ${rows.length} Spoil` : 'Catat Spoil'"></button>
             </div>
         </div>
     </form>
@@ -140,19 +151,36 @@
 <script>
 function spoilForm() {
     return {
-        selectedItem: null,
-        searchQuery: '',
-        searchResults: [],
-        showSearch: false,
-        qtyWhole: '',
-        qtyLoose: '',
-        qtyInBase: '0.0000',
-        photoPreview: null,
-        async searchItems() {
-            const q = this.searchQuery.trim();
+        nextUid: 1,
+        rows: [],
+        init() {
+            this.rows = [this.newRow()];
+        },
+        newRow() {
+            return {
+                uid: this.nextUid++,
+                selectedItem: null,
+                searchQuery: '',
+                searchResults: [],
+                showSearch: false,
+                qtyWhole: '',
+                qtyLoose: '',
+                qtyInBase: '0.0000',
+                photoPreview: null,
+            };
+        },
+        addRow() {
+            this.rows.push(this.newRow());
+        },
+        removeRow(index) {
+            if (this.rows.length <= 1) return;
+            this.rows.splice(index, 1);
+        },
+        async searchItems(row) {
+            const q = row.searchQuery.trim();
             if (q.length < 2) {
-                this.searchResults = [];
-                this.showSearch = false;
+                row.searchResults = [];
+                row.showSearch = false;
                 return;
             }
 
@@ -160,43 +188,49 @@ function spoilForm() {
             url.searchParams.set('q', q);
 
             const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
-            this.searchResults = await response.json();
-            this.showSearch = true;
+            row.searchResults = await response.json();
+            row.showSearch = true;
         },
-        selectItem(item) {
-            this.selectedItem = item;
-            this.searchQuery = item.name;
-            this.showSearch = false;
-            this.calcBase();
+        selectItem(row, item) {
+            row.selectedItem = item;
+            row.searchQuery = item.name;
+            row.showSearch = false;
+            this.calcBase(row);
         },
-        clearStaleSelection() {
+        clearStaleSelection(row) {
             // Kalau teks pencarian sudah tidak persis sama dengan nama item
             // yang sebelumnya dipilih (mis. user mengetik ulang/menghapus
             // untuk cari item lain tapi belum sempat klik hasil pencarian),
             // lepas item lama supaya tidak diam-diam ikut ke-submit/dipakai
             // hitung rasio -- item_id, satuan, dan preview total ikut kosong
             // lagi sampai user benar-benar memilih item dari daftar.
-            if (this.selectedItem && this.searchQuery !== this.selectedItem.name) {
-                this.selectedItem = null;
-                this.calcBase();
+            if (row.selectedItem && row.searchQuery !== row.selectedItem.name) {
+                row.selectedItem = null;
+                this.calcBase(row);
             }
         },
-        calcBase() {
-            const whole = Number.parseFloat(String(this.qtyWhole || '0').replace(',', '.')) || 0;
-            const loose = Number.parseFloat(String(this.qtyLoose || '0').replace(',', '.')) || 0;
-            const ratio = Number.parseFloat(this.selectedItem?.inventory_ratio || 1) || 1;
-            this.qtyInBase = (whole * ratio + loose).toFixed(4);
+        calcBase(row) {
+            const whole = Number.parseFloat(String(row.qtyWhole || '0').replace(',', '.')) || 0;
+            const loose = Number.parseFloat(String(row.qtyLoose || '0').replace(',', '.')) || 0;
+            const ratio = Number.parseFloat(row.selectedItem?.inventory_ratio || 1) || 1;
+            row.qtyInBase = (whole * ratio + loose).toFixed(4);
         },
-        previewPhoto(event) {
+        previewPhoto(row, event) {
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = (e) => this.photoPreview = e.target.result;
+            reader.onload = (e) => row.photoPreview = e.target.result;
             reader.readAsDataURL(file);
         },
-        clearPhoto() {
-            this.photoPreview = null;
-            this.$refs.photoInput.value = '';
+        clearPhoto(row, event) {
+            row.photoPreview = null;
+            // Tanpa $refs (tidak reliabel di dalam x-for -- semua
+            // iterasi berbagi nama ref yang sama), input file-nya
+            // dicari lewat DOM terdekat dari label pembungkusnya supaya
+            // value-nya benar-benar ikut dikosongkan, bukan cuma preview.
+            const label = event.target.closest('label');
+            const input = label ? label.querySelector('input[type=file]') : null;
+            if (input) input.value = '';
         },
     };
 }

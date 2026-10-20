@@ -8,12 +8,35 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.30 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.30 &mdash; 20 Oktober 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Catat Spoil &amp; Waste: sekarang bisa mencatat <strong>lebih dari 1 item rusak/terbuang sekaligus</strong> dalam 1 form (tombol "+ Tambah Item") &mdash; tidak perlu submit satu-satu lagi kalau ada beberapa item yang rusak bersamaan di outlet &amp; tanggal yang sama. Masing-masing item tetap tercatat sebagai laporan terpisah untuk approval</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Penting</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Lupa Password: email reset password sekarang benar-benar terkirim &mdash; sebelumnya gagal senyap (tidak masuk ke mana pun, termasuk spam) karena konfigurasi SMTP khusus tenant tidak ikut diterapkan pada proses ini, walau pengaturan SMTP-nya sendiri sudah benar dan email approval/notifikasi lain berjalan normal</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.29 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.29 &mdash; 20 Oktober 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
