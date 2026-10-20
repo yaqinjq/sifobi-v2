@@ -2,6 +2,7 @@
 
 namespace App\Exports\Reports;
 
+use App\Modules\Stock\Models\StockMutation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +30,8 @@ class MutasiExport implements FromArray, ShouldAutoSize, WithEvents
         $rows = $this->rows();
         $this->dataRowCount = $rows->count();
         $totalIn = $rows->where('qty_change', '>', 0)->sum('qty_change');
-        $totalOut = $rows->where('qty_change', '<', 0)->sum('qty_change');
+        $totalSpoil = $rows->where('mutation_type', StockMutation::TYPE_SPOIL_WASTE)->sum('qty_change');
+        $totalOut = $rows->where('qty_change', '<', 0)->where('mutation_type', '<>', StockMutation::TYPE_SPOIL_WASTE)->sum('qty_change');
 
         return array_merge([
             ['Laporan Mutasi Stok', 'Export: '.now()->format('d M Y H:i')],
@@ -46,7 +48,7 @@ class MutasiExport implements FromArray, ShouldAutoSize, WithEvents
             $row->unit,
             $row->notes,
         ])->all(), [
-            ['TOTAL', '', '', '', '', '', (float) ($totalIn + $totalOut), '', '', 'Masuk: '.$totalIn.' | Keluar: '.$totalOut],
+            ['TOTAL', '', '', '', '', '', (float) ($totalIn + $totalOut + $totalSpoil), '', '', 'Masuk: '.$totalIn.' | Keluar: '.$totalOut.' | Spoil: '.$totalSpoil],
         ]);
     }
 

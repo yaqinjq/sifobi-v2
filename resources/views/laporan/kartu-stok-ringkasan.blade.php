@@ -79,6 +79,7 @@
                         <div class="text-right"><span class="text-gray-500">Saldo Akhir</span><br><span class="font-bold" :class="parseFloat(row.saldo_akhir) <= 0 ? 'text-red-600' : 'text-gray-900'" x-text="formatQty(row.saldo_akhir) + ' ' + row.unit"></span></div>
                         <div class="text-green-700" x-text="'Masuk: +' + formatQty(row.total_masuk)"></div>
                         <div class="text-right text-red-600" x-text="'Keluar: ' + formatQty(row.total_keluar)"></div>
+                        <div class="text-amber-600" x-text="'Spoil: ' + formatQty(row.total_spoil ?? 0)"></div>
                     </div>
                 </x-sf.card>
             </a>
@@ -104,6 +105,9 @@
                             <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('total_keluar')">
                                 <span class="inline-flex items-center gap-1">Keluar <i class="ti" :class="sortIconClass('total_keluar')" aria-hidden="true"></i></span>
                             </th>
+                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('total_spoil')">
+                                <span class="inline-flex items-center gap-1">Spoil <i class="ti" :class="sortIconClass('total_spoil')" aria-hidden="true"></i></span>
+                            </th>
                             <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('saldo_akhir')">
                                 <span class="inline-flex items-center gap-1">Saldo Akhir <i class="ti" :class="sortIconClass('saldo_akhir')" aria-hidden="true"></i></span>
                             </th>
@@ -123,6 +127,7 @@
                                 <td class="px-4 py-3 text-right" x-text="formatQty(row.saldo_awal) + ' ' + row.unit"></td>
                                 <td class="px-4 py-3 text-right text-green-700" x-text="'+' + formatQty(row.total_masuk)"></td>
                                 <td class="px-4 py-3 text-right text-red-600" x-text="formatQty(row.total_keluar)"></td>
+                                <td class="px-4 py-3 text-right text-amber-600" x-text="formatQty(row.total_spoil ?? 0)"></td>
                                 <td class="px-4 py-3 text-right font-bold" :class="parseFloat(row.saldo_akhir) <= 0 ? 'text-red-600' : 'text-gray-900'">
                                     <span x-text="formatQty(row.saldo_akhir) + ' ' + row.unit"></span>
                                     <span class="badge-void ml-1" x-show="parseFloat(row.saldo_akhir) <= 0">Habis</span>
@@ -134,7 +139,7 @@
                             </tr>
                         </template>
                         <tr x-show="filteredRows.length === 0">
-                            <td colspan="7" class="px-4 py-10 text-center text-gray-500">Tidak ada pergerakan yang cocok dengan pencarian/filter.</td>
+                            <td colspan="8" class="px-4 py-10 text-center text-gray-500">Tidak ada pergerakan yang cocok dengan pencarian/filter.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -182,7 +187,7 @@ function kartuStokTable(rows, initialDateFrom, initialDateTo) {
 
             const key = this.sortKey;
             const dir = this.sortDir === 'asc' ? 1 : -1;
-            const numericKeys = ['saldo_awal', 'total_masuk', 'total_keluar', 'saldo_akhir', 'jumlah_transaksi'];
+            const numericKeys = ['saldo_awal', 'total_masuk', 'total_keluar', 'total_spoil', 'saldo_akhir', 'jumlah_transaksi'];
 
             return [...list].sort((a, b) => {
                 let av = a[key];

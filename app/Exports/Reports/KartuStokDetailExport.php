@@ -29,6 +29,7 @@ class KartuStokDetailExport implements FromArray, ShouldAutoSize, WithEvents
             ['Kartu Stok — '.$this->item->name.' ('.$this->item->canonical_sku.')'],
             ['Periode: '.$this->dateFrom->format('d M Y').' s/d '.$this->dateTo->format('d M Y')],
             ['Saldo Awal', (float) $this->card['saldo_awal']],
+            ['Total Spoil', (float) ($this->card['total_spoil'] ?? 0)],
             [],
             ['Tanggal', 'Jenis Mutasi', 'Target', 'Masuk', 'Keluar', 'Saldo Berjalan', 'Referensi', 'Catatan'],
         ], $this->card['mutations']->map(fn ($row): array => [
@@ -53,9 +54,9 @@ class KartuStokDetailExport implements FromArray, ShouldAutoSize, WithEvents
                 $highestColumn = $sheet->getHighestColumn();
                 $highestRow = $sheet->getHighestRow();
 
-                $sheet->freezePane('A6');
+                $sheet->freezePane('A7');
                 $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(13);
-                $sheet->getStyle("A5:{$highestColumn}5")->applyFromArray([
+                $sheet->getStyle("A6:{$highestColumn}6")->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1B4332']],
                 ]);

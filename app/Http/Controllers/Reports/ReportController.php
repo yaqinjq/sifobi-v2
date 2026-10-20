@@ -47,9 +47,10 @@ class ReportController extends Controller
         $summary = (clone $base)
             ->selectRaw('
                 COALESCE(SUM(CASE WHEN sm.qty_change > 0 THEN sm.qty_change ELSE 0 END), 0) as total_in,
-                COALESCE(SUM(CASE WHEN sm.qty_change < 0 THEN sm.qty_change ELSE 0 END), 0) as total_out,
+                COALESCE(SUM(CASE WHEN sm.qty_change < 0 AND sm.mutation_type <> ? THEN sm.qty_change ELSE 0 END), 0) as total_out,
+                COALESCE(SUM(CASE WHEN sm.mutation_type = ? THEN sm.qty_change ELSE 0 END), 0) as total_spoil,
                 COALESCE(SUM(sm.qty_change), 0) as net_qty
-            ')
+            ', [StockMutation::TYPE_SPOIL_WASTE, StockMutation::TYPE_SPOIL_WASTE])
             ->first();
 
         $mutations = $base
@@ -676,16 +677,23 @@ class ReportController extends Controller
                 COALESCE(ic.name, \'Tanpa Kategori\') as category_name,
                 COALESCE(SUM(CASE WHEN sm.performed_at < ? THEN sm.qty_change ELSE 0 END), 0) as saldo_awal,
                 COALESCE(SUM(CASE WHEN sm.performed_at BETWEEN ? AND ? AND sm.qty_change > 0 THEN sm.qty_change ELSE 0 END), 0) as total_masuk,
-                COALESCE(SUM(CASE WHEN sm.performed_at BETWEEN ? AND ? AND sm.qty_change < 0 THEN sm.qty_change ELSE 0 END), 0) as total_keluar,
+                COALESCE(SUM(CASE WHEN sm.performed_at BETWEEN ? AND ? AND sm.qty_change < 0 AND sm.mutation_type <> ? THEN sm.qty_change ELSE 0 END), 0) as total_keluar,
+                COALESCE(SUM(CASE WHEN sm.performed_at BETWEEN ? AND ? AND sm.mutation_type = ? THEN sm.qty_change ELSE 0 END), 0) as total_spoil,
                 COUNT(CASE WHEN sm.performed_at BETWEEN ? AND ? THEN sm.id END) as jumlah_transaksi
-            ', [$dateFrom, $dateFrom, $dateTo, $dateFrom, $dateTo, $dateFrom, $dateTo])
+            ', [
+                $dateFrom,
+                $dateFrom, $dateTo,
+                $dateFrom, $dateTo, StockMutation::TYPE_SPOIL_WASTE,
+                $dateFrom, $dateTo, StockMutation::TYPE_SPOIL_WASTE,
+                $dateFrom, $dateTo,
+            ])
             ->groupBy('i.id', 'i.name', 'i.canonical_sku', 'u.abbreviation', 'ic.name')
-            ->havingRaw('saldo_awal <> 0 OR total_masuk <> 0 OR total_keluar <> 0')
+            ->havingRaw('saldo_awal <> 0 OR total_masuk <> 0 OR total_keluar <> 0 OR total_spoil <> 0')
             ->orderBy('i.name')
             ->get();
 
         return $rows->map(function ($row) {
-            $row->saldo_akhir = bcadd(bcadd((string) $row->saldo_awal, (string) $row->total_masuk, 6), (string) $row->total_keluar, 6);
+            $row->saldo_akhir = bcadd(bcadd(bcadd((string) $row->saldo_awal, (string) $row->total_masuk, 6), (string) $row->total_keluar, 6), (string) $row->total_spoil, 6);
 
             return $row;
         });
@@ -722,9 +730,12 @@ class ReportController extends Controller
             return $row;
         });
 
+        $totalSpoil = $mutations->where('mutation_type', StockMutation::TYPE_SPOIL_WASTE)->sum('qty_change');
+
         return [
             'saldo_awal' => $saldoAwal,
             'saldo_akhir' => $running,
+            'total_spoil' => (string) $totalSpoil,
             'mutations' => $mutations,
         ];
     }

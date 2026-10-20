@@ -23,9 +23,10 @@
         </form>
     </x-sf.card>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <x-sf.stat label="Saldo Awal" :value="number_format((float) $saldo_awal, 2, ',', '.')" />
         <x-sf.stat label="Saldo Akhir" :value="number_format((float) $saldo_akhir, 2, ',', '.')" />
+        <x-sf.stat label="Total Spoil" :value="number_format((float) ($total_spoil ?? 0), 2, ',', '.')" />
         <x-sf.stat label="Jumlah Transaksi" :value="$mutations->count()" />
     </div>
 

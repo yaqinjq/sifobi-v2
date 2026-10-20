@@ -27,7 +27,7 @@ class KartuStokRingkasanExport implements FromArray, ShouldAutoSize, WithEvents
         return array_merge([
             ['Kartu Stok — Ringkasan Semua Item'],
             ['Periode: '.$this->dateFrom->format('d M Y').' s/d '.$this->dateTo->format('d M Y')],
-            ['SKU', 'Nama Item', 'Kategori', 'Satuan', 'Saldo Awal', 'Total Masuk', 'Total Keluar', 'Saldo Akhir', 'Jumlah Transaksi'],
+            ['SKU', 'Nama Item', 'Kategori', 'Satuan', 'Saldo Awal', 'Total Masuk', 'Total Keluar', 'Total Spoil', 'Saldo Akhir', 'Jumlah Transaksi'],
         ], $this->rows->map(fn ($row): array => [
             $row->canonical_sku,
             $row->item_name,
@@ -36,6 +36,7 @@ class KartuStokRingkasanExport implements FromArray, ShouldAutoSize, WithEvents
             (float) $row->saldo_awal,
             (float) $row->total_masuk,
             (float) $row->total_keluar,
+            (float) ($row->total_spoil ?? 0),
             (float) $row->saldo_akhir,
             (int) $row->jumlah_transaksi,
         ])->all());

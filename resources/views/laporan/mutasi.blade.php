@@ -31,11 +31,13 @@
         </form>
     </x-sf.card>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <x-sf.stat label="Masuk" :value="'+'.number_format((float) ($summary->total_in ?? 0), 4, ',', '.')" />
         <x-sf.stat label="Keluar" :value="number_format((float) ($summary->total_out ?? 0), 4, ',', '.')" />
+        <x-sf.stat label="Spoil" :value="number_format((float) ($summary->total_spoil ?? 0), 4, ',', '.')" />
         <x-sf.stat label="Net" :value="number_format((float) ($summary->net_qty ?? 0), 4, ',', '.')" />
     </div>
+    <p class="text-xs text-gray-400 -mt-2">"Keluar" tidak termasuk Spoil &amp; Waste &mdash; Spoil ditampilkan terpisah, tetap ikut dihitung di "Net" (saldo berjalan).</p>
 
     <div class="lg:hidden space-y-3">
         @forelse($mutations as $mutation)
