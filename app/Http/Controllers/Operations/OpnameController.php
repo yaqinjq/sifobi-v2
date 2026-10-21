@@ -629,6 +629,21 @@ class OpnameController extends Controller
             ->with('success', 'Sesi opname berhasil diproses ke stock ledger.');
     }
 
+    public function sendBackToDraft(Request $request, OpnameSession $session): RedirectResponse
+    {
+        $this->authorizeSessionOwnership($request, $session);
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:1000'],
+        ]);
+
+        $updated = $this->opnameService->sendBackToDraft($session, (int) $request->user()->id, $validated['reason']);
+
+        return redirect()
+            ->route('operations.opname.show', $updated)
+            ->with('success', 'Sesi opname dikembalikan ke draft -- staf bisa memperbaiki inputnya sekarang.');
+    }
+
     private function tenantId(Request $request): int
     {
         $tenantId = $request->user()?->tenant_id;

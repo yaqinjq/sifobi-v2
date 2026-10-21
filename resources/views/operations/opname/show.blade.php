@@ -21,6 +21,13 @@
         </div>
     @endif
 
+    @if($session->status === 'DRAFT' && $session->notes && str_contains($session->notes, 'Dikembalikan ke draft'))
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p class="font-semibold mb-1">Sesi ini dikembalikan untuk diperbaiki:</p>
+            <p class="whitespace-pre-line">{{ $session->notes }}</p>
+        </div>
+    @endif
+
     <x-sf.card>
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -231,6 +238,24 @@
                 </form>
             @elseif($session->status === 'SUBMITTED')
                 @can('approve_opname')
+                    <div x-data="{ showSendBack: false }" class="contents">
+                        <button type="button" @click="showSendBack = true" class="sf-btn-secondary min-h-11 w-full sm:w-auto px-4">Kembalikan ke Draft</button>
+                        <div x-show="showSendBack" x-cloak @click.self="showSendBack = false"
+                             class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+                            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                                <h3 class="font-bold text-gray-900 text-base mb-1">Kembalikan ke Draft?</h3>
+                                <p class="text-xs text-gray-500 mb-4">Sesi ini akan bisa diedit ulang oleh staf untuk memperbaiki kesalahan input. Belum pernah menyentuh stok sama sekali, jadi aman dilakukan.</p>
+                                <form method="POST" action="{{ route('operations.opname.send-back', $session) }}">
+                                    @csrf
+                                    <textarea name="reason" rows="3" class="sf-input text-base" placeholder="Alasan dikembalikan (wajib diisi, mis. item X salah input)" required minlength="5"></textarea>
+                                    <div class="flex gap-2 mt-4">
+                                        <button type="button" @click="showSendBack = false" class="sf-btn-secondary min-h-11 flex-1">Batal</button>
+                                        <button type="submit" class="sf-btn-primary min-h-11 flex-1">Kembalikan</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                     <form method="POST" action="{{ route('operations.opname.approve', $session) }}">
                         @csrf
                         <button type="submit" class="sf-btn-primary min-h-11 w-full sm:w-auto px-4">Approve & Proses</button>

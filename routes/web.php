@@ -563,6 +563,9 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::post('/{session}/approve', [OpnameController::class, 'approve'])
                 ->middleware('permission:approve_opname')
                 ->name('approve');
+            Route::post('/{session}/send-back', [OpnameController::class, 'sendBackToDraft'])
+                ->middleware('permission:approve_opname')
+                ->name('send-back');
         });
 
         Route::prefix('stock-transfers')

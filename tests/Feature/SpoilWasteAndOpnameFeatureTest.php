@@ -602,6 +602,79 @@ test('daily opname creates session with items and posts adjustment on approval',
         ->and((string) $balance->qty_on_hand)->toBe('4000.000000');
 });
 
+test('a submitted opname session can be sent back to draft so staff can fix a wrong input, with the ledger never touched', function (): void {
+    $staff = operationUser('STAFF_BAR');
+    $pic = operationUser('PIC_OUTLET');
+    seedDailyBalance($this, '5000');
+
+    $session = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => '2026-07-01',
+    ], $staff->id);
+
+    $opnameItem = $session->items->firstWhere('item_id', $this->item->id);
+    // Staf salah input: harusnya 8, kepencet jadi 800.
+    app(OpnameService::class)->updateItem($opnameItem, '800', '0');
+
+    $this->actingAs($staff)
+        ->post(route('operations.opname.submit', $session))
+        ->assertRedirect();
+
+    expect($session->refresh()->status)->toBe(OpnameSession::STATUS_SUBMITTED);
+
+    // Sebelum perbaikan ini, updateItem() di sini akan ditolak karena
+    // status bukan DRAFT -- staf tidak punya jalan keluar sama sekali
+    // kalau sudah telanjur submit tapi salah input.
+    $this->actingAs($pic)
+        ->post(route('operations.opname.send-back', $session), ['reason' => 'Qty Ajinomoto salah input, harusnya 8 bukan 800.'])
+        ->assertRedirect();
+
+    $session->refresh();
+    expect($session->status)->toBe(OpnameSession::STATUS_DRAFT)
+        ->and($session->submitted_by)->toBeNull()
+        ->and($session->submitted_at)->toBeNull()
+        ->and($session->notes)->toContain('Qty Ajinomoto salah input');
+
+    // Belum ada adjustment opname sama sekali -- submit() tidak pernah
+    // posting, dan sesi ini belum pernah mencapai approve() (mutasi
+    // OPEN_STOCK dari seedDailyBalance() di awal test tetap ada, itu
+    // memang bukan bagian dari opname ini).
+    $this->assertDatabaseMissing('stock_mutations', [
+        'item_id' => $this->item->id,
+        'mutation_type' => StockMutation::TYPE_DAILY_OPNAME_ADJ,
+    ]);
+    expect($opnameItem->fresh()->mutation_id)->toBeNull();
+
+    // Sekarang staf BISA memperbaiki qty-nya karena statusnya sudah
+    // kembali DRAFT (sebelumnya updateItem() akan menolak dengan "Item
+    // hanya bisa diubah saat sesi masih draft.").
+    $corrected = app(OpnameService::class)->updateItem($opnameItem->fresh(), '8', '0');
+    expect((string) $corrected->physical_qty_whole)->toBe('8.000000');
+});
+
+test('sending back a draft or already-processed session is rejected', function (): void {
+    $staff = operationUser('STAFF_BAR');
+    $pic = operationUser('PIC_OUTLET');
+    seedDailyBalance($this, '5000');
+
+    $session = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => '2026-07-01',
+    ], $staff->id);
+
+    // Masih DRAFT -- belum pernah disubmit, tidak ada yang perlu
+    // dikembalikan.
+    $this->actingAs($pic)
+        ->post(route('operations.opname.send-back', $session), ['reason' => 'Coba kembalikan sesi draft.'])
+        ->assertSessionHasErrors('status');
+
+    expect($session->refresh()->status)->toBe(OpnameSession::STATUS_DRAFT);
+});
+
 test('opname baseline stays frozen after stock correction until manually synced', function (): void {
     $staff = operationUser('STAFF_BAR');
     seedDailyBalance($this, '5000');

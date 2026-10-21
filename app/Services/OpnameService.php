@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Operations\Models\OpnameItem;
@@ -282,6 +283,51 @@ class OpnameService
         Notification::send($approvers, new WorkflowNotification(
             "Opname {$session->outlet?->name} perlu persetujuan",
             "Opname {$session->type} outlet {$session->outlet?->name} tanggal {$session->opname_date?->format('d M Y')} diajukan dan menunggu persetujuan Anda.",
+            route('operations.opname.show', $session),
+            'operations',
+        ));
+
+        return $session;
+    }
+
+    /**
+     * Kembalikan sesi SUBMITTED ke DRAFT supaya staf bisa memperbaiki
+     * kesalahan input SEBELUM di-approve -- sebelumnya tidak ada jalan
+     * keluar sama sekali kalau staf sudah submit tapi ternyata salah isi
+     * (updateItem() mengunci begitu status bukan DRAFT), satu-satunya opsi
+     * atasan cuma approve apa adanya (termasuk kesalahannya) atau
+     * membiarkan sesi menggantung selamanya. AMAN dilakukan kapan pun --
+     * submit() tidak pernah menyentuh ledger sama sekali (cuma approve()
+     * yang menyentuh), jadi tidak ada apa pun yang perlu dibatalkan di
+     * stock_balances/stock_mutations.
+     */
+    public function sendBackToDraft(OpnameSession $session, int $userId, string $reason): OpnameSession
+    {
+        $session = DB::transaction(function () use ($session, $userId, $reason): OpnameSession {
+            $session = OpnameSession::query()->lockForUpdate()->findOrFail($session->id);
+
+            if ($session->status !== OpnameSession::STATUS_SUBMITTED) {
+                throw ValidationException::withMessages([
+                    'status' => 'Hanya sesi submitted yang bisa dikembalikan ke draft.',
+                ]);
+            }
+
+            $actorName = User::query()->find($userId)?->name ?? "User #{$userId}";
+            $existingNotes = $session->notes ? $session->notes."\n\n" : '';
+
+            $session->update([
+                'status' => OpnameSession::STATUS_DRAFT,
+                'submitted_by' => null,
+                'submitted_at' => null,
+                'notes' => $existingNotes."[Dikembalikan ke draft oleh {$actorName}, ".now()->format('d/m/Y H:i')."] {$reason}",
+            ]);
+
+            return $session->refresh();
+        });
+
+        $session->createdBy?->notify(new WorkflowNotification(
+            "Opname {$session->outlet?->name} dikembalikan untuk diperbaiki",
+            "Sesi opname {$session->type} outlet {$session->outlet?->name} tanggal {$session->opname_date?->format('d M Y')} dikembalikan ke draft untuk diperbaiki. Alasan: {$reason}",
             route('operations.opname.show', $session),
             'operations',
         ));

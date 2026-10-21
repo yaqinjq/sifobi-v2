@@ -388,6 +388,7 @@
                     <li>Tanggal opname harian SELALU hari ini dan tidak bisa diubah dari form ini &mdash; kalau ada opname tanggal lampau yang terlewat, pakai tombol <strong>"Input Historis"</strong> di halaman daftar Opname</li>
                     <li>Isi jumlah stok aktual yang dihitung secara fisik untuk setiap item, sistem menghitung selisih otomatis</li>
                     <li>Submit opname → menunggu approval dari atasan → setelah di-approve, selisih dicatat ke ledger sebagai adjustment</li>
+                    <li>Salah input sebelum di-approve? Atasan/PIC (yang punya akses approve) bisa klik <strong>"Kembalikan ke Draft"</strong> di halaman detail sesi, isi alasannya &mdash; sesi kembali bisa diedit staf, lalu di-submit ulang setelah diperbaiki. Aman dilakukan kapan pun karena sesi yang belum di-approve belum pernah menyentuh stok sama sekali</li>
                 </ol>
             </div>
 
