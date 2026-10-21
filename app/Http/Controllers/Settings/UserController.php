@@ -50,6 +50,7 @@ class UserController extends Controller
         $search = $request->get('q');
         $roleFilter = $request->get('role');
         $statusFilter = $request->get('status');
+        $outletFilter = $request->get('outlet_id');
         $statusValue = $this->statusToDatabase($statusFilter);
 
         $users = User::query()
@@ -61,6 +62,7 @@ class UserController extends Controller
             }))
             ->when($roleFilter, fn ($query) => $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', $roleFilter)))
             ->when($statusValue, fn ($query) => $query->where('status', $statusValue))
+            ->when($outletFilter, fn ($query) => $query->where('outlet_id', $outletFilter))
             ->orderBy('name')
             ->paginate($perPage)
             ->withQueryString();
@@ -72,6 +74,7 @@ class UserController extends Controller
             'search' => $search,
             'roleFilter' => $roleFilter,
             'statusFilter' => $statusFilter,
+            'outletFilter' => $outletFilter,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
         ]);

@@ -55,6 +55,15 @@
             <option value="inactive" @selected($statusFilter === 'inactive')>Non-Aktif</option>
         </select>
 
+        <select name="outlet_id" class="sf-input text-base md:w-56">
+            <option value="">Semua Outlet</option>
+            @foreach($outlets as $outlet)
+                <option value="{{ $outlet->id }}" @selected((string) $outletFilter === (string) $outlet->id)>
+                    {{ $outlet->name }}
+                </option>
+            @endforeach
+        </select>
+
         <div class="grid grid-cols-2 gap-2 md:flex">
             <button type="submit" class="sf-btn-secondary min-h-11">Filter</button>
             <a href="{{ route('settings.users.index') }}" class="sf-btn-secondary min-h-11 text-center">Reset</a>

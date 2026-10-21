@@ -52,6 +52,40 @@ test('admin can open user management page', function (): void {
         ->assertSee('Super Admin');
 });
 
+test('user management page can be filtered by outlet', function (): void {
+    $outlet1 = Outlet::query()->where('tenant_id', $this->admin->tenant_id)->where('code', 'MKO_OUTLET_1')->firstOrFail();
+    $outlet2 = Outlet::query()->where('tenant_id', $this->admin->tenant_id)->where('code', 'MKO_OUTLET_2')->firstOrFail();
+
+    $staffOutlet1 = User::factory()->create([
+        'tenant_id' => $this->admin->tenant_id,
+        'outlet_id' => $outlet1->id,
+        'name' => 'Staff Outlet Satu',
+        'email' => 'staff.outlet1@sifobi.test',
+        'status' => 'ACTIVE',
+    ]);
+    $staffOutlet2 = User::factory()->create([
+        'tenant_id' => $this->admin->tenant_id,
+        'outlet_id' => $outlet2->id,
+        'name' => 'Staff Outlet Dua',
+        'email' => 'staff.outlet2@sifobi.test',
+        'status' => 'ACTIVE',
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('settings.users.index', ['outlet_id' => $outlet1->id]));
+
+    $response->assertOk()
+        ->assertSee('Staff Outlet Satu')
+        ->assertDontSee('Staff Outlet Dua');
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('settings.users.index', ['outlet_id' => $outlet2->id]));
+
+    $response->assertOk()
+        ->assertSee('Staff Outlet Dua')
+        ->assertDontSee('Staff Outlet Satu');
+});
+
 test('user without manage users cannot open user management page', function (): void {
     $user = User::factory()->create([
         'tenant_id' => $this->admin->tenant_id,
