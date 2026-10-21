@@ -675,7 +675,12 @@
             <p class="text-xs text-gray-500">Settings &gt; Manajemen User &mdash; khusus role dengan akses pengaturan user (mis. Admin/Super Admin).</p>
 
             <div>
-                <p class="font-semibold text-gray-800 mb-2">1. Centang &amp; Aksi Massal</p>
+                <p class="font-semibold text-gray-800 mb-2">1. Cari &amp; Filter</p>
+                <p class="text-xs text-gray-600">Di bagian atas daftar user ada kotak pencarian (nama/email) dan 3 filter yang bisa dikombinasikan: <strong>Role</strong>, <strong>Status</strong> (Aktif/Non-Aktif), dan <strong>Outlet</strong> &mdash; memudahkan mencari user di outlet tertentu tanpa scroll manual kalau daftarnya panjang. Klik "Filter" untuk menerapkan, atau "Reset" untuk kembali ke tampilan semua user.</p>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">2. Centang &amp; Aksi Massal</p>
                 <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
                     <li>Centang kotak di samping nama user yang mau diproses &mdash; atau centang kotak di header tabel (desktop) untuk pilih semua user di halaman itu sekaligus</li>
                     <li>Setelah ada yang dicentang, muncul bar aksi di bagian bawah layar dengan pilihan: <strong>Aktifkan</strong>, <strong>Nonaktifkan</strong>, <strong>Ganti Outlet</strong>, atau <strong>Hapus</strong></li>
@@ -689,7 +694,7 @@
             </div>
 
             <div>
-                <p class="font-semibold text-gray-800 mb-2">2. Import User lewat Excel</p>
+                <p class="font-semibold text-gray-800 mb-2">3. Import User lewat Excel</p>
                 <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
                     <li>Klik tombol <strong>"Import User"</strong> di pojok kanan atas halaman Manajemen User</li>
                     <li>Upload file Excel dengan 2 sheet: sheet pertama daftar user baru yang mau dibuat, sheet kedua daftar akun lama yang mau dinonaktifkan</li>
