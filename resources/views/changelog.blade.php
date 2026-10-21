@@ -8,12 +8,30 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.34 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.34 &mdash; 21 Oktober 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Penting</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Opname: approve gagal dengan pesan "stok tidak cukup" walau hasil hitung fisik SUDAH BENAR (termasuk menulis 0 untuk yang memang habis) &mdash; terjadi untuk item yang sebagian saldonya tercatat di Gudang (dari Penerimaan Barang) dan sebagian lagi di Harian/Outlet. "Stok Saat Ini" yang ditampilkan sekarang konsisten dengan yang benar-benar dipotong saat approve (cuma saldo Harian/Outlet), jadi tidak lagi salah hitung selisih</li>
+                    <li>Laporan Stok Menipis (layar &amp; export Excel) dan metrik dashboard: item yang saldonya terbagi di Gudang &amp; Harian sekarang dibandingkan ke batas minimum berdasarkan <strong>gabungan keduanya</strong>, bukan dicek satu-satu per bagian &mdash; sebelumnya bisa salah muncul sebagai "menipis/habis" padahal gabungannya masih cukup</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.33 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.33 &mdash; 21 Oktober 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
