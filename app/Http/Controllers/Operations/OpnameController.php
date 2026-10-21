@@ -13,6 +13,7 @@ use App\Modules\Inventory\Models\ItemCategory;
 use App\Modules\Inventory\Models\ItemDepartmentCategory;
 use App\Modules\Operations\Models\OpnameItem;
 use App\Modules\Operations\Models\OpnameSession;
+use App\Modules\Stock\Models\StockMutation;
 use App\Services\OpnameService;
 use App\Support\Decimal;
 use Illuminate\Http\JsonResponse;
@@ -405,9 +406,15 @@ class OpnameController extends Controller
             ->when($userDepartmentId, $departmentScope)
             ->count();
 
-        // Batch-load current stock balances — sum semua target (DAILY + WAREHOUSE)
+        // Batch-load current stock balances -- HARUS scope ke OUTLET_DAILY
+        // saja, sama persis dengan target yang dipakai OpnameService::
+        // systemQty()/opnameAdjustment() saat posting. Sebelumnya ikut
+        // menjumlahkan OUTLET_WAREHOUSE, jadi "stok terkini" yang
+        // ditampilkan di sini (buat deteksi baseline basi) tidak cocok
+        // dengan angka yang benar-benar dipakai saat approve.
         $balanceMap = DB::table('stock_balances')
             ->where('outlet_id', $session->outlet_id)
+            ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
             ->whereIn('item_id', $items->pluck('item_id')->unique()->values())
             ->groupBy('item_id')
             ->selectRaw('item_id, SUM(qty_on_hand) as qty_on_hand')

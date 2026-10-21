@@ -74,12 +74,22 @@ class StokMenipisExport implements FromArray, ShouldAutoSize, WithEvents
 
     private function rows(): Collection
     {
-        return DB::table('stock_balances as sb')
+        // Lihat catatan yang sama di ReportController::stokMenipis() --
+        // saldo item bisa tersebar di lebih dari 1 stock_target, harus
+        // dijumlahkan dulu per item+outlet sebelum dibandingkan ke
+        // min_stock.
+        $balanceTotals = DB::table('stock_balances')
+            ->where('tenant_id', $this->tenantId)
+            ->select(['tenant_id', 'outlet_id', 'item_id'])
+            ->selectRaw('SUM(qty_on_hand) as qty_on_hand')
+            ->groupBy('tenant_id', 'outlet_id', 'item_id');
+
+        return DB::query()
+            ->fromSub($balanceTotals, 'sb')
             ->join('items as i', 'i.id', '=', 'sb.item_id')
             ->join('outlets as o', 'o.id', '=', 'sb.outlet_id')
             ->leftJoin('units as u', 'u.id', '=', 'i.inventory_unit_id')
             ->leftJoin('item_categories as ic', 'ic.id', '=', 'i.item_category_id')
-            ->where('sb.tenant_id', $this->tenantId)
             ->where('i.is_active', true)
             ->where('i.min_stock', '>', 0)
             ->whereRaw('sb.qty_on_hand < i.min_stock')

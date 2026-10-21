@@ -272,12 +272,26 @@ class ReportController extends Controller
             'category_id' => ['nullable', 'integer', Rule::exists('item_categories', 'id')->where('tenant_id', $tenantId)],
         ]));
 
-        $lowStockItems = DB::table('stock_balances as sb')
+        // Saldo item bisa tersebar di lebih dari 1 stock_target (OUTLET_DAILY
+        // dari Opname/Spoil/POS, OUTLET_WAREHOUSE dari Penerimaan Barang) --
+        // HARUS dijumlahkan dulu per item+outlet SEBELUM dibandingkan ke
+        // min_stock, bukan dibandingkan per baris stock_target. Sebelumnya
+        // tiap baris dibandingkan sendiri-sendiri, bisa membuat 1 item
+        // muncul dobel dengan angka beda, atau salah dianggap menipis
+        // padahal gabungannya masih cukup (pola yang sama seperti perbaikan
+        // DashboardController's $balanceTotals di bawah ini).
+        $balanceTotals = DB::table('stock_balances')
+            ->where('tenant_id', $tenantId)
+            ->select(['tenant_id', 'outlet_id', 'item_id'])
+            ->selectRaw('SUM(qty_on_hand) as qty_on_hand')
+            ->groupBy('tenant_id', 'outlet_id', 'item_id');
+
+        $lowStockItems = DB::query()
+            ->fromSub($balanceTotals, 'sb')
             ->join('items as i', 'i.id', '=', 'sb.item_id')
             ->join('outlets as o', 'o.id', '=', 'sb.outlet_id')
             ->leftJoin('units as u', 'u.id', '=', 'i.inventory_unit_id')
             ->leftJoin('item_categories as ic', 'ic.id', '=', 'i.item_category_id')
-            ->where('sb.tenant_id', $tenantId)
             ->where('i.is_active', true)
             ->where('i.min_stock', '>', 0)
             ->whereRaw('sb.qty_on_hand < i.min_stock')

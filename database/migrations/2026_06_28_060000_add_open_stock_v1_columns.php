@@ -36,9 +36,20 @@ return new class extends Migration
         Schema::table('stock_balances', function (Blueprint $table) {
             $table->string('stock_target', 32)->default('OUTLET_DAILY')->after('item_id');
 
-            if (Schema::getConnection()->getDriverName() !== 'sqlite') {
-                $table->unique(['tenant_id', 'outlet_id', 'item_id', 'stock_target'], 'uq_stock_balances_scope');
-            }
+            // Sebelumnya unique 4-kolom ini cuma dibuat untuk driver
+            // non-sqlite -- sqlite (dipakai tests/phpunit.xml) tetap
+            // memakai unique LAMA 3-kolom (tenant,outlet,item saja, tanpa
+            // stock_target) dari migration sebelumnya. Akibatnya di
+            // lingkungan test, 1 item+outlet cuma boleh punya 1 baris
+            // stock_balances TOTAL (padahal production MySQL sudah benar
+            // mengizinkan 1 baris per stock_target) -- environment test
+            // tidak bisa mereproduksi/menguji skenario item yang py
+            // saldo di 2 target (OUTLET_DAILY & OUTLET_WAREHOUSE)
+            // sekaligus, yang justru skenario yang menyebabkan bug nyata
+            // di production (lihat OpnameService::systemQty()). sqlite
+            // SEKARANG ikut dibuat 4-kolom juga supaya konsisten.
+            $table->dropUnique('uq_stock_balances_scope');
+            $table->unique(['tenant_id', 'outlet_id', 'item_id', 'stock_target'], 'uq_stock_balances_scope');
         });
 
         if (Schema::getConnection()->getDriverName() !== 'sqlite') {
@@ -118,13 +129,13 @@ return new class extends Migration
                 $table->dropForeign('fk_stock_balances_tenant');
                 $table->dropForeign('fk_stock_balances_outlet');
                 $table->dropForeign('fk_stock_balances_item');
-                $table->dropUnique('uq_stock_balances_scope');
             }
 
+            $table->dropUnique('uq_stock_balances_scope');
             $table->dropColumn('stock_target');
+            $table->unique(['tenant_id', 'outlet_id', 'item_id'], 'uq_stock_balances_scope');
 
             if (Schema::getConnection()->getDriverName() !== 'sqlite') {
-                $table->unique(['tenant_id', 'outlet_id', 'item_id'], 'uq_stock_balances_scope');
                 $table->foreign('tenant_id', 'fk_stock_balances_tenant')->references('id')->on('tenants')->cascadeOnDelete();
                 $table->foreign('outlet_id', 'fk_stock_balances_outlet')->references('id')->on('outlets')->restrictOnDelete();
                 $table->foreign('item_id', 'fk_stock_balances_item')->references('id')->on('items')->restrictOnDelete();

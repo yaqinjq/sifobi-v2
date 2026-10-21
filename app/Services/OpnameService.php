@@ -585,12 +585,27 @@ class OpnameService
         return $query->get();
     }
 
+    /**
+     * HARUS di-scope ke stock_target TARGET_OUTLET_DAILY -- SAMA PERSIS
+     * dengan target yang dipakai opnameAdjustment() saat posting (lihat
+     * approve()). Item bisa punya saldo di 2 target sekaligus (OUTLET_DAILY
+     * dari Opname/Spoil/POS, OUTLET_WAREHOUSE dari Penerimaan Barang/Stock
+     * Transfer) -- dulu method ini menjumlahkan qty_on_hand LINTAS target,
+     * jadi "Stok Saat Ini" yang ditampilkan ke staf (dan dipakai menghitung
+     * selisih) sudah termasuk stok gudang yang TIDAK PERNAH disentuh opname.
+     * Akibatnya staf yang menghitung fisik LANTAI dengan benar (termasuk
+     * menulis 0 untuk yang memang sudah habis) membuat sistem menghitung
+     * selisih lebih besar dari yang sebenarnya ada di OUTLET_DAILY, dan
+     * opnameAdjustment() gagal "Stock balance is not sufficient" karena
+     * yang didebit cuma baris OUTLET_DAILY, bukan gabungan keduanya.
+     */
     private function systemQty(int $tenantId, int $outletId, int $itemId): string
     {
         $qty = DB::table('stock_balances')
             ->where('tenant_id', $tenantId)
             ->where('outlet_id', $outletId)
             ->where('item_id', $itemId)
+            ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
             ->sum('qty_on_hand');
 
         return Decimal::toFixed((string) ($qty ?? 0), 6);

@@ -99,7 +99,22 @@ class DashboardController extends Controller
                         ->where('item_outlets.outlet_id', $outletId)))
                     ->count(),
                 'open_stock_today' => $tenantTable('open_stocks')->whereDate('created_at', today())->count(),
-                'stok_menipis' => $tenantTable('stock_balances')->where('qty_on_hand', '<=', 0)->count(),
+                // Saldo item bisa tersebar di lebih dari 1 stock_target
+                // (OUTLET_DAILY & OUTLET_WAREHOUSE) -- harus dijumlahkan
+                // dulu per item+outlet sebelum dibandingkan ke 0, bukan
+                // dihitung per baris stock_target (dulu bisa menghitung
+                // item yang sebenarnya masih ada stok di gudang sebagai
+                // "habis" hanya karena baris OUTLET_DAILY-nya 0).
+                'stok_menipis' => DB::query()
+                    ->fromSub(
+                        (clone $tenantTable('stock_balances'))
+                            ->select(['item_id', 'outlet_id'])
+                            ->selectRaw('SUM(qty_on_hand) as total_qty')
+                            ->groupBy('item_id', 'outlet_id'),
+                        'sb'
+                    )
+                    ->where('total_qty', '<=', 0)
+                    ->count(),
                 'spoil_today' => $tenantTable('spoil_wastes')->whereDate('recorded_date', today())->count(),
                 'penerimaan_pending' => $tenantTable('goods_receipts')->where('status', GoodsReceipt::STATUS_SUBMITTED)->count(),
                 'opname_draft' => $tenantTable('opname_sessions')->where('status', OpnameSession::STATUS_DRAFT)->whereDate('opname_date', today())->count(),

@@ -602,6 +602,70 @@ test('daily opname creates session with items and posts adjustment on approval',
         ->and((string) $balance->qty_on_hand)->toBe('4000.000000');
 });
 
+test('approving a physical count of zero succeeds when the item also has a separate warehouse balance', function (): void {
+    $staff = operationUser('STAFF_BAR');
+    $pic = operationUser('PIC_OUTLET');
+    seedDailyBalance($this, '513');
+
+    // Item ini JUGA punya saldo di target WAREHOUSE (bukan DAILY) --
+    // "Stok Saat Ini" yang dihitung opname TIDAK BOLEH ikut menjumlahkan
+    // ini, karena opnameAdjustment() cuma memotong target DAILY.
+    // Reproduksi laporan user: staf hitung fisik lantai = 0 (benar-benar
+    // habis), tapi approve gagal "Stock balance is not sufficient"
+    // karena sistem salah mengira stok DAILY masih besar (tercampur
+    // dengan stok WAREHOUSE).
+    app(StockLedgerService::class)->openStock([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'item_id' => $this->item->id,
+        'unit_id' => $this->item->base_unit_id,
+        'stock_target' => StockMutation::TARGET_OUTLET_WAREHOUSE,
+        'qty' => '2000',
+        'performed_by' => $pic->id,
+    ]);
+
+    $session = app(OpnameService::class)->startSession([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'type' => OpnameSession::TYPE_DAILY,
+        'opname_date' => '2026-07-01',
+    ], $staff->id);
+
+    $opnameItem = $session->items->firstWhere('item_id', $this->item->id);
+
+    // "Stok Saat Ini" yang dibekukan di awal sesi harus cuma 513 (saldo
+    // DAILY saja), BUKAN 2513 (513 + 2000 warehouse yang tercampur).
+    expect((string) $opnameItem->system_qty_base)->toBe('513.000000');
+
+    // Staf hitung fisik lantai: benar-benar habis.
+    app(OpnameService::class)->updateItem($opnameItem, '0', '0');
+
+    $this->actingAs($staff)
+        ->post(route('operations.opname.submit', $session))
+        ->assertRedirect();
+
+    $this->actingAs($pic)
+        ->post(route('operations.opname.approve', $session))
+        ->assertRedirect()
+        ->assertSessionDoesntHaveErrors();
+
+    expect($session->refresh()->status)->toBe(OpnameSession::STATUS_PROCESSED);
+
+    $dailyBalance = StockBalance::query()
+        ->where('item_id', $this->item->id)
+        ->where('outlet_id', $this->outlet->id)
+        ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
+        ->firstOrFail();
+    $warehouseBalance = StockBalance::query()
+        ->where('item_id', $this->item->id)
+        ->where('outlet_id', $this->outlet->id)
+        ->where('stock_target', StockMutation::TARGET_OUTLET_WAREHOUSE)
+        ->firstOrFail();
+
+    expect((string) $dailyBalance->qty_on_hand)->toBe('0.000000')
+        ->and((string) $warehouseBalance->qty_on_hand)->toBe('2000.000000');
+});
+
 test('a submitted opname session can be sent back to draft so staff can fix a wrong input, with the ledger never touched', function (): void {
     $staff = operationUser('STAFF_BAR');
     $pic = operationUser('PIC_OUTLET');
