@@ -47,7 +47,7 @@ class PurchaseOrderController extends Controller
 
         $baseQuery = PurchaseOrder::query()
             ->where('tenant_id', $tenantId)
-            ->when($user->outlet_id, fn ($q) => $q->where('outlet_id', $user->outlet_id))
+            ->when($user->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('outlet_id', $ids))
             ->when(
                 $user->department_id && ! $user->can('view_all_po'),
                 fn ($q) => $q->where('department_id', $user->department_id)
@@ -75,9 +75,18 @@ class PurchaseOrderController extends Controller
         $tenantId  = $this->tenantId($request);
         $user      = $request->user();
 
-        $outlet = $user->outlet_id
-            ? Outlet::query()->where('tenant_id', $tenantId)->find($user->outlet_id)
+        $outletIds = $user->accessibleOutletIds();
+        $canChangeOutlet = count($outletIds) > 1;
+
+        // 1 outlet (lama atau baru) -> tetap tampil apa adanya, tidak ada
+        // perubahan pengalaman. >1 outlet -> kirim daftarnya supaya view
+        // bisa tampilkan dropdown pilih outlet.
+        $outlet = count($outletIds) === 1
+            ? Outlet::query()->where('tenant_id', $tenantId)->find($outletIds[0])
             : null;
+        $outlets = $canChangeOutlet
+            ? Outlet::query()->where('tenant_id', $tenantId)->whereIn('id', $outletIds)->orderBy('name')->get()
+            : collect();
 
         $department = $user->department_id
             ? Department::query()->where('tenant_id', $tenantId)->find($user->department_id)
@@ -92,7 +101,7 @@ class PurchaseOrderController extends Controller
         $today = now()->toDateString();
 
         return view('procurement.purchase-orders.create', compact(
-            'outlet', 'department', 'typeLabels', 'today'
+            'outlet', 'outlets', 'canChangeOutlet', 'department', 'typeLabels', 'today'
         ));
     }
 
@@ -100,14 +109,15 @@ class PurchaseOrderController extends Controller
     {
         $tenantId  = $this->tenantId($request);
         $user      = $request->user();
+        $outletIds = $user->accessibleOutletIds();
 
-        if (! $user->outlet_id) {
+        if ($outletIds === []) {
             return response()->json([
                 'error' => 'Akun Anda belum ditugaskan ke outlet manapun, jadi Purchase Order tidak bisa dibuat. Hubungi admin untuk mengatur outlet di menu Manajemen User.',
             ], 422);
         }
 
-        $data = $request->validate([
+        $rules = [
             'needed_at'             => ['required', 'date', 'after_or_equal:today'],
             'notes'                 => ['nullable', 'string', 'max:2000'],
             'tabs'                  => ['required', 'array', 'min:1'],
@@ -115,12 +125,40 @@ class PurchaseOrderController extends Controller
             'tabs.*.*.item_id'      => ['required', 'integer', Rule::exists('items', 'id')->where('tenant_id', $tenantId)],
             'tabs.*.*.unit_id'      => ['required', 'integer', Rule::exists('units', 'id')->where('tenant_id', $tenantId)],
             'tabs.*.*.qty_ordered'  => ['required', 'numeric', 'min:0.001'],
-        ]);
+        ];
+
+        // >1 outlet -> outlet_id WAJIB dikirim client, dan HARUS salah
+        // satu dari outlet MILIK USER INI (Rule::in($outletIds) adalah
+        // baris otorisasi-nya -- bukan sekadar "outlet mana pun ada di
+        // tenant"). 1 outlet -> tetap otomatis seperti sebelumnya, tidak
+        // ada perubahan untuk user biasa.
+        if (count($outletIds) > 1) {
+            $rules['outlet_id'] = ['required', 'integer', Rule::in($outletIds)];
+        }
+
+        // Tangkap manual (bukan biarkan auto-convert Laravel) -- route ini
+        // bukan di bawah prefix api/*, dan bootstrap/app.php men-set
+        // shouldRenderJsonWhen() supaya cuma rute api/* yang otomatis
+        // dapat respons JSON saat validasi gagal; selain itu defaultnya
+        // redirect HTML. Endpoint ini dipanggil AJAX (poForm() di
+        // create.blade.php selalu memanggil res.json()), jadi WAJIB
+        // tetap balas JSON eksplisit di sini -- bukan cuma utk outlet_id
+        // yang baru ditambah, tapi utk SEMUA rule di atas.
+        try {
+            $data = $request->validate($rules);
+        } catch (ValidationException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'errors' => $exception->errors(),
+            ], 422);
+        }
+
+        $outletId = count($outletIds) > 1 ? (int) $data['outlet_id'] : $outletIds[0];
 
         $pos = $this->service->createBatch(
             array_merge($data, [
                 'tenant_id'     => $tenantId,
-                'outlet_id'     => (int) $user->outlet_id,
+                'outlet_id'     => $outletId,
                 'department_id' => $user->department_id ? (int) $user->department_id : null,
             ]),
             (int) $user->id

@@ -96,7 +96,12 @@
             <div class="mt-3 flex flex-wrap gap-2 text-xs">
                 <span class="badge-active">{{ $user->primary_role }}</span>
                 @if($user->outlet)
-                    <span class="badge-draft">{{ $user->outlet->name }}</span>
+                    <span class="badge-draft">
+                        {{ $user->outlet->name }}
+                        @if($user->outlets->count() > 1)
+                            +{{ $user->outlets->count() - 1 }} lainnya
+                        @endif
+                    </span>
                 @endif
             </div>
 
@@ -184,7 +189,12 @@
                                 </div>
                             </td>
                             <td class="px-4 py-3"><span class="badge-active">{{ $user->primary_role }}</span></td>
-                            <td class="px-4 py-3 text-sm text-gray-600">{{ $user->outlet?->name ?? '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">
+                                {{ $user->outlet?->name ?? '-' }}
+                                @if($user->outlets->count() > 1)
+                                    <span class="text-xs text-gray-400">+{{ $user->outlets->count() - 1 }} lainnya</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3">
                                 @if($isActive)
                                     <span class="badge-active">Aktif</span>

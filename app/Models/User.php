@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOutletAccess;
 use App\Models\Scopes\TenantScope;
 use App\Modules\Core\Models\Outlet;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
@@ -17,7 +19,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable, LogsActivity;
+    use HasFactory, HasOutletAccess, HasRoles, Notifiable, LogsActivity;
 
     protected $fillable = [
         'tenant_id',
@@ -76,6 +78,19 @@ class User extends Authenticatable
     public function outlet(): BelongsTo
     {
         return $this->belongsTo(Outlet::class, 'outlet_id');
+    }
+
+    /**
+     * Daftar outlet yang boleh diakses user ini (fitur multi-outlet).
+     * `outlet_id` di atas TETAP ditulis saat user disimpan (sebagai
+     * cerminan "outlet pertama yang dipilih"), supaya modul yang belum
+     * memakai accessibleOutletIds()/soleOutletId() (lihat
+     * HasOutletAccess) tetap dapat jawaban yang valid & dapat
+     * diprediksi, bukan basi begitu user ini py lebih dari 1 outlet.
+     */
+    public function outlets(): BelongsToMany
+    {
+        return $this->belongsToMany(Outlet::class, 'user_outlets', 'user_id', 'outlet_id')->withTimestamps();
     }
 
     public function getAvatarUrlAttribute(): string

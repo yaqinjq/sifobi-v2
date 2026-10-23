@@ -2,6 +2,7 @@
     $isEdit = $method === 'PUT';
     $selectedRole = old('role', $user->roles->first()?->name);
     $selectedStatus = old('status', strtoupper((string) ($user->status ?? 'ACTIVE')) === 'INACTIVE' ? 'inactive' : 'active');
+    $selectedOutletIds = collect(old('outlet_ids', $isEdit ? $user->outlets->pluck('id')->all() : []))->map(fn ($id) => (int) $id)->values()->all();
     $roleDescriptions = [
         'SUPER_ADMIN' => 'Akses penuh ke seluruh sistem.',
         'ADMIN' => 'Akses penuh ke semua outlet dalam grup.',
@@ -22,7 +23,22 @@
       x-data="{
           role: @js($selectedRole ?: ''),
           descriptions: @js($roleDescriptions),
-          outletScopedRoles: @js(\App\Http\Controllers\Settings\UserController::OUTLET_SCOPED_ROLES)
+          outletScopedRoles: @js(\App\Http\Controllers\Settings\UserController::OUTLET_SCOPED_ROLES),
+          selectedOutletIds: @js($selectedOutletIds),
+          allOutletIds: @js($outlets->pluck('id')->map(fn ($id) => (int) $id)->values()),
+          toggleOutlet(id) {
+              const index = this.selectedOutletIds.indexOf(id);
+              if (index >= 0) { this.selectedOutletIds.splice(index, 1); return; }
+              this.selectedOutletIds.push(id);
+          },
+          isOutletSelected(id) { return this.selectedOutletIds.includes(id); },
+          primaryOutletId() { return this.selectedOutletIds[0] || null; },
+          toggleAllOutlets() {
+              this.selectedOutletIds = this.isAllOutletsSelected() ? [] : [...this.allOutletIds];
+          },
+          isAllOutletsSelected() {
+              return this.allOutletIds.length > 0 && this.selectedOutletIds.length === this.allOutletIds.length;
+          },
       }">
     @csrf
     @if($method !== 'POST')
@@ -34,6 +50,10 @@
             {{ $errors->first() }}
         </div>
     @endif
+
+    <template x-for="outletId in selectedOutletIds" :key="`outlet-${outletId}`">
+        <input type="hidden" name="outlet_ids[]" :value="outletId">
+    </template>
 
     <x-sf.card title="Informasi Akun">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -131,18 +151,26 @@
                 </div>
             </div>
 
-            <div>
-                <x-sf.form-group label="Outlet yang Ditugaskan" for="outlet_id" hint="Kosongkan untuk role yang mengakses semua outlet.">
-                    <select name="outlet_id" id="outlet_id" class="sf-input text-base">
-                        <option value="">Semua outlet / global</option>
-                        @foreach($outlets as $outlet)
-                            <option value="{{ $outlet->id }}" @selected((string) old('outlet_id', $user->outlet_id) === (string) $outlet->id)>
-                                {{ $outlet->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </x-sf.form-group>
-                <p class="text-xs text-amber-600 mt-1" x-show="outletScopedRoles.includes(role)" x-cloak>
+            <div class="md:col-span-2">
+                <div class="flex items-start justify-between gap-3 mb-1.5">
+                    <p class="sf-label">Outlet yang Ditugaskan</p>
+                    <button type="button" class="sf-btn-secondary text-xs px-3 py-1.5 min-h-9 shrink-0" @click="toggleAllOutlets()">
+                        <span x-text="isAllOutletsSelected() ? 'Kosongkan' : 'Pilih Semua'"></span>
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 mb-2">Bisa pilih lebih dari 1 outlet -- user akan diminta pilih outlet mana saat bertransaksi kalau outlet-nya lebih dari 1. Kosongkan untuk role yang mengakses semua outlet.</p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    @foreach($outlets as $outlet)
+                        <button type="button"
+                                class="relative min-h-11 rounded-xl border px-3 py-2 text-left text-sm transition-colors"
+                                :class="isOutletSelected({{ $outlet->id }}) ? 'sf-choice-selected' : 'sf-choice-unselected'"
+                                @click="toggleOutlet({{ $outlet->id }})">
+                            {{ $outlet->name }}
+                            <span x-show="primaryOutletId() === {{ $outlet->id }} && selectedOutletIds.length > 1" x-cloak class="badge-active ml-1">Utama</span>
+                        </button>
+                    @endforeach
+                </div>
+                <p class="text-xs text-amber-600 mt-2" x-show="outletScopedRoles.includes(role) && selectedOutletIds.length === 0" x-cloak>
                     ⚠ Role ini wajib diisi Outlet-nya — kalau dikosongkan, user akan bisa melihat/memilih SEMUA outlet, bukan cuma outlet-nya.
                 </p>
             </div>

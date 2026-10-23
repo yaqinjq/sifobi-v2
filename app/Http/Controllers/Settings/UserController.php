@@ -55,7 +55,7 @@ class UserController extends Controller
 
         $users = User::query()
             ->where('tenant_id', $tenantId)
-            ->with(['roles', 'outlet'])
+            ->with(['roles', 'outlet', 'outlets'])
             ->when($search, fn ($query) => $query->where(function ($query) use ($search): void {
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
@@ -100,9 +100,13 @@ class UserController extends Controller
         $this->assertMayAssignRole($request->user(), $data['role']);
 
         DB::transaction(function () use ($data, $tenantId, $request): void {
+            $outletIds = array_values(array_unique(array_map('intval', $data['outlet_ids'] ?? [])));
+
             $user = User::withoutGlobalScopes()->create([
                 'tenant_id'     => $tenantId,
-                'outlet_id'     => $data['outlet_id'] ?? null,
+                // outlet_id tetap ditulis sbg cerminan "outlet pertama
+                // yang dipilih" -- lihat docblock User::outlets().
+                'outlet_id'     => $outletIds[0] ?? null,
                 'department_id' => $data['department_id'] ?? null,
                 'name'          => $data['name'],
                 'email'         => $data['email'],
@@ -111,6 +115,8 @@ class UserController extends Controller
                 'status'        => $this->statusToDatabase($data['status']),
                 'email_verified_at' => now(),
             ]);
+
+            $user->outlets()->sync($outletIds);
 
             $user->assignRole($data['role']);
             activity('user')
@@ -133,7 +139,7 @@ class UserController extends Controller
         $this->authorizeUser($request, $user);
         $tenantId = (int) $request->user()->tenant_id;
 
-        $user->load(['roles', 'outlet', 'permissions']);
+        $user->load(['roles', 'outlet', 'outlets', 'permissions']);
 
         return view('settings.users.edit', [
             'user'        => $user,
@@ -152,10 +158,14 @@ class UserController extends Controller
         $this->assertMayAssignRole($request->user(), $data['role']);
 
         DB::transaction(function () use ($data, $user, $request): void {
+            $outletIds = array_values(array_unique(array_map('intval', $data['outlet_ids'] ?? [])));
+
             $payload = [
                 'name'          => $data['name'],
                 'email'         => $data['email'],
-                'outlet_id'     => $data['outlet_id'] ?? null,
+                // outlet_id tetap ditulis sbg cerminan "outlet pertama
+                // yang dipilih" -- lihat docblock User::outlets().
+                'outlet_id'     => $outletIds[0] ?? null,
                 'department_id' => $data['department_id'] ?? null,
                 'phone'         => $data['phone'] ?? null,
                 'status'        => $this->statusToDatabase($data['status']),
@@ -168,6 +178,7 @@ class UserController extends Controller
             $oldRoles = $user->getRoleNames()->toArray();
 
             $user->update($payload);
+            $user->outlets()->sync($outletIds);
             $user->syncRoles([$data['role']]);
 
             if ($oldRoles !== [$data['role']]) {
@@ -237,9 +248,16 @@ class UserController extends Controller
             ->where('tenant_id', $tenantId)
             ->get();
 
+        $outletId = $request->integer('outlet_id');
+
         $result = $this->runBulkAction(
             $users,
-            fn (User $user) => $user->update(['outlet_id' => $request->integer('outlet_id')]),
+            function (User $user) use ($outletId): void {
+                $user->update(['outlet_id' => $outletId]);
+                // Ganti (bukan tambah) -- aksi massal ini maksudnya
+                // "pindahkan ke outlet X", bukan "tambahkan akses outlet X".
+                $user->outlets()->sync([$outletId]);
+            },
             fn (User $user) => $user->name
         );
 
@@ -365,8 +383,14 @@ class UserController extends Controller
             ],
             'password'      => [$user ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],
             'role'          => ['required', Rule::exists('roles', 'name')],
-            'outlet_id'     => [
+            // Multi-outlet (lihat User::outlets()/HasOutletAccess) -- array
+            // kosong ditolak 'required' kalau role-nya outlet-scoped, sama
+            // persis semangat aturan outlet_id tunggal yang lama.
+            'outlet_ids'     => [
                 in_array($request->input('role'), self::OUTLET_SCOPED_ROLES, true) ? 'required' : 'nullable',
+                'array',
+            ],
+            'outlet_ids.*' => [
                 Rule::exists('outlets', 'id')->where(fn ($query) => $query
                     ->where('tenant_id', $tenantId)
                     ->where('status', 'ACTIVE')),
@@ -378,7 +402,7 @@ class UserController extends Controller
             'phone'  => ['nullable', 'string', 'max:20'],
             'status' => ['required', Rule::in(['active', 'inactive', 'ACTIVE', 'INACTIVE'])],
         ], [
-            'outlet_id.required' => 'Role ini terikat ke 1 outlet -- Outlet wajib dipilih, kalau tidak user ini akan bisa melihat SEMUA outlet.',
+            'outlet_ids.required' => 'Role ini terikat ke outlet -- minimal 1 outlet wajib dipilih, kalau tidak user ini akan bisa melihat SEMUA outlet.',
         ]);
     }
 

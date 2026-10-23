@@ -111,7 +111,7 @@ test('admin can create user and assign role', function (): void {
             'password' => 'Password@123',
             'password_confirmation' => 'Password@123',
             'role' => 'STAFF_BAR',
-            'outlet_id' => $outlet->id,
+            'outlet_ids' => [$outlet->id],
             'status' => 'active',
         ])
         ->assertRedirect(route('settings.users.index'));
@@ -122,6 +122,60 @@ test('admin can create user and assign role', function (): void {
         ->and($user->outlet_id)->toBe($outlet->id)
         ->and($user->status)->toBe('ACTIVE')
         ->and($user->hasRole('STAFF_BAR'))->toBeTrue();
+});
+
+test('admin can create a user with access to multiple outlets', function (): void {
+    $outlet1 = Outlet::query()->where('tenant_id', $this->admin->tenant_id)->where('code', 'MKO_OUTLET_1')->firstOrFail();
+    $outlet2 = Outlet::query()->where('tenant_id', $this->admin->tenant_id)->where('code', 'MKO_OUTLET_2')->firstOrFail();
+
+    $this->actingAs($this->admin)
+        ->post(route('settings.users.store'), [
+            'name' => 'PIC Multi Outlet',
+            'email' => 'pic.multi@sifobi.test',
+            'phone' => '081234567892',
+            'password' => 'Password@123',
+            'password_confirmation' => 'Password@123',
+            'role' => 'PIC_OUTLET',
+            'outlet_ids' => [$outlet1->id, $outlet2->id],
+            'status' => 'active',
+        ])
+        ->assertRedirect(route('settings.users.index'));
+
+    $user = User::query()->where('email', 'pic.multi@sifobi.test')->firstOrFail();
+
+    // outlet_id lama tetap ditulis sbg outlet PERTAMA yang dipilih --
+    // supaya modul yang belum pakai accessibleOutletIds() tetap dapat
+    // jawaban yang valid.
+    expect($user->outlet_id)->toBe($outlet1->id)
+        ->and($user->outlets()->count())->toBe(2)
+        ->and($user->outlets->pluck('id')->sort()->values()->all())->toBe(collect([$outlet1->id, $outlet2->id])->sort()->values()->all())
+        ->and($user->accessibleOutletIds())->toHaveCount(2)
+        ->and($user->hasMultipleOutlets())->toBeTrue();
+});
+
+test('editing a user can change their outlet list and the pivot is synced, not appended', function (): void {
+    $outlet1 = Outlet::query()->where('tenant_id', $this->admin->tenant_id)->where('code', 'MKO_OUTLET_1')->firstOrFail();
+    $outlet2 = Outlet::query()->where('tenant_id', $this->admin->tenant_id)->where('code', 'MKO_OUTLET_2')->firstOrFail();
+
+    $user = User::factory()->create(['tenant_id' => $this->admin->tenant_id, 'outlet_id' => $outlet1->id, 'status' => 'ACTIVE']);
+    $user->assignRole('PIC_OUTLET');
+    $user->outlets()->sync([$outlet1->id, $outlet2->id]);
+
+    $this->actingAs($this->admin)
+        ->put(route('settings.users.update', $user), [
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => 'PIC_OUTLET',
+            'outlet_ids' => [$outlet2->id],
+            'status' => 'active',
+        ])
+        ->assertRedirect(route('settings.users.index'));
+
+    $user->refresh();
+
+    expect($user->outlet_id)->toBe($outlet2->id)
+        ->and($user->outlets()->count())->toBe(1)
+        ->and($user->outlets->first()->id)->toBe($outlet2->id);
 });
 
 test('creating an outlet-scoped role without an outlet is rejected', function (): void {
@@ -135,7 +189,7 @@ test('creating an outlet-scoped role without an outlet is rejected', function ()
             'role' => 'STAFF_KITCHEN',
             'status' => 'active',
         ])
-        ->assertSessionHasErrors('outlet_id');
+        ->assertSessionHasErrors('outlet_ids');
 
     expect(User::query()->where('email', 'staff.kitchen.no-outlet@sifobi.test')->exists())->toBeFalse();
 });

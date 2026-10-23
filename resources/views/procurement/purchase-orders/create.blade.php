@@ -15,11 +15,20 @@
      x-data="poForm()"
      x-init="init()">
 
-    {{-- Info header (read-only) --}}
+    {{-- Info header (read-only, kecuali Outlet kalau user punya >1 outlet) --}}
     <div class="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3 mb-4 space-y-1.5">
         <div class="flex items-center gap-2 text-sm">
             <span class="text-gray-400 w-28 shrink-0">Outlet</span>
-            <span class="font-semibold text-gray-800">{{ $outlet?->name ?? '—' }}</span>
+            @if($canChangeOutlet)
+                <select x-model="outletId" class="sf-input text-sm py-1 px-2 h-auto flex-1" required>
+                    <option value="">Pilih outlet</option>
+                    @foreach($outlets as $outletOption)
+                        <option value="{{ $outletOption->id }}">{{ $outletOption->name }}</option>
+                    @endforeach
+                </select>
+            @else
+                <span class="font-semibold text-gray-800">{{ $outlet?->name ?? '—' }}</span>
+            @endif
         </div>
         <div class="flex items-center gap-2 text-sm">
             <span class="text-gray-400 w-28 shrink-0">Departemen</span>
@@ -465,6 +474,7 @@ function poForm() {
         activeTab:   '',
         date:        today,
         notes:       '',
+        outletId:    @js($outlet?->id ? (string) $outlet->id : ''),
         isPlanned:   false,
         showConfirm: false,
         submitting:  false,
@@ -604,6 +614,12 @@ function poForm() {
 
         openConfirm() {
             if (!this.hasItems) return;
+            @if($canChangeOutlet)
+            if (!this.outletId) {
+                this.submitError = 'Pilih outlet tujuan PO ini dulu.';
+                return;
+            }
+            @endif
             this.submitError = '';
             this.showConfirm = true;
         },
@@ -637,6 +653,7 @@ function poForm() {
                         needed_at: this.date,
                         notes:     this.notes,
                         tabs:      tabsPayload,
+                        outlet_id: this.outletId || undefined,
                     }),
                 });
 
