@@ -151,9 +151,10 @@
                     </div>
                     <div class="px-3 py-2 space-y-1 text-xs text-gray-600">
                         <p>1. Buka <strong>Purchase Order → Buat PO Baru</strong></p>
-                        <p>2. Pilih tipe PO: OCIA Roastery / Central Kitchen / Drygood</p>
-                        <p>3. Isi tanggal dibutuhkan dan catatan</p>
-                        <p>4. Tambahkan item yang dibutuhkan beserta jumlah dan satuan</p>
+                        <p>2. Kalau akun Anda punya akses ke lebih dari 1 outlet, pilih dulu outlet tujuan PO ini dari dropdown yang muncul di bagian atas form (akun dengan 1 outlet tidak akan melihat dropdown ini, langsung terisi otomatis)</p>
+                        <p>3. Pilih tipe PO: OCIA Roastery / Central Kitchen / Drygood</p>
+                        <p>4. Isi tanggal dibutuhkan dan catatan</p>
+                        <p>5. Tambahkan item yang dibutuhkan beserta jumlah dan satuan</p>
                         <p class="text-amber-600 font-medium">⚠ Staf departemen (mis: Pastry) hanya melihat item tujuan departemennya</p>
                     </div>
                 </div>
@@ -695,7 +696,12 @@
             </div>
 
             <div>
-                <p class="font-semibold text-gray-800 mb-2">3. Import User lewat Excel</p>
+                <p class="font-semibold text-gray-800 mb-2">3. Akses Multi-Outlet</p>
+                <p class="text-xs text-gray-600">Saat Tambah/Edit User, bagian <strong>"Outlet yang Ditugaskan"</strong> sekarang berupa grid yang bisa dicentang lebih dari 1 outlet sekaligus (mirip cara memilih departemen untuk bahan baku di Master Data Item) &mdash; cocok untuk 1 orang yang menangani beberapa outlet (mis. order ke Central Kitchen untuk beberapa outlet Jakarta), tidak perlu lagi bikin akun terpisah per outlet. Outlet pertama yang dicentang ditandai <strong>"Utama"</strong> kalau lebih dari 1 dipilih. User dengan akses banyak outlet akan diminta memilih outlet mana saat membuat transaksi yang butuh 1 outlet spesifik (mis. Purchase Order).</p>
+            </div>
+
+            <div>
+                <p class="font-semibold text-gray-800 mb-2">4. Import User lewat Excel</p>
                 <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
                     <li>Klik tombol <strong>"Import User"</strong> di pojok kanan atas halaman Manajemen User</li>
                     <li>Upload file Excel dengan 2 sheet: sheet pertama daftar user baru yang mau dibuat, sheet kedua daftar akun lama yang mau dinonaktifkan</li>

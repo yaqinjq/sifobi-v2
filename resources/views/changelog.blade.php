@@ -8,12 +8,30 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.35 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.35 &mdash; 24 Oktober 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Manajemen User: sekarang bisa memberi 1 akun akses ke <strong>lebih dari 1 outlet sekaligus</strong> (pilih lewat grid outlet, mirip cara memilih departemen untuk bahan baku) &mdash; tidak perlu lagi bikin akun terpisah per outlet untuk 1 orang yang menangani beberapa outlet (mis. order ke Central Kitchen untuk beberapa outlet Jakarta)</li>
+                    <li>Buat Purchase Order: user dengan akses ke beberapa outlet sekarang diminta memilih outlet tujuan PO dari daftar outlet miliknya sendiri saat membuat PO baru. User dengan 1 outlet (mayoritas akun) tidak melihat perubahan apa pun</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.34 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.34 &mdash; 21 Oktober 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
