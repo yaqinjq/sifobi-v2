@@ -35,13 +35,13 @@ class OpnameController extends Controller
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
-        $userOutletId = $request->user()->outlet_id;
+        $userOutletIds = $request->user()->accessibleOutletIds();
         $userDepartmentId = $request->user()->department_id;
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
 
         $sessions = OpnameSession::query()
             ->where('tenant_id', $tenantId)
-            ->when($userOutletId, fn ($q) => $q->where('outlet_id', $userOutletId))
+            ->when($userOutletIds, fn ($q, $ids) => $q->whereIn('outlet_id', $ids))
             // User yang terikat 1 departemen (STAFF_BAR/KITCHEN/dst) cuma
             // boleh lihat sesi departemen-nya sendiri -- sebelumnya tidak
             // dibatasi sama sekali di sini, jadi Staff Kitchen bisa melihat
@@ -55,18 +55,24 @@ class OpnameController extends Controller
             ->withCount('items')
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->upper()->toString()))
             ->when($request->filled('date'), fn ($query) => $query->whereDate('opname_date', $request->date('date')))
-            ->when(! $userOutletId && $request->filled('outlet_id'), fn ($query) => $query->where('outlet_id', $request->integer('outlet_id')))
-            ->when(! $userOutletId && $request->filled('brand_id'), fn ($query) => $query->whereHas(
-                'outlet',
-                fn ($q) => $q->where('brand_id', $request->integer('brand_id'))
-            ))
+            // $canFilterOutlet true utk user global (0 outlet) MAUPUN
+            // multi-outlet (>1) -- keduanya butuh filter tambahan ini.
+            // Aman buat user multi-outlet walau filterOutlets-nya cuma
+            // outlet MILIKNYA SENDIRI (lihat di bawah) -- whereIn($ids)
+            // di atas sudah jadi pagar utama, filter ini cuma mempersempit
+            // lebih lanjut di dalam pagar itu.
+            ->when($canFilterOutlet = count($userOutletIds) !== 1, fn ($query) => $query
+                ->when($request->filled('outlet_id'), fn ($q) => $q->where('outlet_id', $request->integer('outlet_id')))
+                ->when($request->filled('brand_id'), fn ($q) => $q->whereHas(
+                    'outlet',
+                    fn ($oq) => $oq->where('brand_id', $request->integer('brand_id'))
+                )))
             ->when(! $userDepartmentId && $request->filled('department_id'), fn ($query) => $query->where('department_id', $request->integer('department_id')))
             ->latest('opname_date')
             ->latest('id')
             ->paginate($perPage)
             ->withQueryString();
 
-        $canFilterOutlet = ! $userOutletId;
         $canFilterDepartment = ! $userDepartmentId;
 
         return view('operations.opname.index', [
@@ -75,7 +81,9 @@ class OpnameController extends Controller
             'perPageOptions' => $perPageOptions,
             'canFilterOutlet' => $canFilterOutlet,
             'canFilterDepartment' => $canFilterDepartment,
-            'filterOutlets' => $canFilterOutlet ? Outlet::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
+            'filterOutlets' => $canFilterOutlet
+                ? Outlet::query()->where('tenant_id', $tenantId)->when($userOutletIds, fn ($q, $ids) => $q->whereIn('id', $ids))->orderBy('name')->get()
+                : collect(),
             'filterBrands' => $canFilterOutlet ? Brand::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
             'filterDepartments' => $canFilterDepartment ? Department::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get() : collect(),
         ]);
@@ -85,14 +93,19 @@ class OpnameController extends Controller
     {
         $tenantId = $this->tenantId($request);
         $user = $request->user();
-        $outletId = (int) ($user->outlet_id ?: Outlet::query()->where('tenant_id', $tenantId)->value('id'));
+        $outletIds = $user->accessibleOutletIds();
+        // Default pre-isi dropdown: outlet pertama MILIK USER kalau ada
+        // (termasuk multi-outlet), baru fallback ke outlet pertama tenant
+        // kalau benar-benar global (0 outlet) -- bukan outlet sembarang
+        // yang belum tentu miliknya.
+        $outletId = (int) ($outletIds[0] ?? Outlet::query()->where('tenant_id', $tenantId)->value('id'));
         $departmentId = $user->department_id ? (int) $user->department_id : null;
 
         return view('operations.opname.create', [
             'outlets' => Outlet::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')
-                ->when($user->outlet_id, fn ($q) => $q->where('id', $user->outlet_id))
+                ->when($outletIds, fn ($q, $ids) => $q->whereIn('id', $ids))
                 ->orderBy('name')
                 ->get(),
             'departments' => Department::query()
@@ -103,7 +116,7 @@ class OpnameController extends Controller
                 ->get(),
             'defaultOutletId' => $outletId,
             'defaultDepartmentId' => $departmentId,
-            'canChangeOutlet' => ! $user->outlet_id,
+            'canChangeOutlet' => count($outletIds) !== 1,
             'canChangeDepartment' => ! $user->department_id,
             'dailyItemCount' => ($outletId && $departmentId) ? $this->opnameService->countDailyItems($tenantId, $outletId, $departmentId) : null,
         ]);
@@ -113,14 +126,21 @@ class OpnameController extends Controller
     {
         $tenantId = $this->tenantId($request);
         $user = $request->user();
+        $outletIds = $user->accessibleOutletIds();
 
         $rules = [
             'shift' => ['nullable', Rule::in(['PAGI', 'SORE', 'MALAM'])],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
 
-        if (! $user->outlet_id) {
-            $rules['outlet_id'] = ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)];
+        // Global (0 outlet) -> boleh outlet mana pun di tenant. Multi-outlet
+        // (>1) -> WAJIB salah satu dari daftar miliknya sendiri
+        // (Rule::in() adalah baris otorisasinya). 1 outlet -> tetap
+        // otomatis, tidak ada rule tambahan sama sekali.
+        if (count($outletIds) !== 1) {
+            $rules['outlet_id'] = ['required', 'integer', $outletIds === []
+                ? Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)
+                : Rule::in($outletIds)];
         }
 
         if (! $user->department_id) {
@@ -131,7 +151,7 @@ class OpnameController extends Controller
 
         $session = $this->opnameService->startSession([
             'tenant_id' => $tenantId,
-            'outlet_id' => $user->outlet_id ?: (int) $validated['outlet_id'],
+            'outlet_id' => count($outletIds) === 1 ? $outletIds[0] : (int) $validated['outlet_id'],
             'department_id' => $user->department_id ?: (int) $validated['department_id'],
             'opname_date' => now()->toDateString(),
             'shift' => $validated['shift'] ?? null,
@@ -148,12 +168,14 @@ class OpnameController extends Controller
     {
         $tenantId = $this->tenantId($request);
         $user = $request->user();
+        $outletIds = $user->accessibleOutletIds();
+        $outletId = (int) ($outletIds[0] ?? Outlet::query()->where('tenant_id', $tenantId)->value('id'));
 
         return view('operations.opname.create-historical', [
             'outlets' => Outlet::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')
-                ->when($user->outlet_id, fn ($q) => $q->where('id', $user->outlet_id))
+                ->when($outletIds, fn ($q, $ids) => $q->whereIn('id', $ids))
                 ->orderBy('name')
                 ->get(),
             'departments' => Department::query()
@@ -162,9 +184,9 @@ class OpnameController extends Controller
                 ->when($user->department_id, fn ($q) => $q->where('id', $user->department_id))
                 ->orderBy('name')
                 ->get(),
-            'defaultOutletId' => (int) ($user->outlet_id ?: Outlet::query()->where('tenant_id', $tenantId)->value('id')),
+            'defaultOutletId' => $outletId,
             'defaultDepartmentId' => $user->department_id ? (int) $user->department_id : null,
-            'canChangeOutlet' => ! $user->outlet_id,
+            'canChangeOutlet' => count($outletIds) !== 1,
             'canChangeDepartment' => ! $user->department_id,
         ]);
     }
@@ -173,6 +195,7 @@ class OpnameController extends Controller
     {
         $tenantId = $this->tenantId($request);
         $user = $request->user();
+        $outletIds = $user->accessibleOutletIds();
 
         $rules = [
             'opname_date' => ['required', 'date', 'before_or_equal:today'],
@@ -180,8 +203,10 @@ class OpnameController extends Controller
             'notes' => ['required', 'string', 'min:5', 'max:2000'],
         ];
 
-        if (! $user->outlet_id) {
-            $rules['outlet_id'] = ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)];
+        if (count($outletIds) !== 1) {
+            $rules['outlet_id'] = ['required', 'integer', $outletIds === []
+                ? Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)
+                : Rule::in($outletIds)];
         }
 
         if (! $user->department_id) {
@@ -192,7 +217,7 @@ class OpnameController extends Controller
 
         $session = $this->opnameService->startSession([
             'tenant_id' => $tenantId,
-            'outlet_id' => $user->outlet_id ?: (int) $validated['outlet_id'],
+            'outlet_id' => count($outletIds) === 1 ? $outletIds[0] : (int) $validated['outlet_id'],
             'department_id' => $user->department_id ?: (int) $validated['department_id'],
             'opname_date' => $validated['opname_date'],
             'shift' => $validated['shift'] ?? null,
@@ -211,7 +236,7 @@ class OpnameController extends Controller
         $ids = OpnameSession::query()
             ->whereIn('id', $request->input('ids', []))
             ->where('tenant_id', $tenantId)
-            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->when($request->user()->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('outlet_id', $ids))
             // Dulu cuma dicek outlet -- Staff departemen tertentu (mis.
             // Kitchen) bisa ikut men-submit massal sesi departemen LAIN di
             // outlet yang sama kalau ID-nya kebawa dari daftar (yang sampai
@@ -236,7 +261,7 @@ class OpnameController extends Controller
         $ids = OpnameSession::query()
             ->whereIn('id', $request->input('ids', []))
             ->where('tenant_id', $tenantId)
-            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->when($request->user()->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('outlet_id', $ids))
             ->when($request->user()->department_id, fn ($q) => $q->where(
                 fn ($dq) => $dq->where('department_id', $request->user()->department_id)->orWhereNull('department_id')
             ))
@@ -670,8 +695,12 @@ class OpnameController extends Controller
      */
     private function authorizeSessionOwnership(Request $request, OpnameSession $session): void
     {
-        $userOutletId = $request->user()->outlet_id;
-        abort_if($userOutletId && (int) $session->outlet_id !== (int) $userOutletId, 403, 'Anda tidak berwenang untuk sesi outlet lain.');
+        // Global (0 outlet) -> selalu boleh. Multi-outlet -> boleh kalau
+        // sesi ini outlet-nya salah satu dari daftar miliknya, BUKAN cuma
+        // outlet pertama/legacy -- sebelumnya user multi-outlet akan
+        // ke-block di sesi outlet KEDUA-dst walau sah milik mereka.
+        $userOutletIds = $request->user()->accessibleOutletIds();
+        abort_if($userOutletIds !== [] && ! in_array((int) $session->outlet_id, $userOutletIds, true), 403, 'Anda tidak berwenang untuk sesi outlet lain.');
 
         // $session->department_id null = sesi historis lama sebelum sesi
         // di-scope per departemen -- tetap boleh diakses semua departemen
