@@ -83,6 +83,11 @@ class Item extends Model
         return $this->hasMany(ItemDepartmentCategory::class);
     }
 
+    public function departmentSortOrders(): HasMany
+    {
+        return $this->hasMany(ItemDepartmentSortOrder::class);
+    }
+
     /**
      * Kategori efektif untuk item ini KHUSUS departemen tertentu -- kalau
      * ada override di item_department_categories, pakai itu; kalau tidak,
@@ -108,25 +113,49 @@ class Item extends Model
     }
 
     /**
+     * Urutan item ini DI DALAM sub kategorinya untuk departemen tertentu --
+     * opsional/sparse (lihat item_department_sort_orders), diisi lewat
+     * Settings > Urutan Item per Departemen. null kalau belum di-mapping,
+     * dipakai formSortKey() untuk menaruh item yang belum di-mapping di
+     * BELAKANG item yang sudah (bukan tercampur alfabetis di antaranya).
+     */
+    public function sortOrderForDepartment(?int $departmentId): ?int
+    {
+        if (! $departmentId) {
+            return null;
+        }
+
+        $row = $this->relationLoaded('departmentSortOrders')
+            ? $this->departmentSortOrders->firstWhere('department_id', $departmentId)
+            : $this->departmentSortOrders()->where('department_id', $departmentId)->first();
+
+        return $row?->sort_order;
+    }
+
+    /**
      * Kunci urutan "Sesuai Form" untuk item ini di departemen tertentu:
      * kategori utama (sort_order+nama) lalu sub kategori (sort_order),
-     * lalu nama item -- sumber tunggal dipakai oleh
-     * OpnameController::formSortKey() (tampilan Opname harian) DAN
+     * lalu urutan item (kalau sudah di-mapping, lihat
+     * sortOrderForDepartment()) lalu nama item -- sumber tunggal dipakai
+     * oleh OpnameController::formSortKey() (tampilan Opname harian) DAN
      * OpnameMonthlyImportTemplate (template import bulanan), supaya
-     * keduanya konsisten. Urutan ANTAR item di dalam 1 sub kategori yang
-     * sama masih alfabetis -- belum ada data urutan per-item di sistem.
+     * keduanya konsisten. Item yang belum punya urutan eksplisit jatuh ke
+     * belakang item yang sudah di-mapping di sub kategori yang sama,
+     * diurutkan alfabetis di antara sesamanya.
      */
     public function formSortKey(?int $departmentId): string
     {
         $leaf = $this->categoryForDepartment($departmentId);
         $parent = $leaf?->parent ?? $leaf;
         $childOrder = ($leaf && $leaf->parent_id) ? $leaf->sort_order : 0;
+        $itemOrder = $this->sortOrderForDepartment($departmentId);
 
         return sprintf(
-            '%05d|%s|%05d|%s',
+            '%05d|%s|%05d|%05d|%s',
             $parent?->sort_order ?? 0,
             $parent?->name ?? '',
             $childOrder,
+            $itemOrder ?? 99999,
             $this->name ?? ''
         );
     }

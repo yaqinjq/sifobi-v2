@@ -35,6 +35,7 @@ use App\Http\Controllers\Settings\DefaultConversionController;
 use App\Http\Controllers\Settings\DepartmentCategoryMappingController;
 use App\Http\Controllers\Settings\DepartmentController;
 use App\Http\Controllers\Settings\IntegrationController;
+use App\Http\Controllers\Settings\ItemSortOrderController;
 use App\Http\Controllers\Settings\WiproCatalogController;
 use App\Http\Controllers\Settings\ItemCategoryController;
 use App\Http\Controllers\Settings\ItemJenisController;
@@ -301,6 +302,18 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                     ->name('import');
                 Route::get('/template', [DepartmentCategoryMappingController::class, 'importTemplate'])
                     ->name('import-template');
+            });
+
+        Route::prefix('item-sort-order')
+            ->name('item-sort-order.')
+            ->middleware('permission:manage_stock_configs')
+            ->group(function (): void {
+                Route::get('/', [ItemSortOrderController::class, 'form'])
+                    ->name('import-form');
+                Route::post('/', [ItemSortOrderController::class, 'import'])
+                    ->name('import');
+                Route::get('/template', [ItemSortOrderController::class, 'template'])
+                    ->name('template');
             });
     });
 

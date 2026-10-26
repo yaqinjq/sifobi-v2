@@ -463,6 +463,19 @@
             </div>
 
             <div>
+                <p class="font-semibold text-gray-800 mb-2">6b. Setup Urutan Item di Dalam Sub Kategori (khusus Admin)</p>
+                <p class="text-xs text-gray-600 mb-2">Mapping di atas (poin 6) cuma mengatur urutan Kategori &amp; Sub Kategori &mdash; urutan ANTAR item di dalam 1 sub kategori yang sama masih abjad A-Z secara default. Untuk mengatur urutan item persis sesuai posisi di form fisik:</p>
+                <ol class="space-y-2 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Pastikan Kategori &amp; Sub Kategori departemen tsb sudah di-mapping dulu lewat poin 6 di atas</li>
+                    <li>Buka <strong>Settings → Urutan Item per Departemen</strong>, pilih departemen, lalu klik <strong>"Unduh Template"</strong> &mdash; template-nya sudah berisi SEMUA item departemen itu, terkelompok sesuai Kategori/Sub Kategori "Sesuai Form"</li>
+                    <li>Isi kolom <strong>Urutan</strong> dengan nomor urut sesuai posisi item di form fisik (mulai dari 1 lagi di tiap sub kategori baru) &mdash; kolom SKU/Item/Kategori/Sub Kategori jangan diubah, cuma informasi</li>
+                    <li>Boleh dikosongkan untuk item yang belum mau diatur urutannya &mdash; item itu tetap tampil, tapi di posisi paling belakang sub kategorinya</li>
+                    <li>Upload file yang sudah diisi lewat form "Upload Urutan" di halaman yang sama (pilih departemen yang sama saat upload)</li>
+                </ol>
+                <p class="text-xs text-gray-500 mt-2">Urutan ini dipakai di <strong>kedua tempat</strong>: tampilan Opname harian (mode "Urutkan: Sesuai Form") dan Template Import Opname Bulanan.</p>
+            </div>
+
+            <div>
                 <p class="font-semibold text-gray-800 mb-2">7. Item dengan Kategori Beda Antar Departemen</p>
                 <p class="text-xs text-gray-600 mb-2">Kadang 1 item dipakai lebih dari 1 departemen, tapi kategorinya beda-beda sesuai kebiasaan tiap departemen &mdash; misalnya <strong>Tepung Maizena</strong>: di BAR masuk kategori "Other", tapi di PASTRY masuk kategori "Rice &amp; Flour". Untuk kasus seperti ini:</p>
                 <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">

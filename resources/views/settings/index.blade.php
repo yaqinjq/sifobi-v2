@@ -201,6 +201,14 @@
                 </div>
                 <i class="ti ti-chevron-right sh-arrow" aria-hidden="true"></i>
             </a>
+            <a href="{{ route('settings.item-sort-order.import-form') }}" class="sh-item">
+                <div class="sh-icon sh-icon-purple"><i class="ti ti-arrows-sort" aria-hidden="true"></i></div>
+                <div class="sh-text">
+                    <p class="sh-name">Urutan item per departemen</p>
+                    <p class="sh-desc">Atur urutan item di dalam sub kategori sesuai form fisik tim</p>
+                </div>
+                <i class="ti ti-chevron-right sh-arrow" aria-hidden="true"></i>
+            </a>
         @endcan
     </div>
 
