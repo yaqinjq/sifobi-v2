@@ -386,6 +386,7 @@
                     <li>Buka <strong>Operasi → Opname Stok → "+ Mulai Opname"</strong></li>
                     <li>Staff/PIC yang sudah punya outlet dan departemen tetap (mis. STAFF_BAR) akan melihat Outlet dan Departemen sudah otomatis terisi (tidak perlu pilih apa-apa) &mdash; tinggal isi Shift dan Catatan kalau perlu</li>
                     <li>User tanpa departemen tetap (mis. PIC_OUTLET, MANAGER_AREA, SUPER_ADMIN) tetap harus memilih Departemen mana yang mau di-opname</li>
+                    <li>User dengan akses ke lebih dari 1 outlet (lihat bagian Manajemen User) akan diminta pilih dulu outlet mana yang mau di-opname, dari daftar outlet miliknya sendiri</li>
                     <li>Tanggal opname harian SELALU hari ini dan tidak bisa diubah dari form ini &mdash; kalau ada opname tanggal lampau yang terlewat, pakai tombol <strong>"Input Historis"</strong> di halaman daftar Opname</li>
                     <li>Isi jumlah stok aktual yang dihitung secara fisik untuk setiap item, sistem menghitung selisih otomatis</li>
                     <li>Submit opname → menunggu approval dari atasan → setelah di-approve, selisih dicatat ke ledger sebagai adjustment</li>
