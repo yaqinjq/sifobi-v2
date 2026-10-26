@@ -8,12 +8,35 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.38 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.38 &mdash; 26 Oktober 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Settings &rarr; <strong>Urutan Item per Departemen</strong>: sekarang bisa atur urutan item DI DALAM 1 sub kategori (sebelumnya cuma bisa atur urutan kategori & sub kategori lewat "Mapping Departemen & Kategori Opname"). Pilih departemen, unduh template yang sudah berisi semua item departemen itu terkelompok sesuai kategori, isi kolom Urutan sesuai posisi di form fisik, upload kembali. Urutan ini otomatis dipakai di tampilan Opname harian (mode "Urutkan: Sesuai Form") maupun Template Import Opname Bulanan</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Template Import Opname Bulanan: urutan baris sekarang ikut mapping Kategori/Sub Kategori "Sesuai Form" (bukan alfabetis lagi), supaya urutannya mendekati form fisik tim saat didownload</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.37 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.37 &mdash; 26 Oktober 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
