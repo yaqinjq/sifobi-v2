@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Receiving\BulkSubmitGoodsReceiptRequest;
+use App\Models\User;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\Unit;
@@ -39,7 +40,7 @@ class GoodsReceiptController extends Controller
             ->with(['outlet', 'supplier'])
             ->withCount('items')
             ->withSum('items as total_value_sum', 'total_value')
-            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->when($request->user()->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('outlet_id', $ids))
             ->when($request->filled('source'), fn ($query) => $query->where('source', $request->string('source')))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('date_from'), fn ($query) => $query->whereDate('receipt_date', '>=', $request->date('date_from')))
@@ -137,8 +138,7 @@ class GoodsReceiptController extends Controller
             'items.mutation',
         ]);
 
-        $userOutletId = auth()->user()->outlet_id;
-        abort_if($userOutletId && (int) $receipt->outlet_id !== (int) $userOutletId, 403);
+        $this->authorizeReceiptOutlet(auth()->user(), $receipt);
 
         return view('receiving.goods-receipts.show', [
             'receipt' => $receipt,
@@ -148,6 +148,7 @@ class GoodsReceiptController extends Controller
 
     public function edit(Request $request, GoodsReceipt $receipt): View
     {
+        $this->authorizeReceiptOutlet($request->user(), $receipt);
         abort_unless(in_array($receipt->status, [GoodsReceipt::STATUS_DRAFT, GoodsReceipt::STATUS_REJECTED], true), 403);
 
         $receipt->load(['items.item', 'items.unit']);
@@ -161,6 +162,7 @@ class GoodsReceiptController extends Controller
 
     public function update(Request $request, GoodsReceipt $receipt): RedirectResponse
     {
+        $this->authorizeReceiptOutlet($request->user(), $receipt);
         $validated = $this->validated($request);
         $tenantId = $this->tenantId($request);
         $validated['items'] = $this->hydrateItemMedia($request, $validated['items'], $tenantId);
@@ -206,7 +208,7 @@ class GoodsReceiptController extends Controller
         $receipts = GoodsReceipt::query()
             ->whereIn('id', $request->input('ids', []))
             ->where('tenant_id', $tenantId)
-            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->when($request->user()->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('outlet_id', $ids))
             ->whereIn('status', [GoodsReceipt::STATUS_DRAFT, GoodsReceipt::STATUS_REJECTED])
             ->get();
 
@@ -302,6 +304,7 @@ class GoodsReceiptController extends Controller
     private function formData(Request $request): array
     {
         $tenantId = $this->tenantId($request);
+        $outletIds = $request->user()->accessibleOutletIds();
 
         $items = Item::query()
             ->where('tenant_id', $tenantId)
@@ -315,7 +318,7 @@ class GoodsReceiptController extends Controller
             'outlets' => Outlet::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')
-                ->when($request->user()->outlet_id, fn ($q) => $q->where('id', $request->user()->outlet_id))
+                ->when($outletIds, fn ($q, $ids) => $q->whereIn('id', $ids))
                 ->orderBy('name')
                 ->get(),
             'suppliers' => Supplier::query()
@@ -347,7 +350,7 @@ class GoodsReceiptController extends Controller
             'shippedPos' => PurchaseOrder::query()
                 ->where('tenant_id', $tenantId)
                 ->whereIn('status', [PurchaseOrder::STATUS_SHIPPED, PurchaseOrder::STATUS_SENT])
-                ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+                ->when($outletIds, fn ($q, $ids) => $q->whereIn('outlet_id', $ids))
                 ->with(['outlet', 'items.item', 'items.unit', 'shipments'])
                 ->latest('id')
                 ->get()
@@ -410,15 +413,24 @@ class GoodsReceiptController extends Controller
     private function validated(Request $request): array
     {
         $tenantId = $this->tenantId($request);
+        $outletIds = $request->user()->accessibleOutletIds();
 
         $validated = $request->validate([
             'source' => ['required', 'string', Rule::in(array_keys($this->sources()))],
             'purchase_order_id' => ['nullable', 'integer', Rule::exists('purchase_orders', 'id')],
             'purchase_order_shipment_id' => ['nullable', 'integer', Rule::exists('purchase_order_shipments', 'id')],
+            // Global (0 outlet) -> boleh outlet mana pun di tenant (pola
+            // lama). Non-global (1 atau banyak outlet) -> WAJIB salah satu
+            // dari daftar milik user ini -- sebelumnya field ini cuma
+            // divalidasi "ada di tenant", tidak pernah benar-benar dibatasi
+            // ke outlet user (cuma mengandalkan dropdown di formData()),
+            // sekalian ditutup di sini.
             'outlet_id' => [
                 'required',
                 'integer',
-                Rule::exists('outlets', 'id')->where('tenant_id', $tenantId),
+                $outletIds === []
+                    ? Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)
+                    : Rule::in($outletIds),
             ],
             'external_po_number' => ['nullable', 'string', 'max:120'],
             'supplier_id' => [
@@ -500,5 +512,17 @@ class GoodsReceiptController extends Controller
         abort_unless($tenantId, 403, 'Tenant belum terpasang pada user.');
 
         return (int) $tenantId;
+    }
+
+    /**
+     * Global (0 outlet) -> selalu boleh. Non-global (1 atau banyak
+     * outlet) -> boleh kalau outlet penerimaan ini ada di daftar
+     * accessibleOutletIds() milik user, bukan cuma outlet
+     * pertama/legacy -- dipakai show()/edit()/update() supaya konsisten.
+     */
+    private function authorizeReceiptOutlet(User $user, GoodsReceipt $receipt): void
+    {
+        $userOutletIds = $user->accessibleOutletIds();
+        abort_if($userOutletIds !== [] && ! in_array((int) $receipt->outlet_id, $userOutletIds, true), 403);
     }
 }

@@ -241,6 +241,7 @@
                             <li><strong>Supplier Luar</strong> — vendor lain</li>
                             <li><strong>Penyesuaian Historis</strong> — koreksi/susulan data stok masa lalu yang belum sempat tercatat, bukan penerimaan dari supplier sungguhan. Tidak ada field supplier, tapi <strong>Catatan wajib diisi</strong> untuk menjelaskan alasan/asal datanya</li>
                         </ul>
+                        <p>User dengan akses ke lebih dari 1 outlet (lihat bagian Manajemen User) akan diminta pilih dulu outlet tujuan penerimaan ini, dari daftar outlet miliknya sendiri</p>
                     </div>
                 </div>
 

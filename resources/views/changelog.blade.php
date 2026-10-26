@@ -8,12 +8,35 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.37 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.37 &mdash; 26 Oktober 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Penerimaan Barang: akses multi-outlet (lihat v2.35) sekarang ikut berlaku &mdash; user dengan akses ke beberapa outlet bisa memilih outlet saat membuat Penerimaan Barang baru, melihat gabungan data dari semua outlet miliknya di daftar, dan bisa buka/edit/submit penerimaan di outlet mana pun yang jadi tanggung jawabnya (sebelumnya akan ditolak kalau bukan outlet pertamanya). User dengan 1 outlet tidak melihat perubahan apa pun</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Tampilan: header halaman dengan banyak tombol aksi (mis. Opname dengan tombol "Import Bulanan"/"Input Historis"/"Mulai Opname") sekarang tidak lagi mendorong halaman keluar dari frame di layar HP/tablet &mdash; tombol yang tidak muat digeser ke samping, bukan membuat seluruh halaman melebar</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.36 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.36 &mdash; 26 Oktober 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
