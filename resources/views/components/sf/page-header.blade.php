@@ -25,7 +25,7 @@
         </div>
 
         @isset($actions)
-            <div class="flex items-center gap-1.5 shrink-0">{{ $actions }}</div>
+            <div class="flex items-center gap-1.5 min-w-0 overflow-x-auto [&>*]:shrink-0" style="scrollbar-width: none;">{{ $actions }}</div>
         @endisset
     </div>
 </div>
