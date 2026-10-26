@@ -14,11 +14,17 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
- * Template Excel Opname Bulanan: baris = item (urut kategori lalu nama,
- * sama seperti pengurutan di Rekap Mingguan Opname), kolom = tiap tanggal
- * di bulan terpilih. Konteks outlet/departemen/bulan TIDAK ditulis di
- * dalam file -- diisi ulang eksplisit lewat form upload supaya tidak
+ * Template Excel Opname Bulanan: baris = item, kolom = tiap tanggal di
+ * bulan terpilih. Konteks outlet/departemen/bulan TIDAK ditulis di dalam
+ * file -- diisi ulang eksplisit lewat form upload supaya tidak
  * mengandalkan parsing cell header yang rapuh.
+ *
+ * Urutan baris memakai Item::formSortKey() -- SAMA PERSIS dengan urutan
+ * "Sesuai Form" di tampilan Opname harian (kategori utama -> sub kategori
+ * -> nama item), sumbernya data "Mapping Departemen & Kategori Opname"
+ * yang sudah diupload lewat Settings. Departemen yang belum punya mapping
+ * kategori akan jatuh ke urutan alfabetis biasa (parent/child sort_order
+ * default 0).
  */
 class OpnameMonthlyImportTemplate implements WithMultipleSheets
 {
@@ -59,26 +65,19 @@ class OpnameMonthlyTemplateSheet implements FromArray, ShouldAutoSize, WithEvent
 
     public function array(): array
     {
-        // Urut kategori (nama kategori, A-Z) dulu, lalu nama item di dalam
-        // kategori yang sama -- grouping eksplisit supaya urutannya pasti,
-        // bukan mengandalkan stabilitas sortBy ganda.
-        $grouped = $this->items
-            ->groupBy(fn ($item) => $item->categoryForDepartment($this->departmentId)?->name ?: 'Lainnya')
-            ->sortKeys();
+        $sorted = $this->items->sortBy(fn ($item) => $item->formSortKey($this->departmentId));
 
         $rows = [
             array_merge(['Kategori', 'Item', 'SKU', 'Satuan Hitung'], $this->dates),
         ];
 
-        foreach ($grouped as $category => $items) {
-            foreach ($items->sortBy('name') as $item) {
-                $rows[] = array_merge([
-                    $category,
-                    $item->name,
-                    $item->canonical_sku,
-                    $item->inventoryUnit?->abbreviation ?: $item->baseUnit?->abbreviation ?: '-',
-                ], array_fill(0, count($this->dates), ''));
-            }
+        foreach ($sorted as $item) {
+            $rows[] = array_merge([
+                $item->categoryForDepartment($this->departmentId)?->name ?: 'Lainnya',
+                $item->name,
+                $item->canonical_sku,
+                $item->inventoryUnit?->abbreviation ?: $item->baseUnit?->abbreviation ?: '-',
+            ], array_fill(0, count($this->dates), ''));
         }
 
         return $rows;

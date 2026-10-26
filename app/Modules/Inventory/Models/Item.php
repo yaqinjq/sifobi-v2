@@ -107,6 +107,30 @@ class Item extends Model
         return $this->category;
     }
 
+    /**
+     * Kunci urutan "Sesuai Form" untuk item ini di departemen tertentu:
+     * kategori utama (sort_order+nama) lalu sub kategori (sort_order),
+     * lalu nama item -- sumber tunggal dipakai oleh
+     * OpnameController::formSortKey() (tampilan Opname harian) DAN
+     * OpnameMonthlyImportTemplate (template import bulanan), supaya
+     * keduanya konsisten. Urutan ANTAR item di dalam 1 sub kategori yang
+     * sama masih alfabetis -- belum ada data urutan per-item di sistem.
+     */
+    public function formSortKey(?int $departmentId): string
+    {
+        $leaf = $this->categoryForDepartment($departmentId);
+        $parent = $leaf?->parent ?? $leaf;
+        $childOrder = ($leaf && $leaf->parent_id) ? $leaf->sort_order : 0;
+
+        return sprintf(
+            '%05d|%s|%05d|%s',
+            $parent?->sort_order ?? 0,
+            $parent?->name ?? '',
+            $childOrder,
+            $this->name ?? ''
+        );
+    }
+
     public function primaryDepartment(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'primary_department_id');

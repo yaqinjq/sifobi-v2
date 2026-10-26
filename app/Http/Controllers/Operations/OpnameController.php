@@ -531,17 +531,7 @@ class OpnameController extends Controller
      */
     private function formSortKey(OpnameItem $opnameItem): string
     {
-        $leaf = $opnameItem->item?->categoryForDepartment($opnameItem->department_id);
-        $parent = $leaf?->parent ?? $leaf;
-        $childOrder = ($leaf && $leaf->parent_id) ? $leaf->sort_order : 0;
-
-        return sprintf(
-            '%05d|%s|%05d|%s',
-            $parent?->sort_order ?? 0,
-            $parent?->name ?? '',
-            $childOrder,
-            $opnameItem->item?->name ?? ''
-        );
+        return $opnameItem->item?->formSortKey($opnameItem->department_id) ?? '';
     }
 
     /**
