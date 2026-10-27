@@ -97,17 +97,20 @@ test('include_draft=1 shows a draft session count, marked as draft -- not as a c
         'opname_date' => now()->toDateString(),
     ], $staff->id);
     $session->items()->where('item_id', $this->barItem->id)->update([
-        'physical_qty_base' => '17',
+        'physical_qty_base' => '17.500000',
         'is_counted' => true,
     ]);
     // Sengaja TIDAK di-submit -- tetap DRAFT.
 
+    // Qty sengaja desimal (17.5, bukan bilangan bulat) supaya substring-nya
+    // tidak bisa ketukar dengan tanggal di header tabel (mis. "17/10").
     $withoutDraft = $this->actingAs($staff)->get(route('operations.inventory-count.opname-recap'));
-    $withoutDraft->assertOk()->assertDontSee('17.000000');
+    $withoutDraft->assertOk()->assertDontSee('17.5')->assertDontSee('17.500000');
 
     $withDraft = $this->actingAs($staff)->get(route('operations.inventory-count.opname-recap', ['include_draft' => 1]));
     $withDraft->assertOk();
-    $withDraft->assertSee('17.000000');
+    // Maks 2 angka di belakang koma di tampilan, bukan presisi penuh decimal:6.
+    $withDraft->assertSee('17.5')->assertDontSee('17.500000');
     $withDraft->assertSee('Draft, belum final');
 });
 

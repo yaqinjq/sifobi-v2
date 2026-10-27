@@ -137,8 +137,8 @@ class InventoryCountRecapController extends Controller
                     $days[] = [
                         'date' => $dateKey,
                         'counted' => (bool) ($line?->is_counted),
-                        'qty_whole' => $line?->is_counted ? (string) $line->qty_whole : null,
-                        'qty_loose' => $line?->is_counted ? $line->qty_loose : null,
+                        'qty_whole' => $line?->is_counted ? $this->formatQty($line->qty_whole) : null,
+                        'qty_loose' => $line?->is_counted && $line->qty_loose !== null ? $this->formatQty($line->qty_loose) : null,
                         'whole_unit' => $line?->wholeUnit?->abbreviation ?? $line?->wholeUnit?->code,
                         'loose_unit' => $line?->looseUnit?->abbreviation ?? $line?->looseUnit?->code,
                         'config_valid' => $line ? (bool) $line->config_valid : true,
@@ -163,5 +163,16 @@ class InventoryCountRecapController extends Controller
         abort_unless($tenantId, 403, 'Tenant belum terpasang pada user.');
 
         return (int) $tenantId;
+    }
+
+    /**
+     * Qty di-cast decimal:6 di model (presisi penuh buat perhitungan), tapi
+     * tampilan di Rekap Mingguan cukup maks 2 angka di belakang koma supaya
+     * tidak membingungkan (mis. "12.500000" -> "12.5", "10.000000" -> "10")
+     * -- trailing zero & titik desimal yang tidak perlu dibuang.
+     */
+    private function formatQty(mixed $value): string
+    {
+        return rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
     }
 }

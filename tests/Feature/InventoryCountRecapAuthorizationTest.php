@@ -201,8 +201,10 @@ test('recap only shows the currently-valid submitted version after a revision, m
         $this->tenant->id, $this->outlet->id, $this->bar->id, $this->barTemplate, $date, $barStaff->id
     );
     $line = $document->lines()->first();
+    // Qty sengaja desimal (bukan bilangan bulat) supaya substring-nya tidak
+    // bisa ketukar dengan tanggal di header tabel (mis. "10/10").
     $this->actingAs($barStaff)->patchJson(route('operations.inventory-count.lines.autosave', $line), [
-        'qty_whole' => '10', 'expected_version' => $document->refresh()->version,
+        'qty_whole' => '10.25', 'expected_version' => $document->refresh()->version,
     ])->assertOk();
     $this->actingAs($barStaff)->post(route('operations.inventory-count.submit', $document->refresh()), [
         'expected_version' => $document->version,
@@ -213,7 +215,7 @@ test('recap only shows the currently-valid submitted version after a revision, m
     ])->assertRedirect();
 
     $this->actingAs($barStaff)->patchJson(route('operations.inventory-count.lines.autosave', $line), [
-        'qty_whole' => '77', 'expected_version' => $document->refresh()->version,
+        'qty_whole' => '77.25', 'expected_version' => $document->refresh()->version,
     ])->assertOk();
     $this->actingAs($barStaff)->post(route('operations.inventory-count.submit', $document->refresh()), [
         'expected_version' => $document->version,
@@ -223,6 +225,7 @@ test('recap only shows the currently-valid submitted version after a revision, m
         'template_id' => $this->barTemplate->id,
     ]));
     $response->assertOk();
-    $response->assertSeeText('77.000000');
-    $response->assertDontSeeText('10.000000');
+    // Maks 2 angka di belakang koma di tampilan, bukan presisi penuh decimal:6.
+    $response->assertSeeText('77.25')->assertDontSeeText('77.250000');
+    $response->assertDontSeeText('10.25')->assertDontSeeText('10.250000');
 });
