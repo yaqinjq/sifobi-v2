@@ -376,7 +376,13 @@ class InventoryCountController extends Controller
             }
         }
 
-        $items = $this->opnameService->itemsForOpname($tenantId, $outletId, OpnameSession::TYPE_DAILY, $departmentId);
+        // Urut "Sesuai Form" (kategori utama -> sub kategori -> item), SAMA
+        // PERSIS dengan tampilan Opname harian & Template Import Bulanan --
+        // itemsForOpname() sendiri cuma orderBy('name') alfabetis, jadi
+        // grouping kategori di bawah (groupBy('subcategory')) ikut baris
+        // pertama yang ditemui kalau tidak diurut ulang di sini dulu.
+        $items = $this->opnameService->itemsForOpname($tenantId, $outletId, OpnameSession::TYPE_DAILY, $departmentId)
+            ->sortBy(fn ($item) => $item->formSortKey($departmentId));
 
         $rows = collect();
         foreach ($items as $item) {
