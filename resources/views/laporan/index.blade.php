@@ -42,6 +42,12 @@
         <x-sf.card title="HPP" subtitle="Breakdown biaya resep yang sudah disetujui (R&D)">
             <a href="{{ route('laporan.hpp') }}" class="sf-btn-primary min-h-11 w-full mt-2">Buka</a>
         </x-sf.card>
+
+        @if(config('app.inventory_simple_enabled') && auth()->user()->can('view_all_reports'))
+            <x-sf.card title="Rekap Hasil Hitung Opname" subtitle="Hasil hitung fisik harian per outlet & departemen, bisa difilter rentang tanggal bebas">
+                <a href="{{ route('operations.inventory-count.opname-history') }}" class="sf-btn-primary min-h-11 w-full mt-2">Buka</a>
+            </x-sf.card>
+        @endif
     </div>
 </div>
 @endsection

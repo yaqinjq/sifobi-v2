@@ -5,14 +5,14 @@
 @section('content')
 <x-sf.page-header title="Data Opname" subtitle="Read-only -- data Opname biasa yang sudah diisi staf, cuma ditampilkan di sini." back="{{ route('operations.inventory-count.index') }}">
     <x-slot:actions>
-        <a href="{{ route('operations.inventory-count.opname-recap', $isSuperAdmin ? array_filter(['outlet_id' => request('outlet_id'), 'department_id' => request('department_id')]) : []) }}" class="sf-btn-secondary min-h-11 px-3 text-xs">
+        <a href="{{ route('operations.inventory-count.opname-recap', $canPickAnyScope ? array_filter(['outlet_id' => request('outlet_id'), 'department_id' => request('department_id')]) : []) }}" class="sf-btn-secondary min-h-11 px-3 text-xs">
             <i class="ti ti-table" aria-hidden="true"></i> Tampilan Tabel Mingguan
         </a>
     </x-slot:actions>
 </x-sf.page-header>
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-5xl mx-auto w-full space-y-4">
-    @if($isSuperAdmin)
+    @if($canPickAnyScope)
         <x-sf.card title="Pilih Outlet & Departemen">
             <form method="GET" action="{{ route('operations.inventory-count.opname-history') }}" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <select name="outlet_id" class="sf-input min-h-11" onchange="this.form.submit()">
@@ -35,12 +35,12 @@
         <x-sf.empty-state
             icon="INV"
             title="Belum ada scope outlet & departemen yang sah"
-            description="{{ $isSuperAdmin ? 'Pilih outlet & departemen di atas untuk melihat data Opname.' : 'Akun Anda belum ditetapkan ke outlet & departemen. Hubungi Super Admin.' }}"
+            description="{{ $canPickAnyScope ? 'Pilih outlet & departemen di atas untuk melihat data Opname.' : 'Akun Anda belum ditetapkan ke outlet & departemen. Hubungi Super Admin.' }}"
         />
     @else
         <x-sf.card>
             <form method="GET" action="{{ route('operations.inventory-count.opname-history') }}" class="flex gap-3">
-                @if($isSuperAdmin)
+                @if($canPickAnyScope)
                     <input type="hidden" name="outlet_id" value="{{ request('outlet_id') }}">
                     <input type="hidden" name="department_id" value="{{ request('department_id') }}">
                 @endif

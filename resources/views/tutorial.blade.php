@@ -787,8 +787,10 @@
                 <p class="text-xs text-gray-600 mb-2">Di halaman utama Inventory Simple, ada 2 link tambahan yang murni untuk <strong>melihat</strong> (tidak bisa input apa pun lewat sini):</p>
                 <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
                     <li><strong>"Lihat data Opname (yang sudah diisi)"</strong> &mdash; daftar sesi Opname biasa yang sudah dicatat staf, klik salah satu untuk membuka detailnya di halaman Opname seperti biasa</li>
-                    <li><strong>"Lihat Rekap Mingguan Opname (tampilan tabel)"</strong> &mdash; data Opname yang sama, tapi ditampilkan sebagai tabel mingguan (item x 7 hari), sama persis gayanya dengan Rekap Hasil Hitung Mingguan milik Inventory Simple sendiri. Hanya sesi yang sudah <strong>Terkirim</strong> yang dihitung sebagai hasil final; sesi yang masih Draft tetap tampil "Belum dihitung"</li>
+                    <li><strong>"Lihat Rekap Mingguan Opname (tampilan tabel)"</strong> &mdash; data Opname yang sama, tapi ditampilkan sebagai tabel (item x tanggal), sama persis gayanya dengan Rekap Hasil Hitung Mingguan milik Inventory Simple sendiri. Hanya sesi yang sudah <strong>Terkirim</strong> yang dihitung sebagai hasil final; sesi yang masih Draft tetap tampil "Belum dihitung" (kecuali dicentang "Tampilkan juga yang masih Draft")</li>
                 </ol>
+                <p class="text-xs text-gray-600 mt-2 mb-1"><strong>Filter rentang tanggal bebas:</strong> klik kotak tanggal untuk membuka kalender, klik tanggal mulai lalu tanggal akhir (bisa lebih dari 1 minggu, maks 1 bulan), klik "Terapkan". Kolom tabel akan menyesuaikan jumlah hari yang dipilih.</p>
+                <p class="text-xs text-gray-600 mb-1"><strong>Role GENERAL_FINANCE</strong> (tim Finance) sekarang juga bisa membuka laporan ini &mdash; lewat menu <strong>Laporan &rarr; "Rekap Hasil Hitung Opname"</strong> &mdash; tanpa perlu diberi akses ke bagian lain modul Inventory Simple (mulai hitung, dll). Sama seperti SUPER_ADMIN, mereka bisa pilih outlet & departemen manapun lewat dropdown di bagian atas halaman.</p>
             </div>
         </div>
     </x-sf.card>

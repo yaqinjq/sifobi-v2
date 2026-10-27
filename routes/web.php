@@ -680,6 +680,26 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
         // revisi" tetap diperiksa lagi di controller lewat
         // EnforcesInventorySimpleScope, independen dari modul Spoil Waste.
         if (config('app.inventory_simple_enabled')) {
+            // Laporan Opname read-only (opname-history/opname-recap) --
+            // DIDAFTARKAN DULUAN, sebelum '/{document}' wildcard di grup
+            // utama di bawah, supaya literal path ini tidak pernah
+            // ketangkap wildcard itu. Digerbang permission yang LEBIH
+            // LUAS (ikut view_all_reports) dibanding grup utama --
+            // role pelaporan seperti GENERAL_FINANCE yang TIDAK punya
+            // input_opname/approve_opname tetap bisa lihat hasil Opname
+            // lintas outlet di sini, TANPA diberi akses ke bagian modul
+            // Inventory Simple yang lain (mulai hitung, movements, dll).
+            // Scope detail outlet/departemen mana yang boleh dipilih
+            // bebas tetap diperiksa lagi di controller lewat
+            // EnforcesInventorySimpleScope::resolveInventorySimpleScope().
+            Route::prefix('inventory-count')
+                ->name('inventory-count.')
+                ->middleware('permission:input_opname|approve_opname|view_all_reports')
+                ->group(function (): void {
+                    Route::get('/opname-history', [InventoryCountController::class, 'opnameHistory'])->name('opname-history');
+                    Route::get('/opname-recap', [InventoryCountController::class, 'opnameRecap'])->name('opname-recap');
+                });
+
             Route::prefix('inventory-count')
                 ->name('inventory-count.')
                 ->middleware('permission:input_opname|approve_opname')
@@ -687,8 +707,6 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                     Route::get('/', [InventoryCountController::class, 'index'])->name('index');
                     Route::post('/start', [InventoryCountController::class, 'startOrResume'])->name('start');
                     Route::get('/history', [InventoryCountController::class, 'history'])->name('history');
-                    Route::get('/opname-history', [InventoryCountController::class, 'opnameHistory'])->name('opname-history');
-                    Route::get('/opname-recap', [InventoryCountController::class, 'opnameRecap'])->name('opname-recap');
                     Route::get('/export', [InventoryCountController::class, 'export'])->name('export');
 
                     // ── Rekap Mingguan saldo mandiri (BUKAN ledger resmi) ──

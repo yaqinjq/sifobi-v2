@@ -28,6 +28,20 @@ trait EnforcesInventorySimpleScope
     }
 
     /**
+     * KHUSUS laporan Opname read-only (opname-history/opname-recap) --
+     * GENERAL_FINANCE (role pelaporan lintas outlet, TIDAK punya
+     * input_opname/approve_opname sama sekali) juga boleh pilih
+     * outlet/departemen bebas di SINI SAJA, supaya bisa lihat laporan
+     * tanpa diberi akses ke bagian modul Inventory Simple yang lain
+     * (mulai hitung, movements, dll -- yang tetap SUPER_ADMIN-only lewat
+     * isSuperAdmin() biasa). JANGAN dipakai di luar 2 method itu.
+     */
+    private function canPickAnyOpnameRecapScope(Request $request): bool
+    {
+        return $this->isSuperAdmin($request) || (bool) $request->user()?->hasRole('GENERAL_FINANCE');
+    }
+
+    /**
      * True kalau user non-superadmin punya outlet_id DAN department_id yang
      * benar-benar sah -- ada di tabel outlets/departments dan milik tenant
      * yang sama dengan user tsb, bukan cuma kolomnya tidak null.
@@ -57,18 +71,25 @@ trait EnforcesInventorySimpleScope
 
     /**
      * Resolusi outlet_id + department_id yang BERLAKU untuk request ini --
-     * non-superadmin SELALU dari akun sendiri (input client diabaikan
-     * total), superadmin boleh pilih bebas TAPI tetap divalidasi dalam
-     * tenant yang sama persis.
+     * non-superadmin (dan non-GENERAL_FINANCE kalau $allowGeneralFinance)
+     * SELALU dari akun sendiri (input client diabaikan total), yang boleh
+     * pilih bebas TETAP divalidasi dalam tenant yang sama persis.
+     *
+     * $allowGeneralFinance: WAJIB eksplisit true cuma dari
+     * opnameHistory()/opnameRecap() -- lihat canPickAnyOpnameRecapScope().
+     * Default false supaya pemanggil lain (index/export/movements/dll)
+     * TIDAK diam-diam ikut melebar aksesnya kalau trait ini dipakai ulang.
      *
      * @return array{0: int, 1: int}|null null kalau tidak ada scope yang sah.
      */
-    private function resolveInventorySimpleScope(Request $request): ?array
+    private function resolveInventorySimpleScope(Request $request, bool $allowGeneralFinance = false): ?array
     {
         $user = $request->user();
         $tenantId = (int) $user->tenant_id;
 
-        if ($this->isSuperAdmin($request)) {
+        $canPickAny = $allowGeneralFinance ? $this->canPickAnyOpnameRecapScope($request) : $this->isSuperAdmin($request);
+
+        if ($canPickAny) {
             $outletId = (int) $request->input('outlet_id', 0);
             $departmentId = (int) $request->input('department_id', 0);
 

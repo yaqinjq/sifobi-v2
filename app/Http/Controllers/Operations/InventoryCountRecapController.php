@@ -46,7 +46,7 @@ class InventoryCountRecapController extends Controller
             'weekStart' => $weekStart,
             'rows' => $rows,
             'distinctCategories' => $rows->pluck('subcategory')->unique()->sort()->values(),
-            'isSuperAdmin' => $this->isSuperAdmin($request),
+            'canPickAnyScope' => $this->isSuperAdmin($request),
         ]);
     }
 

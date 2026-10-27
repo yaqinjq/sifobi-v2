@@ -299,8 +299,8 @@ class InventoryCountController extends Controller
     public function opnameHistory(Request $request): View
     {
         $tenantId = $this->tenantId($request);
-        $scope = $this->resolveInventorySimpleScope($request);
-        $isSuperAdmin = $this->isSuperAdmin($request);
+        $scope = $this->resolveInventorySimpleScope($request, allowGeneralFinance: true);
+        $canPickAnyScope = $this->canPickAnyOpnameRecapScope($request);
 
         $sessions = \App\Modules\Operations\Models\OpnameSession::query()
             ->with(['outlet', 'department'])
@@ -317,9 +317,9 @@ class InventoryCountController extends Controller
         return view('operations.inventory-count.opname-history', [
             'sessions' => $sessions,
             'hasValidScope' => (bool) $scope,
-            'isSuperAdmin' => $isSuperAdmin,
-            'outlets' => $isSuperAdmin ? Outlet::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get() : collect(),
-            'departments' => $isSuperAdmin ? Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
+            'canPickAnyScope' => $canPickAnyScope,
+            'outlets' => $canPickAnyScope ? Outlet::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get() : collect(),
+            'departments' => $canPickAnyScope ? Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
         ]);
     }
 
@@ -333,19 +333,30 @@ class InventoryCountController extends Controller
      * dianggap hasil final (sama seperti aturan Rekap Mingguan Inventory
      * Simple) -- hari itu tampil "Belum dihitung".
      */
+    /**
+     * Batas lebar rentang tanggal bebas (date_from/date_to) di Rekap Opname
+     * -- 1 bulan penuh dianggap cukup untuk kebutuhan dashboard/laporan,
+     * sekaligus menjaga lebar tabel & query tetap wajar (bukan laporan
+     * tahunan). Rentang yang diminta lebih panjang dipotong (bukan error)
+     * supaya tetap tampil sesuatu, bukan halaman gagal total.
+     */
+    private const MAX_RECAP_RANGE_DAYS = 31;
+
     public function opnameRecap(Request $request): View
     {
         $tenantId = $this->tenantId($request);
-        $scope = $this->resolveInventorySimpleScope($request);
+        $scope = $this->resolveInventorySimpleScope($request, allowGeneralFinance: true);
 
         abort_if(! $scope, 403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah.');
 
         [$outletId, $departmentId] = $scope;
 
-        $weekStartParam = $request->date('week');
-        $weekStart = ($weekStartParam ? Carbon::instance($weekStartParam) : now())
-            ->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
-        $weekEnd = $weekStart->copy()->addDays(6);
+        [$rangeStart, $rangeEnd] = $this->resolveRecapRange($request);
+        $weekStart = $rangeStart; // nama lama dipertahankan di view utk kompatibilitas dgn Rekap Inventory Simple non-opname.
+        $dateRange = [];
+        for ($cursor = $rangeStart->copy(); $cursor->lte($rangeEnd); $cursor->addDay()) {
+            $dateRange[] = $cursor->copy();
+        }
 
         // Opsional: ikut tampilkan sesi yang masih Draft (belum dikirim),
         // atas permintaan user supaya bisa mengecek data yang baru sedang
@@ -362,7 +373,7 @@ class InventoryCountController extends Controller
             ->where('outlet_id', $outletId)
             ->where('department_id', $departmentId)
             ->whereIn('status', $statuses)
-            ->whereBetween('business_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+            ->whereBetween('business_date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
             ->with(['items.item', 'items.unit'])
             ->get();
 
@@ -387,8 +398,7 @@ class InventoryCountController extends Controller
         $rows = collect();
         foreach ($items as $item) {
             $days = [];
-            for ($i = 0; $i < 7; $i++) {
-                $date = $weekStart->copy()->addDays($i);
+            foreach ($dateRange as $date) {
                 $dateKey = $date->toDateString();
                 $opnameItem = $byDateItem[$dateKey][$item->id] ?? null;
 
@@ -412,14 +422,21 @@ class InventoryCountController extends Controller
             ]);
         }
 
+        $canPickAnyScope = $this->canPickAnyOpnameRecapScope($request);
+
         return view('operations.inventory-count.recap', [
             'template' => null,
             'outlet' => Outlet::query()->find($outletId),
             'department' => Department::query()->find($departmentId),
             'weekStart' => $weekStart,
+            'rangeStart' => $rangeStart,
+            'rangeEnd' => $rangeEnd,
+            'dateRange' => collect($dateRange),
             'rows' => $rows,
             'distinctCategories' => $rows->pluck('subcategory')->unique()->sort()->values(),
-            'isSuperAdmin' => $this->isSuperAdmin($request),
+            'canPickAnyScope' => $canPickAnyScope,
+            'outlets' => $canPickAnyScope ? Outlet::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get() : collect(),
+            'departments' => $canPickAnyScope ? Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
             'isOpnameRecap' => true,
             'includeDraft' => $includeDraft,
         ]);
@@ -453,6 +470,42 @@ class InventoryCountController extends Controller
         abort_unless($tenantId, 403, 'Tenant belum terpasang pada user.');
 
         return (int) $tenantId;
+    }
+
+    /**
+     * Resolusi rentang tanggal Rekap Opname: date_from/date_to (dari
+     * date-range-picker) kalau ADA, kalau tidak fallback ke minggu
+     * berjalan/dipilih lewat ?week= (perilaku lama, dipertahankan supaya
+     * link lama -- mis. dari opname-history/index yang cuma kirim
+     * outlet_id/department_id -- tetap jalan tanpa perlu diubah).
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function resolveRecapRange(Request $request): array
+    {
+        $dateFromParam = $request->date('date_from');
+        $dateToParam = $request->date('date_to');
+
+        if ($dateFromParam && $dateToParam) {
+            $start = Carbon::instance($dateFromParam)->startOfDay();
+            $end = Carbon::instance($dateToParam)->startOfDay();
+
+            if ($end->lt($start)) {
+                [$start, $end] = [$end, $start];
+            }
+
+            if ($start->diffInDays($end) > self::MAX_RECAP_RANGE_DAYS) {
+                $end = $start->copy()->addDays(self::MAX_RECAP_RANGE_DAYS);
+            }
+
+            return [$start, $end];
+        }
+
+        $weekStartParam = $request->date('week');
+        $start = ($weekStartParam ? Carbon::instance($weekStartParam) : now())
+            ->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
+
+        return [$start, $start->copy()->addDays(6)];
     }
 
     /**
