@@ -345,11 +345,32 @@ class InventoryCountController extends Controller
     public function opnameRecap(Request $request): View
     {
         $tenantId = $this->tenantId($request);
-        $scope = $this->resolveInventorySimpleScope($request, allowGeneralFinance: true);
+        $canPickAnyScope = $this->canPickAnyOpnameRecapScope($request);
 
-        abort_if(! $scope, 403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah.');
+        // department_id null = "Semua Departemen" -- CUMA boleh untuk role
+        // yang canPickAnyScope (SUPER_ADMIN/GENERAL_FINANCE). Staff biasa
+        // tetap WAJIB 1 departemen (akun sendiri), sama seperti sebelumnya
+        // -- resolveInventorySimpleScope() tidak diubah sama sekali utk
+        // jalur itu, fail-closed-nya tetap utuh.
+        if ($canPickAnyScope) {
+            $outletId = (int) $request->input('outlet_id', 0);
+            abort_if($outletId <= 0, 403, 'Pilih outlet dulu.');
+            abort_unless(Outlet::query()->where('tenant_id', $tenantId)->where('id', $outletId)->exists(), 403, 'Outlet tidak ditemukan.');
 
-        [$outletId, $departmentId] = $scope;
+            $departmentIdParam = (string) $request->input('department_id', '');
+            $departmentId = $departmentIdParam !== '' ? (int) $departmentIdParam : null;
+            if ($departmentId !== null) {
+                abort_unless(Department::query()->where('tenant_id', $tenantId)->where('id', $departmentId)->exists(), 403, 'Departemen tidak ditemukan.');
+            }
+        } else {
+            $scope = $this->resolveInventorySimpleScope($request);
+            abort_if(! $scope, 403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah.');
+            [$outletId, $departmentId] = $scope;
+        }
+
+        $departments = $departmentId !== null
+            ? Department::query()->where('tenant_id', $tenantId)->where('id', $departmentId)->get()
+            : Department::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get();
 
         [$rangeStart, $rangeEnd] = $this->resolveRecapRange($request);
         $weekStart = $rangeStart; // nama lama dipertahankan di view utk kompatibilitas dgn Rekap Inventory Simple non-opname.
@@ -368,66 +389,71 @@ class InventoryCountController extends Controller
             $statuses[] = OpnameSession::STATUS_DRAFT;
         }
 
-        $sessions = OpnameSession::query()
-            ->where('tenant_id', $tenantId)
-            ->where('outlet_id', $outletId)
-            ->where('department_id', $departmentId)
-            ->whereIn('status', $statuses)
-            ->whereBetween('business_date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
-            ->with(['items.item', 'items.unit'])
-            ->get();
-
-        $byDateItem = [];
-        $statusByDate = [];
-        foreach ($sessions as $session) {
-            $dateKey = $session->business_date->toDateString();
-            $statusByDate[$dateKey] = $session->status;
-            foreach ($session->items as $opnameItem) {
-                $byDateItem[$dateKey][$opnameItem->item_id] = $opnameItem;
-            }
-        }
-
-        // Urut "Sesuai Form" (kategori utama -> sub kategori -> item), SAMA
-        // PERSIS dengan tampilan Opname harian & Template Import Bulanan --
-        // itemsForOpname() sendiri cuma orderBy('name') alfabetis, jadi
-        // grouping kategori di bawah (groupBy('subcategory')) ikut baris
-        // pertama yang ditemui kalau tidak diurut ulang di sini dulu.
-        $items = $this->opnameService->itemsForOpname($tenantId, $outletId, OpnameSession::TYPE_DAILY, $departmentId)
-            ->sortBy(fn ($item) => $item->formSortKey($departmentId));
-
+        $showDepartmentLabel = $departments->count() > 1;
         $rows = collect();
-        foreach ($items as $item) {
-            $days = [];
-            foreach ($dateRange as $date) {
-                $dateKey = $date->toDateString();
-                $opnameItem = $byDateItem[$dateKey][$item->id] ?? null;
 
-                $days[] = [
-                    'date' => $dateKey,
-                    'counted' => (bool) ($opnameItem?->is_counted),
-                    'qty_whole' => $opnameItem?->is_counted ? $this->formatQty($opnameItem->physical_qty_base) : null,
-                    'qty_loose' => null,
-                    'whole_unit' => $opnameItem?->unit?->abbreviation ?? $opnameItem?->unit?->code,
-                    'loose_unit' => null,
-                    'config_valid' => true,
-                    'is_draft' => ($statusByDate[$dateKey] ?? null) === OpnameSession::STATUS_DRAFT,
-                ];
+        foreach ($departments as $dept) {
+            $sessions = OpnameSession::query()
+                ->where('tenant_id', $tenantId)
+                ->where('outlet_id', $outletId)
+                ->where('department_id', $dept->id)
+                ->whereIn('status', $statuses)
+                ->whereBetween('business_date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+                ->with(['items.item', 'items.unit'])
+                ->get();
+
+            $byDateItem = [];
+            $statusByDate = [];
+            foreach ($sessions as $session) {
+                $dateKey = $session->business_date->toDateString();
+                $statusByDate[$dateKey] = $session->status;
+                foreach ($session->items as $opnameItem) {
+                    $byDateItem[$dateKey][$opnameItem->item_id] = $opnameItem;
+                }
             }
 
-            $rows->push([
-                'item' => $item,
-                'location' => 'GENERIC',
-                'subcategory' => $item->categoryForDepartment($departmentId)?->name ?: 'Lainnya',
-                'days' => $days,
-            ]);
-        }
+            // Urut "Sesuai Form" (kategori utama -> sub kategori -> item),
+            // SAMA PERSIS dengan tampilan Opname harian & Template Import
+            // Bulanan -- itemsForOpname() sendiri cuma orderBy('name')
+            // alfabetis, jadi grouping kategori di bawah
+            // (groupBy('subcategory')) ikut baris pertama yang ditemui
+            // kalau tidak diurut ulang di sini dulu.
+            $items = $this->opnameService->itemsForOpname($tenantId, $outletId, OpnameSession::TYPE_DAILY, $dept->id)
+                ->sortBy(fn ($item) => $item->formSortKey($dept->id));
 
-        $canPickAnyScope = $this->canPickAnyOpnameRecapScope($request);
+            foreach ($items as $item) {
+                $days = [];
+                foreach ($dateRange as $date) {
+                    $dateKey = $date->toDateString();
+                    $opnameItem = $byDateItem[$dateKey][$item->id] ?? null;
+
+                    $days[] = [
+                        'date' => $dateKey,
+                        'counted' => (bool) ($opnameItem?->is_counted),
+                        'qty_whole' => $opnameItem?->is_counted ? $this->formatQty($opnameItem->physical_qty_base) : null,
+                        'qty_loose' => null,
+                        'whole_unit' => $opnameItem?->unit?->abbreviation ?? $opnameItem?->unit?->code,
+                        'loose_unit' => null,
+                        'config_valid' => true,
+                        'is_draft' => ($statusByDate[$dateKey] ?? null) === OpnameSession::STATUS_DRAFT,
+                    ];
+                }
+
+                $subcategory = $item->categoryForDepartment($dept->id)?->name ?: 'Lainnya';
+
+                $rows->push([
+                    'item' => $item,
+                    'location' => 'GENERIC',
+                    'subcategory' => $showDepartmentLabel ? "{$dept->name} — {$subcategory}" : $subcategory,
+                    'days' => $days,
+                ]);
+            }
+        }
 
         return view('operations.inventory-count.recap', [
             'template' => null,
             'outlet' => Outlet::query()->find($outletId),
-            'department' => Department::query()->find($departmentId),
+            'department' => $departmentId !== null ? Department::query()->find($departmentId) : null,
             'weekStart' => $weekStart,
             'rangeStart' => $rangeStart,
             'rangeEnd' => $rangeEnd,

@@ -5,7 +5,7 @@
 @section('title', 'Rekap Hasil Hitung Mingguan')
 
 @section('content')
-<x-sf.page-header title="Rekap Hasil Hitung Mingguan{{ $isOpnameRecap ? ' (Data Opname)' : '' }}" subtitle="{{ $isOpnameRecap ? 'Opname' : $template->name }} -- {{ $outlet?->name }} / {{ $department?->name }}" back="{{ $isOpnameRecap ? route('operations.inventory-count.opname-history') : route('operations.inventory-count.index') }}" />
+<x-sf.page-header title="Rekap Hasil Hitung Mingguan{{ $isOpnameRecap ? ' (Data Opname)' : '' }}" subtitle="{{ $isOpnameRecap ? 'Opname' : $template->name }} -- {{ $outlet?->name }} / {{ $department?->name ?? 'Semua Departemen' }}" back="{{ $isOpnameRecap ? route('operations.inventory-count.opname-history') : route('operations.inventory-count.index') }}" />
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4"
      x-data
@@ -45,7 +45,7 @@
                             @endforeach
                         </select>
                         <select name="department_id" class="sf-input min-h-11 text-sm" onchange="this.form.submit()">
-                            <option value="">Pilih departemen...</option>
+                            <option value="">Semua Departemen</option>
                             @foreach($departments as $d)
                                 <option value="{{ $d->id }}" @selected((string) request('department_id') === (string) $d->id)>{{ $d->name }}</option>
                             @endforeach

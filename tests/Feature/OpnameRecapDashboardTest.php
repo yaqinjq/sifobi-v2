@@ -155,3 +155,29 @@ test('GENERAL_FINANCE sees the Rekap Opname entry point on the Laporan menu', fu
         ->assertOk()
         ->assertSee('Rekap Hasil Hitung Opname');
 });
+
+test('picking "Semua Departemen" (no department_id) shows items from every active department, prefixed by department name', function (): void {
+    $finance = recapDashboardUser('GENERAL_FINANCE');
+    $kitchen = Department::query()->where('code', 'KITCHEN')->firstOrFail();
+    $kitchenItem = Item::query()->where('canonical_sku', 'MKO-GULA-PASIR')->firstOrFail();
+    $kitchenItem->update(['primary_department_id' => $kitchen->id]);
+
+    $response = $this->actingAs($finance)->get(route('operations.inventory-count.opname-recap', [
+        'outlet_id' => $this->outlet->id,
+        // department_id sengaja TIDAK dikirim -- berarti "Semua Departemen".
+    ]));
+
+    $response->assertOk();
+    $response->assertSee('Semua Departemen');
+    $response->assertSee($this->bar->name.' — ', false);
+    $response->assertSee($kitchen->name.' — ', false);
+});
+
+test('a department-scoped staff can never trigger "Semua Departemen" even if they try to omit department_id', function (): void {
+    $staff = recapDashboardUser('STAFF_BAR', 'MKO_OUTLET_1', 'BAR');
+
+    $response = $this->actingAs($staff)->get(route('operations.inventory-count.opname-recap'));
+
+    $response->assertOk();
+    $response->assertDontSee('Semua Departemen');
+});
