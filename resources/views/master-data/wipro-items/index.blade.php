@@ -103,10 +103,10 @@
                         <tr class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                             <th class="px-4 py-3 w-10"></th>
                             <th class="px-4 py-3">Foto</th>
-                            <th class="px-4 py-3">SKU</th>
-                            <th class="px-4 py-3">Nama</th>
+                            <x-sf.sortable-th column="canonical_sku" :sort="$sort" :direction="$direction">SKU</x-sf.sortable-th>
+                            <x-sf.sortable-th column="name" :sort="$sort" :direction="$direction">Nama</x-sf.sortable-th>
                             <th class="px-4 py-3">Kategori</th>
-                            <th class="px-4 py-3">Status</th>
+                            <x-sf.sortable-th column="is_active" :sort="$sort" :direction="$direction">Status</x-sf.sortable-th>
                             <th class="px-4 py-3"></th>
                         </tr>
                     </thead>

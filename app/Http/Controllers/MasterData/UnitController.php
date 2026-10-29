@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\MasterData;
 
+use App\Http\Controllers\Concerns\ResolvesTableSort;
 use App\Http\Controllers\Controller;
 use App\Modules\Inventory\Models\Unit;
 use Illuminate\Http\RedirectResponse;
@@ -12,9 +13,12 @@ use Illuminate\View\View;
 
 class UnitController extends Controller
 {
+    use ResolvesTableSort;
+
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
+        [$sort, $direction] = $this->resolveTableSort($request, ['code', 'name', 'abbreviation'], 'code');
 
         $units = Unit::query()
             ->where('tenant_id', $tenantId)
@@ -25,11 +29,13 @@ class UnitController extends Controller
                 'conversionsFrom',
                 'conversionsTo',
             ])
-            ->orderBy('code')
+            ->orderBy($sort, $direction)
             ->get();
 
         return view('master-data.units.index', [
             'units' => $units,
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 

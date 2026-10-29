@@ -1,8 +1,8 @@
-@props(['column', 'sort', 'direction'])
+@props(['column', 'sort', 'direction', 'align' => 'left'])
 
-<th {{ $attributes->merge(['class' => 'text-left px-4 py-3']) }}>
+<th {{ $attributes->merge(['class' => ($align === 'right' ? 'text-right' : 'text-left').' px-4 py-3']) }}>
     <a href="{{ request()->fullUrlWithQuery(['sort' => $column, 'direction' => ($sort === $column && $direction === 'asc') ? 'desc' : 'asc']) }}"
-       class="group flex items-center gap-1 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-gray-500 transition-colors hover:text-primary-700">
+       class="group flex items-center gap-1 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-gray-500 transition-colors hover:text-primary-700 {{ $align === 'right' ? 'justify-end' : '' }}">
         {{ $slot }}
         @if($sort === $column)
             @if($direction === 'asc')

@@ -11,6 +11,7 @@ use App\Exports\Reports\StokMenipisExport;
 use App\Exports\Reports\StokSummaryExport;
 use App\Http\Controllers\Concerns\EnforcesSuperAdminScope;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
+use App\Http\Controllers\Concerns\ResolvesTableSort;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
@@ -30,6 +31,7 @@ class ReportController extends Controller
 {
     use EnforcesSuperAdminScope;
     use HasPerPageSelector;
+    use ResolvesTableSort;
 
     public function index(): View
     {
@@ -286,6 +288,8 @@ class ReportController extends Controller
             ->selectRaw('SUM(qty_on_hand) as qty_on_hand')
             ->groupBy('tenant_id', 'outlet_id', 'item_id');
 
+        [$sort, $direction] = $this->resolveTableSort($request, ['item_name', 'outlet_name', 'qty_on_hand', 'min_stock'], 'kekurangan');
+
         $lowStockItems = DB::query()
             ->fromSub($balanceTotals, 'sb')
             ->join('items as i', 'i.id', '=', 'sb.item_id')
@@ -307,8 +311,11 @@ class ReportController extends Controller
                 COALESCE(ic.name, \'Tanpa Kategori\') as category,
                 ROUND(i.min_stock - sb.qty_on_hand, 6) as kekurangan
             ')
-            ->orderByRaw('(i.min_stock - sb.qty_on_hand) DESC')
-            ->orderBy('o.name')
+            ->when($sort === 'item_name', fn ($q) => $q->orderBy('i.name', $direction))
+            ->when($sort === 'outlet_name', fn ($q) => $q->orderBy('o.name', $direction))
+            ->when($sort === 'qty_on_hand', fn ($q) => $q->orderBy('sb.qty_on_hand', $direction))
+            ->when($sort === 'min_stock', fn ($q) => $q->orderBy('i.min_stock', $direction))
+            ->when($sort === 'kekurangan', fn ($q) => $q->orderByRaw('(i.min_stock - sb.qty_on_hand) '.$direction)->orderBy('o.name'))
             ->get();
 
         return view('laporan.stok-menipis', [
@@ -316,6 +323,8 @@ class ReportController extends Controller
             'outlets'       => $this->outlets($tenantId),
             'categories'    => ItemCategory::query()->where('tenant_id', $tenantId)->where('is_active', true)->orderBy('name')->get(),
             'filters'       => $filters,
+            'sort'          => $sort,
+            'direction'     => $direction,
         ]);
     }
 

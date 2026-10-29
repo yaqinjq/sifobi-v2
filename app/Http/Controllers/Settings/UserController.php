@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
+use App\Http\Controllers\Concerns\ResolvesTableSort;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\BulkChangeOutletUserRequest;
 use App\Http\Requests\Settings\BulkDeleteUserRequest;
@@ -31,6 +32,7 @@ class UserController extends Controller
     use AssignsUserRoles;
     use HasBulkAction;
     use HasPerPageSelector;
+    use ResolvesTableSort;
 
     /**
      * Role yang WAJIB terikat ke 1 outlet spesifik. Kalau outlet_id kosong
@@ -52,6 +54,7 @@ class UserController extends Controller
         $statusFilter = $request->get('status');
         $outletFilter = $request->get('outlet_id');
         $statusValue = $this->statusToDatabase($statusFilter);
+        [$sort, $direction] = $this->resolveTableSort($request, ['name', 'status', 'last_login_at'], 'name');
 
         $users = User::query()
             ->where('tenant_id', $tenantId)
@@ -63,7 +66,7 @@ class UserController extends Controller
             ->when($roleFilter, fn ($query) => $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', $roleFilter)))
             ->when($statusValue, fn ($query) => $query->where('status', $statusValue))
             ->when($outletFilter, fn ($query) => $query->where('outlet_id', $outletFilter))
-            ->orderBy('name')
+            ->orderBy($sort, $direction)
             ->paginate($perPage)
             ->withQueryString();
 
@@ -77,6 +80,8 @@ class UserController extends Controller
             'outletFilter' => $outletFilter,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 

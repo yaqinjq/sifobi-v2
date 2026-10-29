@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Http\Controllers\Concerns\ResolvesTableSort;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Brand;
 use App\Modules\Core\Models\Group;
@@ -14,16 +15,21 @@ use Illuminate\View\View;
 
 class BrandController extends Controller
 {
+    use ResolvesTableSort;
+
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
+        [$sort, $direction] = $this->resolveTableSort($request, ['code', 'name', 'status'], 'name');
 
         return view('settings.brands.index', [
             'brands' => Brand::query()
                 ->where('tenant_id', $tenantId)
                 ->withCount('outlets')
-                ->orderBy('name')
+                ->orderBy($sort, $direction)
                 ->get(),
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 

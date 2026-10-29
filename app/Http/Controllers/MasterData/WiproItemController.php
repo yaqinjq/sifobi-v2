@@ -4,6 +4,7 @@ namespace App\Http\Controllers\MasterData;
 
 use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
+use App\Http\Controllers\Concerns\ResolvesTableSort;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MasterData\BulkActivateWiproItemForOpnameRequest;
 use App\Http\Requests\MasterData\BulkDeactivateWiproItemForOpnameRequest;
@@ -20,6 +21,7 @@ class WiproItemController extends Controller
 {
     use HasBulkAction;
     use HasPerPageSelector;
+    use ResolvesTableSort;
 
     public function index(Request $request): View
     {
@@ -27,6 +29,7 @@ class WiproItemController extends Controller
         $search = $request->string('q')->toString();
         $categoryFilter = $request->string('category_id')->toString();
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
+        [$sort, $direction] = $this->resolveTableSort($request, ['canonical_sku', 'name', 'is_active'], 'name');
 
         $query = Item::query()
             ->with(['category', 'baseUnit', 'primaryDepartment'])
@@ -44,7 +47,7 @@ class WiproItemController extends Controller
             $query->where('item_category_id', $categoryFilter);
         }
 
-        $items = $query->orderBy('name')->paginate($perPage)->withQueryString();
+        $items = $query->orderBy($sort, $direction)->paginate($perPage)->withQueryString();
 
         $categories = ItemCategory::query()
             ->where('tenant_id', $tenantId)
@@ -59,6 +62,8 @@ class WiproItemController extends Controller
             'categoryFilter' => $categoryFilter,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
+            'sort' => $sort,
+            'direction' => $direction,
             'opnameDepartments' => Department::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')

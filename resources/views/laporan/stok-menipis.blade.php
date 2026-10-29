@@ -70,11 +70,11 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-gray-100 text-left">
-                            <th class="px-4 py-3 font-semibold text-gray-600 text-xs">Item</th>
-                            <th class="px-4 py-3 font-semibold text-gray-600 text-xs">Outlet</th>
-                            <th class="px-4 py-3 font-semibold text-gray-600 text-xs text-right">Stok Saat Ini</th>
-                            <th class="px-4 py-3 font-semibold text-gray-600 text-xs text-right">Minimum</th>
-                            <th class="px-4 py-3 font-semibold text-gray-600 text-xs text-right">Kekurangan</th>
+                            <x-sf.sortable-th column="item_name" :sort="$sort" :direction="$direction">Item</x-sf.sortable-th>
+                            <x-sf.sortable-th column="outlet_name" :sort="$sort" :direction="$direction">Outlet</x-sf.sortable-th>
+                            <x-sf.sortable-th column="qty_on_hand" :sort="$sort" :direction="$direction" align="right">Stok Saat Ini</x-sf.sortable-th>
+                            <x-sf.sortable-th column="min_stock" :sort="$sort" :direction="$direction" align="right">Minimum</x-sf.sortable-th>
+                            <x-sf.sortable-th column="kekurangan" :sort="$sort" :direction="$direction" align="right">Kekurangan</x-sf.sortable-th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">

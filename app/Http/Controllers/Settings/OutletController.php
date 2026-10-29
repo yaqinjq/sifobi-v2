@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Http\Controllers\Concerns\ResolvesTableSort;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Brand;
 use App\Modules\Core\Models\LegalEntity;
@@ -14,9 +15,12 @@ use Illuminate\View\View;
 
 class OutletController extends Controller
 {
+    use ResolvesTableSort;
+
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
+        [$sort, $direction] = $this->resolveTableSort($request, ['code', 'name', 'status'], 'name');
 
         $query = Outlet::query()
             ->where('tenant_id', $tenantId)
@@ -27,9 +31,11 @@ class OutletController extends Controller
         }
 
         return view('settings.outlets.index', [
-            'outlets' => $query->orderBy('name')->get(),
+            'outlets' => $query->orderBy($sort, $direction)->get(),
             'brands' => $this->brands($request),
             'selectedBrandId' => $request->integer('brand_id') ?: null,
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 

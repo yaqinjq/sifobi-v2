@@ -85,9 +85,9 @@
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-100">
                             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">No</th>
-                            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Kode</th>
-                            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nama</th>
-                            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Singkatan</th>
+                            <x-sf.sortable-th column="code" :sort="$sort" :direction="$direction">Kode</x-sf.sortable-th>
+                            <x-sf.sortable-th column="name" :sort="$sort" :direction="$direction">Nama</x-sf.sortable-th>
+                            <x-sf.sortable-th column="abbreviation" :sort="$sort" :direction="$direction">Singkatan</x-sf.sortable-th>
                             <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Jumlah Konversi</th>
                             <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Aksi</th>
                         </tr>

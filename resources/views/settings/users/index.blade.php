@@ -162,11 +162,11 @@
                                        @change="selected = $event.target.checked ? @js($selectableIds) : []">
                             @endif
                         </th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">User</th>
+                        <x-sf.sortable-th column="name" :sort="$sort" :direction="$direction">User</x-sf.sortable-th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Role</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Outlet</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Status</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Login Terakhir</th>
+                        <x-sf.sortable-th column="status" :sort="$sort" :direction="$direction">Status</x-sf.sortable-th>
+                        <x-sf.sortable-th column="last_login_at" :sort="$sort" :direction="$direction">Login Terakhir</x-sf.sortable-th>
                         <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Aksi</th>
                     </tr>
                 </thead>

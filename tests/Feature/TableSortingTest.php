@@ -41,3 +41,23 @@ test('an unknown sort column falls back to the default instead of erroring', fun
         ->get(route('master-data.items.index', ['sort' => 'tenant_id; drop table items;', 'direction' => 'asc']))
         ->assertOk();
 });
+
+test('every column wired to the sortable-th component accepts sort+direction without erroring', function (): void {
+    $cases = [
+        ['route' => 'settings.brands.index', 'columns' => ['code', 'name', 'status']],
+        ['route' => 'settings.outlets.index', 'columns' => ['code', 'name', 'status']],
+        ['route' => 'master-data.units.index', 'columns' => ['code', 'name', 'abbreviation']],
+        ['route' => 'master-data.wipro-items.index', 'columns' => ['canonical_sku', 'name', 'is_active']],
+        ['route' => 'settings.users.index', 'columns' => ['name', 'status', 'last_login_at']],
+    ];
+
+    foreach ($cases as $case) {
+        foreach ($case['columns'] as $column) {
+            foreach (['asc', 'desc'] as $direction) {
+                $this->actingAs($this->admin)
+                    ->get(route($case['route'], ['sort' => $column, 'direction' => $direction]))
+                    ->assertOk();
+            }
+        }
+    }
+});
