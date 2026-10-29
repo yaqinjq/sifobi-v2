@@ -8,12 +8,30 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.42 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.42 &mdash; 29 Oktober 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Penting:</strong> CSS/JS halaman (termasuk kalender filter tanggal di Rekap Opname) sempat tidak ter-build sejak 14 Oktober, menyebabkan sebagian tampilan baru rusak/berantakan -- sudah diperbaiki, mohon di-refresh ulang halamannya</li>
+                    <li>Dashboard Rekap Opname: dropdown Departemen sekarang punya opsi "Semua Departemen" -- bisa lihat gabungan semua departemen dalam 1 outlet sekaligus, bukan cuma 1 per 1</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.41 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.41 &mdash; 27 Oktober 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
