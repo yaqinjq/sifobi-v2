@@ -3,13 +3,6 @@
 @section('title', 'Master Item')
 
 @section('content')
-@php
-    $sortUrl = fn (string $column): string => request()->fullUrlWithQuery([
-        'sort' => $column,
-        'direction' => ($sort === $column && $direction === 'asc') ? 'desc' : 'asc',
-    ]);
-@endphp
-
 <div x-data="{
     viewMode: ['list', 'grid'].includes(localStorage.getItem('sifobi_items_view_mode'))
         ? localStorage.getItem('sifobi_items_view_mode')
@@ -241,81 +234,11 @@
                             <th class="text-left px-4 py-3 w-10"></th>
                             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">No</th>
                             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Foto</th>
-                            <th class="text-left px-4 py-3">
-                                <a href="{{ $sortUrl('canonical_sku') }}"
-                                   class="group flex items-center gap-1 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-gray-500 transition-colors hover:text-primary-700">
-                                    SKU
-                                    @if($sort === 'canonical_sku')
-                                        @if($direction === 'asc')
-                                            <i class="ti ti-sort-ascending text-sm text-primary-600" aria-hidden="true"></i>
-                                        @else
-                                            <i class="ti ti-sort-descending text-sm text-primary-600" aria-hidden="true"></i>
-                                        @endif
-                                    @else
-                                        <i class="ti ti-arrows-sort text-sm text-gray-300 group-hover:text-gray-400" aria-hidden="true"></i>
-                                    @endif
-                                </a>
-                            </th>
-                            <th class="text-left px-4 py-3">
-                                <a href="{{ $sortUrl('name') }}"
-                                   class="group flex items-center gap-1 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-gray-500 transition-colors hover:text-primary-700">
-                                    Nama
-                                    @if($sort === 'name')
-                                        @if($direction === 'asc')
-                                            <i class="ti ti-sort-ascending text-sm text-primary-600" aria-hidden="true"></i>
-                                        @else
-                                            <i class="ti ti-sort-descending text-sm text-primary-600" aria-hidden="true"></i>
-                                        @endif
-                                    @else
-                                        <i class="ti ti-arrows-sort text-sm text-gray-300 group-hover:text-gray-400" aria-hidden="true"></i>
-                                    @endif
-                                </a>
-                            </th>
-                            <th class="text-left px-4 py-3">
-                                <a href="{{ $sortUrl('item_jenis_id') }}"
-                                   class="group flex items-center gap-1 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-gray-500 transition-colors hover:text-primary-700">
-                                    Jenis
-                                    @if($sort === 'item_jenis_id')
-                                        @if($direction === 'asc')
-                                            <i class="ti ti-sort-ascending text-sm text-primary-600" aria-hidden="true"></i>
-                                        @else
-                                            <i class="ti ti-sort-descending text-sm text-primary-600" aria-hidden="true"></i>
-                                        @endif
-                                    @else
-                                        <i class="ti ti-arrows-sort text-sm text-gray-300 group-hover:text-gray-400" aria-hidden="true"></i>
-                                    @endif
-                                </a>
-                            </th>
-                            <th class="text-left px-4 py-3">
-                                <a href="{{ $sortUrl('item_category_id') }}"
-                                   class="group flex items-center gap-1 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-gray-500 transition-colors hover:text-primary-700">
-                                    Kategori
-                                    @if($sort === 'item_category_id')
-                                        @if($direction === 'asc')
-                                            <i class="ti ti-sort-ascending text-sm text-primary-600" aria-hidden="true"></i>
-                                        @else
-                                            <i class="ti ti-sort-descending text-sm text-primary-600" aria-hidden="true"></i>
-                                        @endif
-                                    @else
-                                        <i class="ti ti-arrows-sort text-sm text-gray-300 group-hover:text-gray-400" aria-hidden="true"></i>
-                                    @endif
-                                </a>
-                            </th>
-                            <th class="text-left px-4 py-3">
-                                <a href="{{ $sortUrl('item_type') }}"
-                                   class="group flex items-center gap-1 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-gray-500 transition-colors hover:text-primary-700">
-                                    Tipe
-                                    @if($sort === 'item_type')
-                                        @if($direction === 'asc')
-                                            <i class="ti ti-sort-ascending text-sm text-primary-600" aria-hidden="true"></i>
-                                        @else
-                                            <i class="ti ti-sort-descending text-sm text-primary-600" aria-hidden="true"></i>
-                                        @endif
-                                    @else
-                                        <i class="ti ti-arrows-sort text-sm text-gray-300 group-hover:text-gray-400" aria-hidden="true"></i>
-                                    @endif
-                                </a>
-                            </th>
+                            <x-sf.sortable-th column="canonical_sku" :sort="$sort" :direction="$direction">SKU</x-sf.sortable-th>
+                            <x-sf.sortable-th column="name" :sort="$sort" :direction="$direction">Nama</x-sf.sortable-th>
+                            <x-sf.sortable-th column="item_jenis_id" :sort="$sort" :direction="$direction">Jenis</x-sf.sortable-th>
+                            <x-sf.sortable-th column="item_category_id" :sort="$sort" :direction="$direction">Kategori</x-sf.sortable-th>
+                            <x-sf.sortable-th column="item_type" :sort="$sort" :direction="$direction">Tipe</x-sf.sortable-th>
                             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Satuan</th>
                             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Dept. Utama</th>
                             <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Outlet</th>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\MasterData;
 
 use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
+use App\Http\Controllers\Concerns\ResolvesTableSort;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MasterData\BulkToggleItemStatusRequest;
 use App\Http\Requests\MasterData\StoreItemRequest;
@@ -29,6 +30,7 @@ class ItemController extends Controller
 {
     use HasBulkAction;
     use HasPerPageSelector;
+    use ResolvesTableSort;
 
     public function index(Request $request): View
     {
@@ -43,11 +45,11 @@ class ItemController extends Controller
         $colSku = $request->string('col_sku')->toString();
         $colJenis = $request->string('col_jenis')->toString();
         $colKategori = $request->string('col_kategori')->toString();
-        $sortable = ['canonical_sku', 'name', 'item_jenis_id', 'item_category_id', 'item_type', 'created_at'];
-        $sort = in_array($request->string('sort')->toString(), $sortable, true)
-            ? $request->string('sort')->toString()
-            : 'name';
-        $direction = $request->string('direction')->toString() === 'desc' ? 'desc' : 'asc';
+        [$sort, $direction] = $this->resolveTableSort(
+            $request,
+            ['canonical_sku', 'name', 'item_jenis_id', 'item_category_id', 'item_type', 'created_at'],
+            'name'
+        );
 
         $query = Item::query()
             ->with(['baseUnit', 'inventoryUnit', 'purchaseUnit', 'category', 'primaryDepartment', 'departments', 'jenis'])
