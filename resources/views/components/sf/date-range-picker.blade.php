@@ -1,45 +1,58 @@
 @props(['name' => 'date', 'from' => null, 'to' => null])
 
+{{-- PENTING: popup kalender di-teleport ke akhir <body> (bukan dirender di
+     tempat) -- komponen ini sering dipasang di dalam <x-sf.card>, dan class
+     .sf-card punya overflow-hidden (buat sudut membulat & divider header)
+     yang MEMOTONG apa pun yang coba "mengambang" keluar batas kartu lewat
+     position:absolute. Teleport + position:fixed (dihitung dari posisi
+     tombol via getBoundingClientRect()) membuat popup ini aman dipasang di
+     halaman manapun, di dalam pembungkus overflow-hidden apapun, tanpa
+     perlu tahu soal itu sama sekali -- lihat laporan user: kalender sempat
+     3x dilaporkan rusak (CSS belum ter-build, numpuk checkbox Draft, lalu
+     ini -- akar masalah sebenarnya, kepotong oleh kartu pembungkus). --}}
 <div x-data="sfDateRangePicker(@js($from), @js($to))" class="relative">
     <input type="hidden" name="{{ $name }}_from" :value="appliedFrom">
     <input type="hidden" name="{{ $name }}_to" :value="appliedTo">
 
-    <button type="button" @click="open = !open" class="sf-input min-h-11 text-sm w-full flex items-center justify-between gap-2 text-left">
+    <button type="button" x-ref="trigger" @click="toggle()" class="sf-input min-h-11 text-sm w-full flex items-center justify-between gap-2 text-left">
         <span x-text="displayLabel()" class="truncate"></span>
         <i class="ti ti-calendar text-gray-400 shrink-0" aria-hidden="true"></i>
     </button>
 
-    <div x-show="open" x-cloak @click.outside="cancel()"
-         x-transition
-         class="absolute z-40 mt-1 w-[300px] rounded-xl border border-gray-200 bg-white shadow-lg p-3">
-        <div class="flex items-center justify-between mb-2">
-            <button type="button" @click="prevMonth()" class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600">
-                <i class="ti ti-chevron-left" aria-hidden="true"></i>
-            </button>
-            <p class="font-semibold text-sm text-gray-900" x-text="monthLabel()"></p>
-            <button type="button" @click="nextMonth()" class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600">
-                <i class="ti ti-chevron-right" aria-hidden="true"></i>
-            </button>
+    <template x-teleport="body">
+        <div x-show="open" x-cloak @click.outside="cancel()" @scroll.window="open = false"
+             x-transition
+             :style="popupStyle"
+             class="fixed z-50 w-[300px] rounded-xl border border-gray-200 bg-white shadow-lg p-3">
+            <div class="flex items-center justify-between mb-2">
+                <button type="button" @click="prevMonth()" class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600">
+                    <i class="ti ti-chevron-left" aria-hidden="true"></i>
+                </button>
+                <p class="font-semibold text-sm text-gray-900" x-text="monthLabel()"></p>
+                <button type="button" @click="nextMonth()" class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600">
+                    <i class="ti ti-chevron-right" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="grid grid-cols-7 gap-1 text-[10px] text-gray-400 text-center mb-1">
+                <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
+            </div>
+            <div class="grid grid-cols-7 gap-1">
+                <template x-for="cell in calendarCells()" :key="cell.key">
+                    <button type="button"
+                            :disabled="!cell.inMonth"
+                            @click="pickDay(cell)"
+                            :class="dayClasses(cell)"
+                            class="h-8 w-8 rounded-lg text-xs flex items-center justify-center transition-colors"
+                            x-text="cell.day"></button>
+                </template>
+            </div>
+            <p class="text-xs text-gray-500 mt-2" x-text="rangeSummary()"></p>
+            <div class="flex items-center justify-end gap-2 mt-2">
+                <button type="button" @click="cancel()" class="sf-btn-secondary min-h-9 px-3 text-xs">Batal</button>
+                <button type="button" @click="apply()" :disabled="!from || !to" class="sf-btn-primary min-h-9 px-3 text-xs disabled:opacity-50 disabled:cursor-not-allowed">Terapkan</button>
+            </div>
         </div>
-        <div class="grid grid-cols-7 gap-1 text-[10px] text-gray-400 text-center mb-1">
-            <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
-        </div>
-        <div class="grid grid-cols-7 gap-1">
-            <template x-for="cell in calendarCells()" :key="cell.key">
-                <button type="button"
-                        :disabled="!cell.inMonth"
-                        @click="pickDay(cell)"
-                        :class="dayClasses(cell)"
-                        class="h-8 w-8 rounded-lg text-xs flex items-center justify-center transition-colors"
-                        x-text="cell.day"></button>
-            </template>
-        </div>
-        <p class="text-xs text-gray-500 mt-2" x-text="rangeSummary()"></p>
-        <div class="flex items-center justify-end gap-2 mt-2">
-            <button type="button" @click="cancel()" class="sf-btn-secondary min-h-9 px-3 text-xs">Batal</button>
-            <button type="button" @click="apply()" :disabled="!from || !to" class="sf-btn-primary min-h-9 px-3 text-xs disabled:opacity-50 disabled:cursor-not-allowed">Terapkan</button>
-        </div>
-    </div>
+    </template>
 </div>
 
 @once
@@ -52,12 +65,33 @@ function sfDateRangePicker(initialFrom, initialTo) {
 
     return {
         open: false,
+        popupStyle: '',
         from: initialFrom ? toDateObj(initialFrom) : null,
         to: initialTo ? toDateObj(initialTo) : null,
         appliedFrom: initialFrom,
         appliedTo: initialTo,
         viewYear: anchor.getFullYear(),
         viewMonth: anchor.getMonth(),
+
+        toggle() {
+            if (!this.open) {
+                this.positionPopup();
+            }
+            this.open = !this.open;
+        },
+
+        // position:fixed dihitung manual dari posisi tombol -- popup ini
+        // di-teleport ke <body>, jadi tidak lagi otomatis menempel ke
+        // tombolnya lewat position:absolute biasa.
+        positionPopup() {
+            const rect = this.$refs.trigger.getBoundingClientRect();
+            const popupWidth = 300;
+            let left = rect.left;
+            if (left + popupWidth > window.innerWidth - 8) {
+                left = Math.max(8, window.innerWidth - popupWidth - 8);
+            }
+            this.popupStyle = `top: ${rect.bottom + 4}px; left: ${left}px;`;
+        },
 
         prevMonth() {
             this.viewMonth--;
@@ -137,7 +171,11 @@ function sfDateRangePicker(initialFrom, initialTo) {
             this.appliedFrom = toKey(this.from);
             this.appliedTo = toKey(this.to);
             this.open = false;
-            this.$nextTick(() => this.$el.closest('form').submit());
+            // $refs.trigger TIDAK ikut ter-teleport (cuma popup-nya yang
+            // pindah ke <body>) -- jadi closest('form') harus dicari dari
+            // situ, BUKAN dari this.$el (yang di dalam apply() berarti
+            // elemen di dalam popup yang sudah di luar <form> aslinya).
+            this.$nextTick(() => this.$refs.trigger.closest('form').submit());
         },
     };
 }
