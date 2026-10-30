@@ -52,11 +52,17 @@
                         </select>
                     </div>
                 @endif
-                <x-sf.date-range-picker name="date" :from="$rangeStart->toDateString()" :to="$rangeEnd->toDateString()" />
                 <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                     <input type="checkbox" name="include_draft" value="1" onchange="this.form.submit()" @checked($includeDraft) class="rounded border-gray-300 text-primary-700">
                     Tampilkan juga yang masih Draft (belum final)
                 </label>
+                {{-- Date-range-picker diletakkan PALING BAWAH form ini (bukan di
+                     tengah) -- kalendernya mengambang (position: absolute) dan
+                     melebar ke bawah saat dibuka, jadi kalau ada elemen lain
+                     SETELAHNYA (mis. checkbox Draft), kalender akan menimpanya
+                     secara visual (numpuk) begitu dibuka. Menaruhnya paling
+                     akhir menghindari itu sama sekali. --}}
+                <x-sf.date-range-picker name="date" :from="$rangeStart->toDateString()" :to="$rangeEnd->toDateString()" />
             </form>
         </x-sf.card>
     @else

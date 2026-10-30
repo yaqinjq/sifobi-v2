@@ -84,9 +84,9 @@
                                 </div>
                                 <button type="submit" class="sf-btn-primary min-h-11 px-4 shrink-0">Mulai</button>
                             </form>
-                            <a href="{{ route('operations.inventory-count.recap.index', array_filter(['template_id' => $template->id, 'outlet_id' => $isSuperAdmin ? request('outlet_id') : null, 'department_id' => $isSuperAdmin ? request('department_id') : null])) }}"
+                            <a href="{{ route('operations.inventory-count.opname-recap', $isSuperAdmin ? array_filter(['outlet_id' => request('outlet_id'), 'department_id' => request('department_id')]) : []) }}"
                                class="mt-2 sf-btn-secondary min-h-10 w-full flex items-center justify-center gap-1.5 text-sm">
-                                <i class="ti ti-table" aria-hidden="true"></i> Lihat Rekap Hasil Hitung Mingguan
+                                <i class="ti ti-table" aria-hidden="true"></i> Lihat Rekap Hasil Hitung Mingguan (Data Opname)
                             </a>
                         </div>
                     @endforeach
