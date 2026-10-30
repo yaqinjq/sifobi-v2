@@ -79,11 +79,11 @@
                 <table class="min-w-full divide-y divide-gray-100">
                     <thead class="bg-gray-50">
                         <tr class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            <th class="px-4 py-3">Waktu</th>
-                            <th class="px-4 py-3">Tipe</th>
-                            <th class="px-4 py-3">Item</th>
-                            <th class="px-4 py-3">Outlet</th>
-                            <th class="px-4 py-3 text-right">Qty Change</th>
+                            <x-sf.sortable-th column="sm.performed_at" :sort="$sort" :direction="$direction">Waktu</x-sf.sortable-th>
+                            <x-sf.sortable-th column="sm.mutation_type" :sort="$sort" :direction="$direction">Tipe</x-sf.sortable-th>
+                            <x-sf.sortable-th column="i.name" :sort="$sort" :direction="$direction">Item</x-sf.sortable-th>
+                            <x-sf.sortable-th column="o.name" :sort="$sort" :direction="$direction">Outlet</x-sf.sortable-th>
+                            <x-sf.sortable-th column="sm.qty_change" :sort="$sort" :direction="$direction" align="right">Qty Change</x-sf.sortable-th>
                             <th class="px-4 py-3">Unit</th>
                             <th class="px-4 py-3">Referensi</th>
                             <th class="px-4 py-3">Catatan</th>

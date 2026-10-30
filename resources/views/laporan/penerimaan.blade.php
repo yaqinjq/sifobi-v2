@@ -78,18 +78,18 @@
                 <table class="min-w-full divide-y divide-gray-100">
                     <thead class="bg-gray-50">
                         <tr class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            <th class="px-4 py-3">Kode GR</th>
-                            <th class="px-4 py-3">Tanggal</th>
-                            <th class="px-4 py-3">Sumber</th>
+                            <x-sf.sortable-th column="gr.code" :sort="$sort" :direction="$direction">Kode GR</x-sf.sortable-th>
+                            <x-sf.sortable-th column="gr.receipt_date" :sort="$sort" :direction="$direction">Tanggal</x-sf.sortable-th>
+                            <x-sf.sortable-th column="gr.source" :sort="$sort" :direction="$direction">Sumber</x-sf.sortable-th>
                             <th class="px-4 py-3">Supplier/Ref</th>
-                            <th class="px-4 py-3">Outlet</th>
-                            <th class="px-4 py-3">Item</th>
-                            <th class="px-4 py-3 text-right">Qty</th>
+                            <x-sf.sortable-th column="o.name" :sort="$sort" :direction="$direction">Outlet</x-sf.sortable-th>
+                            <x-sf.sortable-th column="i.name" :sort="$sort" :direction="$direction">Item</x-sf.sortable-th>
+                            <x-sf.sortable-th column="gri.qty_received" :sort="$sort" :direction="$direction" align="right">Qty</x-sf.sortable-th>
                             @can('view_stock_value')
                                 <th class="px-4 py-3 text-right">Harga</th>
                                 <th class="px-4 py-3 text-right">Total</th>
                             @endcan
-                            <th class="px-4 py-3">Status</th>
+                            <x-sf.sortable-th column="gr.status" :sort="$sort" :direction="$direction">Status</x-sf.sortable-th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 text-sm">

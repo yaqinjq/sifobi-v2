@@ -116,13 +116,13 @@
                         <tr class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                             <th class="px-4 py-3">No</th>
                             <th class="px-4 py-3">SKU</th>
-                            <th class="px-4 py-3">Nama Item</th>
+                            <x-sf.sortable-th column="item_name" :sort="$sort" :direction="$direction">Nama Item</x-sf.sortable-th>
                             <th class="px-4 py-3">Kategori</th>
-                            <th class="px-4 py-3">Target</th>
+                            <x-sf.sortable-th column="stock_target" :sort="$sort" :direction="$direction">Target</x-sf.sortable-th>
                             <th class="px-4 py-3 text-right">Stok Utuh</th>
                             <th class="px-4 py-3 text-right">Stok Ecer</th>
                             <th class="px-4 py-3">Satuan</th>
-                            <th class="px-4 py-3 text-right">Total (base)</th>
+                            <x-sf.sortable-th column="qty_on_hand" :sort="$sort" :direction="$direction" align="right">Total (base)</x-sf.sortable-th>
                             <th class="px-4 py-3 text-right">Aksi</th>
                         </tr>
                     </thead>

@@ -98,14 +98,14 @@
                             </th>
                         @endcan
                         <th class="px-4 py-3">No</th>
-                        <th class="px-4 py-3">Kode</th>
-                        <th class="px-4 py-3">Tanggal</th>
-                        <th class="px-4 py-3">Sumber</th>
+                        <x-sf.sortable-th column="code" :sort="$sort" :direction="$direction">Kode</x-sf.sortable-th>
+                        <x-sf.sortable-th column="receipt_date" :sort="$sort" :direction="$direction">Tanggal</x-sf.sortable-th>
+                        <x-sf.sortable-th column="source" :sort="$sort" :direction="$direction">Sumber</x-sf.sortable-th>
                         <th class="px-4 py-3">Supplier/Ref</th>
                         <th class="px-4 py-3">Outlet</th>
-                        <th class="px-4 py-3 text-right">Items</th>
-                        <th class="px-4 py-3 text-right">Total</th>
-                        <th class="px-4 py-3">Status</th>
+                        <x-sf.sortable-th column="items_count" :sort="$sort" :direction="$direction" align="right">Items</x-sf.sortable-th>
+                        <x-sf.sortable-th column="total_value_sum" :sort="$sort" :direction="$direction" align="right">Total</x-sf.sortable-th>
+                        <x-sf.sortable-th column="status" :sort="$sort" :direction="$direction">Status</x-sf.sortable-th>
                         <th class="px-4 py-3 text-right">Aksi</th>
                     </tr>
                 </thead>

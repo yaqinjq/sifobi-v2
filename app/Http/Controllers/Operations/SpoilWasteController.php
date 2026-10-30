@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Operations;
 use App\Http\Controllers\Concerns\EnforcesSuperAdminScope;
 use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
+use App\Http\Controllers\Concerns\ResolvesTableSort;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operations\BulkApproveSpoilWasteRequest;
 use App\Modules\Core\Models\Department;
@@ -28,6 +29,7 @@ class SpoilWasteController extends Controller
     use EnforcesSuperAdminScope;
     use HasBulkAction;
     use HasPerPageSelector;
+    use ResolvesTableSort;
 
     public function __construct(private readonly SpoilWasteService $spoilWasteService)
     {
@@ -37,6 +39,7 @@ class SpoilWasteController extends Controller
     {
         $tenantId = $this->tenantId($request);
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
+        [$sort, $direction] = $this->resolveTableSort($request, ['recorded_at', 'qty_in_base_unit', 'status'], 'recorded_at', 'desc');
 
         $query = SpoilWaste::query()
             ->with(['outlet', 'department', 'item', 'unit', 'createdBy.roles'])
@@ -55,7 +58,7 @@ class SpoilWasteController extends Controller
                     ->where('name', 'like', $search)
                     ->orWhere('canonical_sku', 'like', $search));
             })
-            ->latest('recorded_at')
+            ->orderBy($sort, $direction)
             ->paginate($perPage)
             ->withQueryString();
 
@@ -82,6 +85,8 @@ class SpoilWasteController extends Controller
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
             'pendingIds' => $pendingIds,
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 

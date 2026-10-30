@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Stock;
 
 use App\Http\Controllers\Concerns\HasPerPageSelector;
+use App\Http\Controllers\Concerns\ResolvesTableSort;
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
@@ -19,6 +20,7 @@ use Throwable;
 class StockBalanceController extends Controller
 {
     use HasPerPageSelector;
+    use ResolvesTableSort;
 
     public function index(Request $request): View
     {
@@ -83,8 +85,12 @@ class StockBalanceController extends Controller
             });
         }
 
+        [$sort, $direction] = $this->resolveTableSort($request, ['item_name', 'stock_target', 'qty_on_hand'], 'item_name');
+
         $balances = $query
-            ->orderBy(Item::select('name')->whereColumn('items.id', 'stock_balances.item_id'))
+            ->when($sort === 'item_name', fn ($q) => $q->orderBy(Item::select('name')->whereColumn('items.id', 'stock_balances.item_id'), $direction))
+            ->when($sort === 'stock_target', fn ($q) => $q->orderBy('stock_target', $direction))
+            ->when($sort === 'qty_on_hand', fn ($q) => $q->orderBy('qty_on_hand', $direction))
             ->paginate($perPage)
             ->withQueryString();
 
@@ -153,6 +159,8 @@ class StockBalanceController extends Controller
             'canChangeOutlet' => $canChangeOutlet,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 

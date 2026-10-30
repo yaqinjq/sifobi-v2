@@ -83,13 +83,13 @@
                 <table class="min-w-full divide-y divide-gray-100">
                     <thead class="bg-gray-50">
                         <tr class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            <th class="px-4 py-3">Waktu</th>
-                            <th class="px-4 py-3">Item</th>
-                            <th class="px-4 py-3">Outlet</th>
-                            <th class="px-4 py-3">Dept</th>
-                            <th class="px-4 py-3 text-right">Qty</th>
-                            <th class="px-4 py-3">Alasan</th>
-                            <th class="px-4 py-3">Status</th>
+                            <x-sf.sortable-th column="sw.recorded_at" :sort="$sort" :direction="$direction">Waktu</x-sf.sortable-th>
+                            <x-sf.sortable-th column="i.name" :sort="$sort" :direction="$direction">Item</x-sf.sortable-th>
+                            <x-sf.sortable-th column="o.name" :sort="$sort" :direction="$direction">Outlet</x-sf.sortable-th>
+                            <x-sf.sortable-th column="d.name" :sort="$sort" :direction="$direction">Dept</x-sf.sortable-th>
+                            <x-sf.sortable-th column="sw.qty_in_base_unit" :sort="$sort" :direction="$direction" align="right">Qty</x-sf.sortable-th>
+                            <x-sf.sortable-th column="sw.reason_category" :sort="$sort" :direction="$direction">Alasan</x-sf.sortable-th>
+                            <x-sf.sortable-th column="sw.status" :sort="$sort" :direction="$direction">Status</x-sf.sortable-th>
                             <th class="px-4 py-3">Foto</th>
                             <th class="px-4 py-3">Duplikat?</th>
                         </tr>

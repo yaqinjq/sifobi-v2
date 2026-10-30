@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Receiving;
 
 use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
+use App\Http\Controllers\Concerns\ResolvesTableSort;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Receiving\BulkSubmitGoodsReceiptRequest;
 use App\Models\User;
@@ -27,6 +28,7 @@ class GoodsReceiptController extends Controller
 {
     use HasBulkAction;
     use HasPerPageSelector;
+    use ResolvesTableSort;
 
     public function __construct(private readonly GoodsReceiptService $goodsReceiptService)
     {
@@ -35,6 +37,12 @@ class GoodsReceiptController extends Controller
     public function index(Request $request): View
     {
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
+        [$sort, $direction] = $this->resolveTableSort(
+            $request,
+            ['code', 'receipt_date', 'source', 'items_count', 'total_value_sum', 'status'],
+            'receipt_date',
+            'desc'
+        );
 
         $receipts = GoodsReceipt::query()
             ->with(['outlet', 'supplier'])
@@ -55,8 +63,8 @@ class GoodsReceiptController extends Controller
                         ->orWhere('invoice_number', 'like', $search);
                 });
             })
-            ->latest('receipt_date')
-            ->latest('id')
+            ->orderBy($sort, $direction)
+            ->when($sort === 'receipt_date', fn ($q) => $q->orderByDesc('id'))
             ->paginate($perPage)
             ->withQueryString();
 
@@ -72,6 +80,8 @@ class GoodsReceiptController extends Controller
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
             'submittableIds' => $submittableIds,
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 

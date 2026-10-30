@@ -104,14 +104,14 @@
                                 </th>
                             @endcan
                             <th class="px-4 py-3">No</th>
-                            <th class="px-4 py-3">Waktu</th>
+                            <x-sf.sortable-th column="recorded_at" :sort="$sort" :direction="$direction">Waktu</x-sf.sortable-th>
                             <th class="px-4 py-3">Item</th>
                             <th class="px-4 py-3">Dept</th>
-                            <th class="px-4 py-3 text-right">Qty</th>
+                            <x-sf.sortable-th column="qty_in_base_unit" :sort="$sort" :direction="$direction" align="right">Qty</x-sf.sortable-th>
                             <th class="px-4 py-3">Alasan</th>
                             <th class="px-4 py-3">Diinput Oleh</th>
                             <th class="px-4 py-3">Foto</th>
-                            <th class="px-4 py-3">Status</th>
+                            <x-sf.sortable-th column="status" :sort="$sort" :direction="$direction">Status</x-sf.sortable-th>
                             <th class="px-4 py-3 text-right">Aksi</th>
                         </tr>
                     </thead>

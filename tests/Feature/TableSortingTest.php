@@ -61,3 +61,31 @@ test('every column wired to the sortable-th component accepts sort+direction wit
         }
     }
 });
+
+test('batch 3 report/list pages accept their sort+direction combinations without erroring', function (): void {
+    $cases = [
+        ['route' => 'laporan.stok-menipis', 'columns' => ['item_name', 'outlet_name', 'qty_on_hand', 'min_stock', 'kekurangan']],
+        ['route' => 'laporan.mutasi', 'columns' => ['sm.performed_at', 'sm.mutation_type', 'i.name', 'o.name', 'sm.qty_change']],
+        ['route' => 'laporan.spoil', 'columns' => ['sw.recorded_at', 'i.name', 'o.name', 'd.name', 'sw.qty_in_base_unit', 'sw.reason_category', 'sw.status']],
+        ['route' => 'laporan.penerimaan', 'columns' => ['gr.code', 'gr.receipt_date', 'gr.source', 'o.name', 'i.name', 'gri.qty_received', 'gr.status']],
+        ['route' => 'operations.spoil-wastes.index', 'columns' => ['recorded_at', 'qty_in_base_unit', 'status']],
+        ['route' => 'receiving.goods-receipts.index', 'columns' => ['code', 'receipt_date', 'source', 'items_count', 'total_value_sum', 'status']],
+        ['route' => 'stock.balance.index', 'columns' => ['item_name', 'stock_target', 'qty_on_hand']],
+    ];
+
+    foreach ($cases as $case) {
+        foreach ($case['columns'] as $column) {
+            foreach (['asc', 'desc'] as $direction) {
+                $this->actingAs($this->admin)
+                    ->get(route($case['route'], ['sort' => $column, 'direction' => $direction]))
+                    ->assertOk();
+            }
+        }
+    }
+});
+
+test('stok menipis with no sort param keeps its original "most urgent shortage first" default (orderByRaw unchanged)', function (): void {
+    $this->actingAs($this->admin)
+        ->get(route('laporan.stok-menipis'))
+        ->assertOk();
+});

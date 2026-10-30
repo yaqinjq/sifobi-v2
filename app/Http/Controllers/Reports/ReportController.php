@@ -44,6 +44,12 @@ class ReportController extends Controller
         $filters = $this->enforceOutletScope($request, $this->validateMutationFilters($request, $tenantId));
         [$dateFrom, $dateTo] = $this->dateRange($filters);
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 50);
+        [$sort, $direction] = $this->resolveTableSort(
+            $request,
+            ['sm.performed_at', 'sm.mutation_type', 'i.name', 'o.name', 'sm.qty_change'],
+            'sm.performed_at',
+            'desc'
+        );
 
         $base = $this->mutationQuery($tenantId, $filters, $dateFrom, $dateTo);
         $summary = (clone $base)
@@ -70,7 +76,7 @@ class ReportController extends Controller
                 'o.name as outlet_name',
                 'u.abbreviation as unit',
             ])
-            ->orderByDesc('sm.performed_at')
+            ->orderBy($sort, $direction)
             ->paginate($perPage)
             ->withQueryString();
 
@@ -81,6 +87,8 @@ class ReportController extends Controller
             'items' => $this->items($tenantId),
             'mutationTypes' => $this->mutationTypes(),
             'filters' => $filters,
+            'sort' => $sort,
+            'direction' => $direction,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
         ]);
@@ -92,6 +100,12 @@ class ReportController extends Controller
         $filters = $this->enforceSpoilScope($request, $this->validateSpoilFilters($request, $tenantId));
         [$dateFrom, $dateTo] = $this->dateRange($filters);
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 50);
+        [$sort, $direction] = $this->resolveTableSort(
+            $request,
+            ['sw.recorded_at', 'i.name', 'o.name', 'd.name', 'sw.qty_in_base_unit', 'sw.reason_category', 'sw.status'],
+            'sw.recorded_at',
+            'desc'
+        );
 
         $base = $this->spoilQuery($tenantId, $filters, $dateFrom, $dateTo);
         $summary = (clone $base)
@@ -119,7 +133,7 @@ class ReportController extends Controller
                 'd.name as department_name',
                 'u.abbreviation as unit',
             ])
-            ->orderByDesc('sw.recorded_at')
+            ->orderBy($sort, $direction)
             ->paginate($perPage)
             ->withQueryString();
 
@@ -133,6 +147,8 @@ class ReportController extends Controller
             'canFilterDepartment' => $isSuperAdmin,
             'departments' => $isSuperAdmin ? Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get() : collect(),
             'filters' => $filters,
+            'sort' => $sort,
+            'direction' => $direction,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
         ]);
@@ -144,6 +160,12 @@ class ReportController extends Controller
         $filters = $this->enforceOutletScope($request, $this->validateReceivingFilters($request, $tenantId));
         [$dateFrom, $dateTo] = $this->dateRange($filters);
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 50);
+        [$sort, $direction] = $this->resolveTableSort(
+            $request,
+            ['gr.code', 'gr.receipt_date', 'gr.source', 'o.name', 'i.name', 'gri.qty_received', 'gr.status'],
+            'gr.receipt_date',
+            'desc'
+        );
 
         $base = $this->receivingQuery($tenantId, $filters, $dateFrom, $dateTo);
         $summary = (clone $base)
@@ -172,8 +194,8 @@ class ReportController extends Controller
                 'gri.unit_price',
                 'gri.total_value',
             ])
-            ->orderByDesc('gr.receipt_date')
-            ->orderByDesc('gr.id')
+            ->orderBy($sort, $direction)
+            ->when($sort === 'gr.receipt_date', fn ($q) => $q->orderByDesc('gr.id'))
             ->paginate($perPage)
             ->withQueryString();
 
@@ -183,6 +205,8 @@ class ReportController extends Controller
             'outlets' => $this->outlets($tenantId),
             'sources' => $this->receivingSources(),
             'filters' => $filters,
+            'sort' => $sort,
+            'direction' => $direction,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
         ]);
