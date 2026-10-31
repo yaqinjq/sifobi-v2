@@ -28,8 +28,9 @@
             @endforeach
         </select>
 
-        <input type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="sf-input text-base md:w-40">
-        <input type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}" class="sf-input text-base md:w-40">
+        <div class="md:w-56">
+            <x-sf.date-range-picker name="date" :from="$filters['date_from'] ?? null" :to="$filters['date_to'] ?? null" />
+        </div>
 
         <div class="grid grid-cols-2 gap-2 md:flex">
             <button type="submit" class="sf-btn-secondary min-h-11">Filter</button>

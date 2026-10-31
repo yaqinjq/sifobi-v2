@@ -12,7 +12,7 @@
 </x-sf.page-header>
 
 <div
-    x-data="kartuStokTable(@js($rows->values()), @js($filters['date_from'] ?? $dateFrom->toDateString()), @js($filters['date_to'] ?? $dateTo->toDateString()))"
+    x-data="kartuStokTable(@js($rows->values()))"
     class="px-4 py-5 lg:px-6 lg:py-6 max-w-7xl mx-auto w-full space-y-4"
 >
     <div class="bg-white rounded-2xl border border-gray-100 shadow-[var(--shadow-card)] p-4">
@@ -23,24 +23,8 @@
                 @endforeach
             </select>
 
-            <div class="relative shrink-0" @click.outside="dateOpen = false">
-                <button type="button" @click="dateOpen = !dateOpen"
-                        class="sf-btn-secondary min-h-11 px-3 flex items-center gap-2 text-sm whitespace-nowrap">
-                    <i class="ti ti-calendar" aria-hidden="true"></i>
-                    <span x-text="rangeLabel"></span>
-                </button>
-                <div x-show="dateOpen" x-cloak
-                     class="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-lg space-y-3">
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1">Dari</label>
-                        <input type="date" name="date_from" x-model="dateFrom" class="sf-input text-sm min-h-10 w-full">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1">Sampai</label>
-                        <input type="date" name="date_to" x-model="dateTo" class="sf-input text-sm min-h-10 w-full">
-                    </div>
-                    <button type="submit" class="sf-btn-primary w-full min-h-10 text-sm">Terapkan</button>
-                </div>
+            <div class="shrink-0 w-56">
+                <x-sf.date-range-picker name="date" :from="$filters['date_from'] ?? $dateFrom->toDateString()" :to="$filters['date_to'] ?? $dateTo->toDateString()" />
             </div>
 
             <select x-model="categoryFilter" class="sf-input text-base min-h-11 flex-1 min-w-[140px]">
@@ -151,25 +135,13 @@
 
 @push('scripts')
 <script>
-function kartuStokTable(rows, initialDateFrom, initialDateTo) {
+function kartuStokTable(rows) {
     return {
         rows: rows,
         search: '',
         categoryFilter: '',
         sortKey: 'item_name',
         sortDir: 'asc',
-        dateOpen: false,
-        dateFrom: initialDateFrom,
-        dateTo: initialDateTo,
-        get rangeLabel() {
-            const fmt = (value) => {
-                if (!value) return '';
-                const [y, m, d] = value.split('-');
-                return `${d}/${m}`;
-            };
-
-            return fmt(this.dateFrom) + ' - ' + fmt(this.dateTo);
-        },
         get categories() {
             return [...new Set(this.rows.map((r) => r.category_name))].sort();
         },

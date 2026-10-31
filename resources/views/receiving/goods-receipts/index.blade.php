@@ -23,7 +23,7 @@
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4" x-data="{ selected: [] }">
     <x-sf.card>
-        <form method="GET" action="{{ route('receiving.goods-receipts.index') }}" class="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <form method="GET" action="{{ route('receiving.goods-receipts.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-3">
             <select name="source" class="sf-input text-base min-h-11">
                 <option value="">Semua sumber</option>
                 @foreach($sources as $value => $label)
@@ -36,10 +36,9 @@
                     <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
                 @endforeach
             </select>
-            <input type="date" name="date_from" value="{{ request('date_from') }}" class="sf-input text-base min-h-11">
-            <input type="date" name="date_to" value="{{ request('date_to') }}" class="sf-input text-base min-h-11">
+            <x-sf.date-range-picker name="date" :from="request('date_from')" :to="request('date_to')" />
             <input type="search" name="q" value="{{ request('q') }}" placeholder="Cari kode/supplier" class="sf-input text-base min-h-11">
-            <div class="md:col-span-5 flex gap-2">
+            <div class="md:col-span-4 flex gap-2">
                 <button type="submit" class="sf-btn-primary min-h-11 px-4">Filter</button>
                 <a href="{{ route('receiving.goods-receipts.index') }}" class="sf-btn-secondary min-h-11 px-4">Reset</a>
             </div>

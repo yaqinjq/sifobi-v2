@@ -11,15 +11,14 @@
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-7xl mx-auto w-full space-y-4">
     <x-sf.card>
-        <form method="GET" action="{{ route('laporan.mutasi') }}" class="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <form method="GET" action="{{ route('laporan.mutasi') }}" class="grid grid-cols-1 md:grid-cols-5 gap-3">
             <select name="outlet_id" class="sf-input text-base min-h-11">
                 <option value="">Semua outlet</option>
                 @foreach($outlets as $outlet)
                     <option value="{{ $outlet->id }}" @selected((string) ($filters['outlet_id'] ?? '') === (string) $outlet->id)>{{ $outlet->name }}</option>
                 @endforeach
             </select>
-            <input type="date" name="date_from" value="{{ $filters['date_from'] ?? now()->startOfMonth()->toDateString() }}" class="sf-input text-base min-h-11">
-            <input type="date" name="date_to" value="{{ $filters['date_to'] ?? now()->toDateString() }}" class="sf-input text-base min-h-11">
+            <x-sf.date-range-picker name="date" :from="$filters['date_from'] ?? now()->startOfMonth()->toDateString()" :to="$filters['date_to'] ?? now()->toDateString()" />
             <select name="mutation_type" class="sf-input text-base min-h-11">
                 <option value="">Semua tipe</option>
                 @foreach($mutationTypes as $value => $label)

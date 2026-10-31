@@ -11,14 +11,13 @@
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-5xl mx-auto w-full space-y-4">
     <x-sf.card>
-        <form method="GET" action="{{ route('laporan.kartu-stok.detail', $item) }}" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <form method="GET" action="{{ route('laporan.kartu-stok.detail', $item) }}" class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <select name="outlet_id" class="sf-input text-base min-h-11" required @disabled($outlets->count() <= 1)>
                 @foreach($outlets as $outlet)
                     <option value="{{ $outlet->id }}" @selected((string) ($filters['outlet_id'] ?? '') === (string) $outlet->id)>{{ $outlet->name }}</option>
                 @endforeach
             </select>
-            <input type="date" name="date_from" value="{{ $filters['date_from'] ?? $dateFrom->toDateString() }}" class="sf-input text-base min-h-11">
-            <input type="date" name="date_to" value="{{ $filters['date_to'] ?? $dateTo->toDateString() }}" class="sf-input text-base min-h-11">
+            <x-sf.date-range-picker name="date" :from="$filters['date_from'] ?? $dateFrom->toDateString()" :to="$filters['date_to'] ?? $dateTo->toDateString()" />
             <button type="submit" class="sf-btn-primary min-h-11">Filter</button>
         </form>
     </x-sf.card>

@@ -20,13 +20,9 @@
                 @endforeach
             </select>
         </div>
-        <div>
-            <label class="text-xs text-gray-500">Dari Tanggal</label>
-            <input type="date" name="date_from" value="{{ $dateFrom->toDateString() }}" class="sf-input text-sm">
-        </div>
-        <div>
-            <label class="text-xs text-gray-500">Sampai Tanggal</label>
-            <input type="date" name="date_to" value="{{ $dateTo->toDateString() }}" class="sf-input text-sm">
+        <div class="w-56">
+            <label class="text-xs text-gray-500">Rentang Tanggal</label>
+            <x-sf.date-range-picker name="date" :from="$dateFrom->toDateString()" :to="$dateTo->toDateString()" />
         </div>
         <button type="submit" class="sf-btn-secondary min-h-11 px-4">Tampilkan</button>
         <a href="{{ route('pos.reports.export', request()->only('outlet_id', 'date_from', 'date_to')) }}" class="sf-btn-primary inline-flex min-h-11 items-center gap-2 px-4">
