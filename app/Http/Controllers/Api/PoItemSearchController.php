@@ -28,7 +28,9 @@ class PoItemSearchController extends Controller
             ->when(
                 $poType === 'CENTRAL_KITCHEN',
                 fn ($q) => $q->where('item_source', 'WIPRO'),
-                fn ($q) => $q->where('track_stock', true)->forPoType($poType),
+                fn ($q) => $poType === 'OCIA_ROASTERY'
+                    ? $q->where('item_source', 'OCIA')
+                    : $q->where('track_stock', true)->forPoType($poType),
             )
             ->where(function ($query) use ($q) {
                 $query->where('name', 'like', '%'.$q.'%')

@@ -249,7 +249,9 @@ class PurchaseOrderController extends Controller
                 ->when(
                     $purchaseOrder->po_type === PurchaseOrder::TYPE_CENTRAL_KITCHEN,
                     fn ($q) => $q->where('item_source', 'WIPRO'),
-                    fn ($q) => $q->where('track_stock', true)->forPoType($purchaseOrder->po_type)
+                    fn ($q) => $purchaseOrder->po_type === PurchaseOrder::TYPE_OCIA_ROASTERY
+                        ? $q->where('item_source', 'OCIA')
+                        : $q->where('track_stock', true)->forPoType($purchaseOrder->po_type)
                 )
                 ->with(['inventoryUnit'])
                 ->orderBy('name')

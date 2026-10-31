@@ -7,6 +7,8 @@ use App\Modules\Core\Models\Brand;
 use App\Modules\Core\Models\IntegrationProfile;
 use App\Modules\Core\Models\LegalEntity;
 use App\Modules\Core\Models\Outlet;
+use App\Services\OciaCatalogSyncService;
+use App\Services\OciaIntegrationService;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -213,6 +215,50 @@ class IntegrationController extends Controller
     }
 
     /**
+     * Tarik katalog produk OCIA (roasted bean) dan upsert ke master item
+     * (item_source = 'OCIA') -- lihat OciaIntegrationService::pullCatalog()
+     * & OciaCatalogSyncService. Khusus profil ber-code OCIA, mirip
+     * syncOutlets() di atas tapi untuk katalog produk, bukan daftar outlet.
+     */
+    public function syncCatalog(Request $request, IntegrationProfile $integration, OciaIntegrationService $ocia): JsonResponse
+    {
+        $this->authorizeTenant($request, $integration);
+        $tenantId = $this->tenantId($request);
+
+        $code = $integration->code ?: $integration->provider;
+
+        if (strtoupper((string) $code) !== 'OCIA') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sync katalog produk cuma tersedia untuk profil integrasi OCIA.',
+            ], 422);
+        }
+
+        try {
+            $records = $ocia->pullCatalog($tenantId);
+
+            $sync = new OciaCatalogSyncService($tenantId);
+            $sync->sync($records);
+            $summary = $sync->summary();
+
+            $integration->update(['last_synced_at' => now()]);
+
+            return response()->json([
+                'success' => true,
+                'inserted' => $summary['inserted'],
+                'updated' => $summary['updated'],
+                'errors' => $summary['errors'],
+                'message' => "Sync katalog selesai. Baru: {$summary['inserted']}, diperbarui: {$summary['updated']}, gagal: ".count($summary['errors']).'.',
+            ]);
+        } catch (\Throwable $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sync katalog gagal: '.$exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function validated(Request $request): array
@@ -236,6 +282,7 @@ class IntegrationController extends Controller
             'meta.outlet_list_path' => ['nullable', 'string', 'max:255'],
             'meta.order_path' => ['nullable', 'string', 'max:255'],
             'meta.po_list_path' => ['nullable', 'string', 'max:255'],
+            'meta.catalog_path' => ['nullable', 'string', 'max:255'],
             'meta.timeout_seconds' => ['nullable', 'integer', 'min:1', 'max:120'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -278,6 +325,7 @@ class IntegrationController extends Controller
                 'outlet_list_path' => $outletListPath,
                 'po_list_path' => data_get($data, 'meta.po_list_path') ?: data_get($existingMeta, 'po_list_path', '/api/available-orders'),
                 'order_path' => data_get($data, 'meta.order_path') ?: data_get($existingMeta, 'order_path', '/api/outlet-order'),
+                'catalog_path' => data_get($data, 'meta.catalog_path') ?: data_get($existingMeta, 'catalog_path', '/api/products'),
                 'timeout_seconds' => $timeout > 0 ? $timeout : 10,
             ],
             'is_active' => (bool) ($data['is_active'] ?? false),

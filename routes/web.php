@@ -267,6 +267,8 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                     ->name('integrations.test');
                 Route::post('integrations/{integration}/sync-outlets', [IntegrationController::class, 'syncOutlets'])
                     ->name('integrations.sync-outlets');
+                Route::post('integrations/{integration}/sync-catalog', [IntegrationController::class, 'syncCatalog'])
+                    ->name('integrations.sync-catalog');
 
                 Route::get('wipro-catalog', [WiproCatalogController::class, 'index'])
                     ->name('wipro-catalog.index');

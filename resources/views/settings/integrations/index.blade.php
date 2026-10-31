@@ -69,6 +69,10 @@
                 <input id="meta_order_path" name="meta[order_path]" value="{{ old('meta.order_path', '/api/outlet-order') }}" class="sf-input text-base" maxlength="255">
             </x-sf.form-group>
 
+            <x-sf.form-group label="Endpoint Katalog Produk" for="meta_catalog_path" hint="Khusus OCIA -- dipakai tombol Sync Katalog Produk di bawah.">
+                <input id="meta_catalog_path" name="meta[catalog_path]" value="{{ old('meta.catalog_path', '/api/products') }}" class="sf-input text-base" maxlength="255">
+            </x-sf.form-group>
+
             <x-sf.form-group label="Timeout Detik" for="meta_timeout_seconds">
                 <input id="meta_timeout_seconds" name="meta[timeout_seconds]" type="number" min="1" max="120" value="{{ old('meta.timeout_seconds', 10) }}" class="sf-input text-base">
             </x-sf.form-group>
@@ -94,12 +98,17 @@
                 $outletPath = data_get($profile->meta, 'outlet_list_path') ?: $profile->outlet_sync_path ?: '/api/outlets';
                 $poPath = data_get($profile->meta, 'po_list_path', '/api/available-orders');
                 $orderPath = data_get($profile->meta, 'order_path', '/api/outlet-order');
+                $catalogPath = data_get($profile->meta, 'catalog_path', '/api/products');
                 $timeout = data_get($profile->meta, 'timeout_seconds', 10);
+                $isOciaProfile = strtoupper((string) ($profile->code ?: $profile->provider)) === 'OCIA';
                 $endpointRows = [
                     ['function' => 'Sync Outlet', 'method' => 'GET', 'path' => $outletPath],
                     ['function' => 'Ambil List PO', 'method' => 'GET', 'path' => $poPath],
                     ['function' => 'Kirim Order Kopi', 'method' => 'POST', 'path' => $orderPath],
                 ];
+                if ($isOciaProfile) {
+                    $endpointRows[] = ['function' => 'Sync Katalog Produk', 'method' => 'GET', 'path' => $catalogPath];
+                }
             @endphp
 
             <x-sf.card title="{{ $profileCode }} - {{ $profile->name }}">
@@ -161,6 +170,10 @@
                             <input id="order_path_{{ $profile->id }}" name="meta[order_path]" value="{{ old('meta.order_path', $orderPath) }}" class="sf-input text-base" maxlength="255">
                         </x-sf.form-group>
 
+                        <x-sf.form-group label="Endpoint Katalog Produk" for="catalog_path_{{ $profile->id }}" hint="Khusus OCIA -- dipakai tombol Sync Katalog Produk.">
+                            <input id="catalog_path_{{ $profile->id }}" name="meta[catalog_path]" value="{{ old('meta.catalog_path', $catalogPath) }}" class="sf-input text-base" maxlength="255">
+                        </x-sf.form-group>
+
                         <x-sf.form-group label="Timeout Detik" for="timeout_seconds_{{ $profile->id }}">
                             <input id="timeout_seconds_{{ $profile->id }}" name="meta[timeout_seconds]" type="number" min="1" max="120" value="{{ old('meta.timeout_seconds', $timeout) }}" class="sf-input text-base">
                         </x-sf.form-group>
@@ -201,6 +214,11 @@
                                     <button type="button" class="sf-btn-secondary min-h-11" :disabled="loading" @click="post(@js(route('settings.integrations.sync-outlets', $profile)))">
                                         Sync Outlet
                                     </button>
+                                    @if($isOciaProfile)
+                                        <button type="button" class="sf-btn-secondary min-h-11" :disabled="loading" @click="post(@js(route('settings.integrations.sync-catalog', $profile)))">
+                                            Sync Katalog Produk
+                                        </button>
+                                    @endif
                                     <button type="submit" class="sf-btn-primary min-h-11">Edit</button>
                                 </div>
                             </div>

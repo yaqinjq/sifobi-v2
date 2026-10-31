@@ -28,6 +28,7 @@ class Item extends Model
         'last_purchase_price',
         'canonical_sku',
         'wipro_product_code',
+        'ocia_product_id',
         'name',
         'description',
         'photo',

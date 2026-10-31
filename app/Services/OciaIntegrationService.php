@@ -20,6 +20,38 @@ class OciaIntegrationService
     }
 
     /**
+     * Tarik katalog produk (roasted bean) dari OCIA -- dipakai
+     * IntegrationController::syncCatalog() untuk upsert ke tabel items
+     * (lihat OciaCatalogSyncService). Mengembalikan daftar baris produk
+     * mentah apa adanya dari response.data.records -- parsing/pemetaan ke
+     * Item dilakukan di tempat lain supaya service ini tetap murni soal
+     * komunikasi HTTP ke OCIA, bukan soal struktur data items SIFOBI.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function pullCatalog(int $tenantId): array
+    {
+        $profile = $this->profile($tenantId);
+
+        if (! $profile) {
+            throw new RuntimeException('Integrasi OCIA belum dikonfigurasi atau tidak aktif untuk tenant ini.');
+        }
+
+        $path = (string) (data_get($profile->meta, 'catalog_path') ?: '/api/products');
+        $response = $this->client($profile)->get($this->url($profile, $path));
+
+        if (! $response->successful()) {
+            throw new RuntimeException(
+                'OCIA merespons HTTP '.$response->status().': '.($response->json('message') ?? $response->body())
+            );
+        }
+
+        $records = data_get($response->json(), 'data.records', []);
+
+        return is_array($records) ? array_values($records) : [];
+    }
+
+    /**
      * Push an approved OCIA Roastery PO to the OCIA system.
      * Throws on failure — caller decides whether to block the SENT transition.
      *
