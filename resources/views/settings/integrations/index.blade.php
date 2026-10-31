@@ -218,6 +218,9 @@
                                         <button type="button" class="sf-btn-secondary min-h-11" :disabled="loading" @click="post(@js(route('settings.integrations.sync-catalog', $profile)))">
                                             Sync Katalog Produk
                                         </button>
+                                        <a href="{{ route('master-data.ocia-items.index') }}" class="sf-btn-secondary min-h-11 inline-flex items-center justify-center">
+                                            Lihat Data Item OCIA
+                                        </a>
                                     @endif
                                     <button type="submit" class="sf-btn-primary min-h-11">Edit</button>
                                 </div>

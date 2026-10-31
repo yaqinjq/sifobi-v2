@@ -188,6 +188,11 @@
                                   {{ request()->routeIs('master-data.wipro-items.*') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
                             Data Item Wipro
                         </a>
+                        <a href="{{ route('master-data.ocia-items.index') }}"
+                           class="block px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                                  {{ request()->routeIs('master-data.ocia-items.*') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
+                            Data Item OCIA
+                        </a>
                         <a href="{{ route('master-data.units.index') }}"
                            class="block px-3 py-2 rounded-xl text-sm font-medium transition-colors
                                   {{ request()->routeIs('master-data.units.*') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">

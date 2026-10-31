@@ -55,7 +55,7 @@ class ItemController extends Controller
             ->with(['baseUnit', 'inventoryUnit', 'purchaseUnit', 'category', 'primaryDepartment', 'departments', 'jenis'])
             ->withCount('outlets')
             ->where('tenant_id', $tenantId)
-            ->where(fn ($q) => $q->whereNull('item_source')->orWhere('item_source', '!=', 'WIPRO'));
+            ->where(fn ($q) => $q->whereNull('item_source')->orWhereNotIn('item_source', ['WIPRO', 'OCIA']));
 
         if ($typeFilter !== '') {
             $query->where('item_type', $typeFilter);

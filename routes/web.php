@@ -360,6 +360,15 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             ->name('master-data.wipro-items.bulk-activate-opname');
         Route::post('master-data/wipro-items/bulk-deactivate-opname', [\App\Http\Controllers\MasterData\WiproItemController::class, 'bulkDeactivateForOpname'])
             ->name('master-data.wipro-items.bulk-deactivate-opname');
+
+        Route::resource('master-data/ocia-items', \App\Http\Controllers\MasterData\OciaItemController::class)
+            ->only(['edit', 'update'])
+            ->parameters(['ocia-items' => 'item'])
+            ->names('master-data.ocia-items');
+        Route::post('master-data/ocia-items/bulk-activate-opname', [\App\Http\Controllers\MasterData\OciaItemController::class, 'bulkActivateForOpname'])
+            ->name('master-data.ocia-items.bulk-activate-opname');
+        Route::post('master-data/ocia-items/bulk-deactivate-opname', [\App\Http\Controllers\MasterData\OciaItemController::class, 'bulkDeactivateForOpname'])
+            ->name('master-data.ocia-items.bulk-deactivate-opname');
     });
 
     Route::middleware('permission:view_master_data')->group(function (): void {
@@ -374,6 +383,10 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
         Route::resource('master-data/wipro-items', \App\Http\Controllers\MasterData\WiproItemController::class)
             ->only(['index'])
             ->names('master-data.wipro-items');
+
+        Route::resource('master-data/ocia-items', \App\Http\Controllers\MasterData\OciaItemController::class)
+            ->only(['index'])
+            ->names('master-data.ocia-items');
     });
 
     Route::prefix('master-data/import-export')
