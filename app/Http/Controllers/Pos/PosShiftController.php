@@ -9,6 +9,7 @@ use App\Modules\Pos\Models\PosShift;
 use App\Services\PosShiftService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -24,8 +25,12 @@ class PosShiftController extends Controller
         $user = $request->user();
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 10);
 
-        $outlets = Outlet::query()->where('tenant_id', $tenantId)->orderBy('name')->get(['id', 'name', 'code']);
-        $outletId = (int) ($request->integer('outlet_id') ?: ($user->outlet_id ?: $outlets->first()?->id));
+        $outlets = Outlet::query()
+            ->where('tenant_id', $tenantId)
+            ->when($user->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('id', $ids))
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+        $outletId = (int) ($request->integer('outlet_id') ?: ($user->accessibleOutletIds()[0] ?? $outlets->first()?->id));
 
         $currentShift = $this->service->findOpenShift($tenantId, $outletId);
 
@@ -44,9 +49,19 @@ class PosShiftController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $tenantId = $this->tenantId($request);
+        $outletIds = $request->user()->accessibleOutletIds();
 
+        // Sebelumnya 'exists:outlets,id' TIDAK dibatasi tenant_id sama
+        // sekali (celah lintas tenant) maupun kepemilikan outlet user
+        // (celah lintas outlet) -- lanjutan akses multi-outlet (lihat
+        // b131d21 GR) sekalian menutup keduanya. Global (0 outlet) tetap
+        // bebas pilih outlet mana pun di tenant, sama seperti sebelumnya.
         $validated = $request->validate([
-            'outlet_id' => ['required', 'integer', 'exists:outlets,id'],
+            'outlet_id' => [
+                'required',
+                'integer',
+                $outletIds === [] ? Rule::exists('outlets', 'id')->where('tenant_id', $tenantId) : Rule::in($outletIds),
+            ],
             'opening_cash' => ['required', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);

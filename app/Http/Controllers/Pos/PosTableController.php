@@ -17,9 +17,14 @@ class PosTableController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $tenantId = $this->tenantId($request);
+        $outletIds = $request->user()->accessibleOutletIds();
 
         $validated = $request->validate([
-            'outlet_id'   => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'outlet_id'   => [
+                'required',
+                'integer',
+                $outletIds === [] ? Rule::exists('outlets', 'id')->where('tenant_id', $tenantId) : Rule::in($outletIds),
+            ],
             'pos_area_id' => ['nullable', 'integer', Rule::exists('pos_areas', 'id')->where('tenant_id', $tenantId)],
             'code'        => ['required', 'string', 'max:20', Rule::unique('pos_tables', 'code')->where('outlet_id', $request->integer('outlet_id'))],
             'capacity'    => ['nullable', 'integer', 'min:1'],

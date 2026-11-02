@@ -18,9 +18,13 @@ class PosAreaController extends Controller
         $tenantId = $this->tenantId($request);
         $user = $request->user();
 
-        $outlets = Outlet::query()->where('tenant_id', $tenantId)->orderBy('name')->get(['id', 'name', 'code']);
+        $outlets = Outlet::query()
+            ->where('tenant_id', $tenantId)
+            ->when($user->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('id', $ids))
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
 
-        $outletId = (int) ($request->integer('outlet_id') ?: ($user->outlet_id ?: $outlets->first()?->id));
+        $outletId = (int) ($request->integer('outlet_id') ?: ($user->accessibleOutletIds()[0] ?? $outlets->first()?->id));
 
         $outlet = $outlets->firstWhere('id', $outletId);
 
@@ -47,9 +51,14 @@ class PosAreaController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $tenantId = $this->tenantId($request);
+        $outletIds = $request->user()->accessibleOutletIds();
 
         $validated = $request->validate([
-            'outlet_id'  => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'outlet_id'  => [
+                'required',
+                'integer',
+                $outletIds === [] ? Rule::exists('outlets', 'id')->where('tenant_id', $tenantId) : Rule::in($outletIds),
+            ],
             'name'       => ['required', 'string', 'max:100'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);

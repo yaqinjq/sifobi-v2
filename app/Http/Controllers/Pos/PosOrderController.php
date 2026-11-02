@@ -34,8 +34,12 @@ class PosOrderController extends Controller
         $tenantId = $this->tenantId($request);
         $user = $request->user();
 
-        $outlets = Outlet::query()->where('tenant_id', $tenantId)->orderBy('name')->get(['id', 'name', 'code']);
-        $outletId = (int) ($request->integer('outlet_id') ?: ($user->outlet_id ?: $outlets->first()?->id));
+        $outlets = Outlet::query()
+            ->where('tenant_id', $tenantId)
+            ->when($user->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('id', $ids))
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+        $outletId = (int) ($request->integer('outlet_id') ?: ($user->accessibleOutletIds()[0] ?? $outlets->first()?->id));
 
         $orders = PosOrder::query()
             ->where('tenant_id', $tenantId)
@@ -55,8 +59,12 @@ class PosOrderController extends Controller
         $tenantId = $this->tenantId($request);
         $user = $request->user();
 
-        $outlets = Outlet::query()->where('tenant_id', $tenantId)->orderBy('name')->get(['id', 'name', 'code']);
-        $outletId = (int) ($request->integer('outlet_id') ?: ($user->outlet_id ?: $outlets->first()?->id));
+        $outlets = Outlet::query()
+            ->where('tenant_id', $tenantId)
+            ->when($user->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('id', $ids))
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+        $outletId = (int) ($request->integer('outlet_id') ?: ($user->accessibleOutletIds()[0] ?? $outlets->first()?->id));
 
         $tables = PosTable::query()
             ->where('tenant_id', $tenantId)
@@ -73,9 +81,14 @@ class PosOrderController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $tenantId = $this->tenantId($request);
+        $outletIds = $request->user()->accessibleOutletIds();
 
         $validated = $request->validate([
-            'outlet_id'    => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'outlet_id'    => [
+                'required',
+                'integer',
+                $outletIds === [] ? Rule::exists('outlets', 'id')->where('tenant_id', $tenantId) : Rule::in($outletIds),
+            ],
             'order_type'   => ['required', Rule::in([PosOrder::TYPE_DINE_IN, PosOrder::TYPE_TAKEAWAY])],
             'pos_table_id' => ['nullable', 'integer', Rule::exists('pos_tables', 'id')->where('tenant_id', $tenantId)],
             'notes'        => ['nullable', 'string', 'max:500'],

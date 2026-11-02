@@ -17,8 +17,12 @@ class PosKitchenController extends Controller
         $tenantId = $this->tenantId($request);
         $user = $request->user();
 
-        $outlets = Outlet::query()->where('tenant_id', $tenantId)->orderBy('name')->get(['id', 'name', 'code']);
-        $outletId = (int) ($request->integer('outlet_id') ?: ($user->outlet_id ?: $outlets->first()?->id));
+        $outlets = Outlet::query()
+            ->where('tenant_id', $tenantId)
+            ->when($user->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('id', $ids))
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+        $outletId = (int) ($request->integer('outlet_id') ?: ($user->accessibleOutletIds()[0] ?? $outlets->first()?->id));
 
         $orders = PosOrder::query()
             ->where('tenant_id', $tenantId)
