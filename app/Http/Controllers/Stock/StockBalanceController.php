@@ -42,14 +42,29 @@ class StockBalanceController extends Controller
         $isRestricted    = $userRoles->intersect($restrictedRoles)->isNotEmpty();
         $isPic           = $userRoles->intersect($picRoles)->isNotEmpty();
 
+        // Lanjutan akses multi-outlet (lihat commit c95ac47 Opname): akun
+        // STAFF_* (restricted) dengan BANYAK outlet sekarang lihat GABUNGAN
+        // (whereIn) semua outlet miliknya -- bukan 1/null seperti dulu --
+        // via $restrictedOutletIds, TANPA bisa pilih outlet via query
+        // string (canChangeOutlet tetap false, konsisten dgn kebijakan role
+        // ini). Akun 1-outlet (mayoritas) 0 perubahan sama sekali.
+        $restrictedOutletIds = null;
         if ($isRestricted) {
-            $outletId        = (int) $user->outlet_id ?: null;
+            $userOutletIds   = $user->accessibleOutletIds();
             $canChangeOutlet = false;
+            if (count($userOutletIds) === 1) {
+                $outletId = $userOutletIds[0];
+            } elseif ($userOutletIds !== []) {
+                $outletId = null;
+                $restrictedOutletIds = $userOutletIds;
+            } else {
+                $outletId = null;
+            }
         } elseif ($isPic) {
             $canChangeOutlet = true;
             $outletId        = $request->has('outlet_id')
                 ? ($request->integer('outlet_id') ?: null)
-                : ((int) $user->outlet_id ?: null);
+                : ($user->accessibleOutletIds()[0] ?? null);
         } else {
             // SUPER_ADMIN, ADMIN, MANAGER_AREA, dll: default semua outlet
             $canChangeOutlet = true;
@@ -67,6 +82,7 @@ class StockBalanceController extends Controller
             ->with(['item.category', 'item.inventoryUnit', 'item.baseUnit', 'outlet'])
             ->where('tenant_id', $tenantId)
             ->when($outletId, fn ($builder) => $builder->where('outlet_id', $outletId))
+            ->when($restrictedOutletIds, fn ($builder, $ids) => $builder->whereIn('outlet_id', $ids))
             ->when($stockTarget, fn ($builder) => $builder->where('stock_target', $stockTarget));
 
         if ($showEmpty) {
@@ -130,6 +146,7 @@ class StockBalanceController extends Controller
         $summary = DB::table('stock_balances')
             ->where('tenant_id', $tenantId)
             ->when($outletId, fn ($builder) => $builder->where('outlet_id', $outletId))
+            ->when($restrictedOutletIds, fn ($builder, $ids) => $builder->whereIn('outlet_id', $ids))
             ->when($stockTarget, fn ($builder) => $builder->where('stock_target', $stockTarget))
             ->selectRaw('
                 COUNT(*) as total_items,
@@ -172,7 +189,7 @@ class StockBalanceController extends Controller
         $tenantId = (int) $request->user()->tenant_id;
         abort_unless($tenantId && (int) $item->tenant_id === $tenantId, 403);
 
-        $outletId = (int) ($request->integer('outlet_id') ?: $request->user()->outlet_id);
+        $outletId = (int) ($request->integer('outlet_id') ?: ($request->user()->accessibleOutletIds()[0] ?? 0));
         $stockTarget = $request->get('stock_target');
 
         $balances = StockBalance::query()
