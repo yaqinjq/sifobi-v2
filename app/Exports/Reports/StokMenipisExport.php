@@ -94,6 +94,7 @@ class StokMenipisExport implements FromArray, ShouldAutoSize, WithEvents
             ->where('i.min_stock', '>', 0)
             ->whereRaw('sb.qty_on_hand < i.min_stock')
             ->when($this->filters['outlet_id'] ?? null, fn ($q, $id) => $q->where('sb.outlet_id', $id))
+            ->when($this->filters['outlet_ids'] ?? null, fn ($q, $ids) => $q->whereIn('sb.outlet_id', $ids))
             ->when($this->filters['category_id'] ?? null, fn ($q, $id) => $q->where('i.item_category_id', $id))
             ->selectRaw('
                 i.canonical_sku,

@@ -90,6 +90,7 @@ class MutasiExport implements FromArray, ShouldAutoSize, WithEvents
             ->where('sm.tenant_id', $this->tenantId)
             ->whereBetween('sm.performed_at', [$dateFrom, $dateTo])
             ->when($this->filters['outlet_id'] ?? null, fn ($query, $outletId) => $query->where('sm.outlet_id', $outletId))
+            ->when($this->filters['outlet_ids'] ?? null, fn ($query, $ids) => $query->whereIn('sm.outlet_id', $ids))
             ->when($this->filters['item_id'] ?? null, fn ($query, $itemId) => $query->where('sm.item_id', $itemId))
             ->when($this->filters['mutation_type'] ?? null, fn ($query, $type) => $query->where('sm.mutation_type', $type))
             ->select([

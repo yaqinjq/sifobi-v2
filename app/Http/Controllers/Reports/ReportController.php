@@ -324,6 +324,7 @@ class ReportController extends Controller
             ->where('i.min_stock', '>', 0)
             ->whereRaw('sb.qty_on_hand < i.min_stock')
             ->when($filters['outlet_id'] ?? null, fn ($q, $id) => $q->where('sb.outlet_id', $id))
+            ->when($filters['outlet_ids'] ?? null, fn ($q, $ids) => $q->whereIn('sb.outlet_id', $ids))
             ->when($filters['category_id'] ?? null, fn ($q, $id) => $q->where('i.item_category_id', $id))
             ->selectRaw('
                 i.canonical_sku,
@@ -372,7 +373,7 @@ class ReportController extends Controller
             'q'         => ['nullable', 'string', 'max:255'],
         ]));
 
-        $outlets = $this->outlets($tenantId);
+        $outlets = $this->kartuStokOutlets($request, $tenantId);
         $filters['outlet_id'] = $filters['outlet_id'] ?? $outlets->first()?->id;
         [$dateFrom, $dateTo] = $this->dateRange($filters);
 
@@ -400,6 +401,7 @@ class ReportController extends Controller
             'date_to'   => ['nullable', 'date'],
             'q'         => ['nullable', 'string', 'max:255'],
         ]));
+        $filters['outlet_id'] = $filters['outlet_id'] ?? $this->kartuStokOutlets($request, $tenantId)->first()?->id;
         [$dateFrom, $dateTo] = $this->dateRange($filters);
 
         $rows = $this->kartuStokSummaryQuery($tenantId, (int) $filters['outlet_id'], $dateFrom, $dateTo, $filters['q'] ?? null);
@@ -423,7 +425,7 @@ class ReportController extends Controller
             'date_to'   => ['nullable', 'date'],
         ]));
 
-        $outlets = $this->outlets($tenantId);
+        $outlets = $this->kartuStokOutlets($request, $tenantId);
         $filters['outlet_id'] = $filters['outlet_id'] ?? $outlets->first()?->id;
         [$dateFrom, $dateTo] = $this->dateRange($filters);
 
@@ -448,7 +450,7 @@ class ReportController extends Controller
             'date_from' => ['nullable', 'date'],
             'date_to'   => ['nullable', 'date'],
         ]));
-        $filters['outlet_id'] = $filters['outlet_id'] ?? $this->outlets($tenantId)->first()?->id;
+        $filters['outlet_id'] = $filters['outlet_id'] ?? $this->kartuStokOutlets($request, $tenantId)->first()?->id;
         [$dateFrom, $dateTo] = $this->dateRange($filters);
 
         $card = $this->kartuStokCard($tenantId, (int) $filters['outlet_id'], $item->id, $dateFrom, $dateTo);
@@ -520,6 +522,7 @@ class ReportController extends Controller
             ->where('sm.tenant_id', $tenantId)
             ->whereBetween('sm.performed_at', [$dateFrom, $dateTo])
             ->when($filters['outlet_id'] ?? null, fn ($query, $outletId) => $query->where('sm.outlet_id', $outletId))
+            ->when($filters['outlet_ids'] ?? null, fn ($query, $ids) => $query->whereIn('sm.outlet_id', $ids))
             ->when($filters['item_id'] ?? null, fn ($query, $itemId) => $query->where('sm.item_id', $itemId))
             ->when($filters['mutation_type'] ?? null, fn ($query, $type) => $query->where('sm.mutation_type', $type))
             ->when($filters['q'] ?? null, function ($query, $search): void {
@@ -560,6 +563,7 @@ class ReportController extends Controller
             ->where('gr.tenant_id', $tenantId)
             ->whereBetween('gr.receipt_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
             ->when($filters['outlet_id'] ?? null, fn ($query, $outletId) => $query->where('gr.outlet_id', $outletId))
+            ->when($filters['outlet_ids'] ?? null, fn ($query, $ids) => $query->whereIn('gr.outlet_id', $ids))
             ->when($filters['source'] ?? null, fn ($query, $source) => $query->where('gr.source', $source));
     }
 
@@ -639,6 +643,16 @@ class ReportController extends Controller
      * view_all_reports — menimpa apapun yang dikirim di request, bukan
      * cuma default saat kosong.
      *
+     * Lanjutan akses multi-outlet (lihat commit c95ac47 untuk Opname):
+     * user yang punya BANYAK outlet (lewat accessibleOutletIds()) TIDAK
+     * dipaksa ke 1 outlet seperti user single-outlet -- laporan beda
+     * kebutuhan UX dari PO/Opname (biasanya mau lihat GABUNGAN semua
+     * outlet miliknya sekaligus, bukan pilih 1), jadi query string
+     * outlet_id yang di luar daftar miliknya DIABAIKAN (bukan 403 --
+     * ini laporan baca-saja) dan filter jatuh ke outlet_ids (whereIn)
+     * supaya hasilnya tetap gabungan outlet-outlet miliknya sendiri,
+     * bukan 1 outlet asal/pertama atau seluruh tenant.
+     *
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
@@ -646,9 +660,30 @@ class ReportController extends Controller
     {
         $user = $request->user();
 
-        if ($user?->outlet_id && ! $user->can('view_all_reports')) {
-            $filters['outlet_id'] = (int) $user->outlet_id;
+        if (! $user || $user->can('view_all_reports')) {
+            return $filters;
         }
+
+        $outletIds = $user->accessibleOutletIds();
+
+        if ($outletIds === []) {
+            return $filters;
+        }
+
+        if (count($outletIds) === 1) {
+            $filters['outlet_id'] = $outletIds[0];
+
+            return $filters;
+        }
+
+        $requestedOutletId = $filters['outlet_id'] ?? null;
+
+        if ($requestedOutletId && in_array((int) $requestedOutletId, $outletIds, true)) {
+            return $filters;
+        }
+
+        unset($filters['outlet_id']);
+        $filters['outlet_ids'] = $outletIds;
 
         return $filters;
     }
@@ -692,7 +727,7 @@ class ReportController extends Controller
         }
 
         $user = $request->user();
-        $filters['outlet_id'] = (int) $user->outlet_id;
+        $filters['outlet_id'] = (int) $this->effectiveSpoilOutletId($request);
         $filters['department_id'] = (int) $user->department_id;
 
         return $filters;
@@ -804,6 +839,39 @@ class ReportController extends Controller
         return Outlet::query()
             ->where('tenant_id', $tenantId)
             ->where('status', 'ACTIVE')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Khusus Kartu Stok (Ringkasan & Detail) -- beda dari outlets() biasa,
+     * method ini dipakai sebagai SUMBER fallback outlet_id default (bukan
+     * cuma isi dropdown), jadi HARUS dibatasi ke outlet milik user kalau
+     * dia bukan view_all_reports -- kalau tidak, user multi-outlet bisa
+     * jatuh ke outlet TENANT PERTAMA (bukan miliknya) saat belum pilih
+     * outlet_id eksplisit. Kartu Stok sengaja tetap "pilih 1 outlet"
+     * (bukan union/gabungan seperti Mutasi/Penerimaan/Stok Menipis) --
+     * datanya per-outlet (saldo awal/akhir dihitung per outlet), union
+     * butuh desain agregasi terpisah yang tidak dikerjakan di sini.
+     */
+    private function kartuStokOutlets(Request $request, int $tenantId): \Illuminate\Database\Eloquent\Collection
+    {
+        $user = $request->user();
+
+        if ($user?->can('view_all_reports')) {
+            return $this->outlets($tenantId);
+        }
+
+        $outletIds = $user?->accessibleOutletIds() ?? [];
+
+        if ($outletIds === []) {
+            return $this->outlets($tenantId);
+        }
+
+        return Outlet::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'ACTIVE')
+            ->whereIn('id', $outletIds)
             ->orderBy('name')
             ->get();
     }

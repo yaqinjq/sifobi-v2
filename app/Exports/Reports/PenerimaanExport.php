@@ -115,6 +115,7 @@ class PenerimaanExport implements FromArray, ShouldAutoSize, WithEvents
             ->where('gr.tenant_id', $this->tenantId)
             ->whereBetween('gr.receipt_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
             ->when($this->filters['outlet_id'] ?? null, fn ($query, $outletId) => $query->where('gr.outlet_id', $outletId))
+            ->when($this->filters['outlet_ids'] ?? null, fn ($query, $ids) => $query->whereIn('gr.outlet_id', $ids))
             ->when($this->filters['source'] ?? null, fn ($query, $source) => $query->where('gr.source', $source))
             ->select([
                 'gr.code',
