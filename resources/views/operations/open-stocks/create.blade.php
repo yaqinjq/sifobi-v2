@@ -8,7 +8,7 @@
 @endsection
 
 @php
-    $selectedOutletId = auth()->user()->outlet_id ?: $outlets->first()?->id;
+    $selectedOutletId = auth()->user()->soleOutletId() ?: $outlets->first()?->id;
 @endphp
 
 @section('content')

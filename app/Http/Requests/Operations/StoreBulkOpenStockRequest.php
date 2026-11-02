@@ -20,9 +20,19 @@ class StoreBulkOpenStockRequest extends FormRequest
     public function rules(): array
     {
         $tenantId = (int) $this->user()->tenant_id;
+        $outletIds = $this->user()->accessibleOutletIds();
 
         return [
-            'outlet_id'    => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            // Lanjutan akses multi-outlet (lihat b131d21 utk pola yang
+            // sama di Goods Receipt) -- sebelumnya outlet_id cuma
+            // divalidasi "ada di tenant", tidak pernah dibatasi ke outlet
+            // milik user (cuma mengandalkan dropdown di formData()).
+            // Global (0 outlet) tetap bebas seperti sebelumnya.
+            'outlet_id'    => [
+                'required',
+                'integer',
+                $outletIds === [] ? Rule::exists('outlets', 'id')->where('tenant_id', $tenantId) : Rule::in($outletIds),
+            ],
             'stock_target' => ['required', 'string', Rule::in(array_keys(OpenStock::targetOptions()))],
             'business_date'=> ['required', 'date'],
             'batch_notes'  => ['nullable', 'string', 'max:500'],

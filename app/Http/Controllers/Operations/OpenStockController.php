@@ -79,7 +79,8 @@ class OpenStockController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        $canFilterOutlet = ! $request->user()->outlet_id;
+        $userOutletIds = $request->user()->accessibleOutletIds();
+        $canFilterOutlet = count($userOutletIds) !== 1;
 
         return view('operations.open-stocks.index', [
             'openStocks' => $openStocks,
@@ -88,7 +89,7 @@ class OpenStockController extends Controller
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
             'canFilterOutlet' => $canFilterOutlet,
-            'filterOutlets' => $canFilterOutlet ? $this->filterOutlets($tenantId) : collect(),
+            'filterOutlets' => $canFilterOutlet ? $this->filterOutlets($tenantId, $userOutletIds) : collect(),
             'filterBrands' => $canFilterOutlet ? $this->filterBrands($tenantId) : collect(),
             'filterDepartments' => $this->filterDepartments($tenantId),
         ]);
@@ -110,18 +111,20 @@ class OpenStockController extends Controller
     private function filteredQuery(Request $request): Builder
     {
         $tenantId = $request->user()->tenant_id;
-        $userOutletId = $request->user()->outlet_id;
+        $userOutletIds = $request->user()->accessibleOutletIds();
 
         $query = OpenStock::query()
             ->with(['outlet', 'department', 'item.baseUnit', 'item.inventoryUnit', 'item.purchaseUnit', 'unit', 'postedBy', 'createdBy'])
             ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
-            ->when($userOutletId, fn ($q) => $q->where('outlet_id', $userOutletId));
+            ->when($userOutletIds, fn ($q, $ids) => $q->whereIn('outlet_id', $ids));
 
-        if (! $userOutletId && $request->filled('outlet_id')) {
+        $canFilterOutlet = count($userOutletIds) !== 1;
+
+        if ($canFilterOutlet && $request->filled('outlet_id')) {
             $query->where('open_stocks.outlet_id', $request->integer('outlet_id'));
         }
 
-        if (! $userOutletId && $request->filled('brand_id')) {
+        if ($canFilterOutlet && $request->filled('brand_id')) {
             $brandId = $request->integer('brand_id');
             $query->whereHas('outlet', fn ($q) => $q->where('brand_id', $brandId));
         }
@@ -150,12 +153,14 @@ class OpenStockController extends Controller
     }
 
     /**
+     * @param  list<int>  $userOutletIds
      * @return \Illuminate\Support\Collection<int, Outlet>
      */
-    private function filterOutlets(?int $tenantId): \Illuminate\Support\Collection
+    private function filterOutlets(?int $tenantId, array $userOutletIds = []): \Illuminate\Support\Collection
     {
         return Outlet::query()
             ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->when($userOutletIds, fn ($q, $ids) => $q->whereIn('id', $ids))
             ->orderBy('name')
             ->get();
     }
@@ -211,8 +216,8 @@ class OpenStockController extends Controller
     {
         $openStock->load(['outlet', 'item.inventoryUnit', 'item.baseUnit', 'unit', 'createdBy', 'postedBy', 'voidedBy']);
 
-        $userOutletId = $request->user()->outlet_id;
-        abort_if($userOutletId && (int) $openStock->outlet_id !== (int) $userOutletId, 403);
+        $userOutletIds = $request->user()->accessibleOutletIds();
+        abort_if($userOutletIds !== [] && ! in_array((int) $openStock->outlet_id, $userOutletIds, true), 403);
 
         return view('operations.open-stocks.show', [
             'openStock' => $openStock,
@@ -261,7 +266,7 @@ class OpenStockController extends Controller
         $ids = OpenStock::query()
             ->whereIn('id', $request->input('ids', []))
             ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
-            ->when($request->user()->outlet_id, fn ($q) => $q->where('outlet_id', $request->user()->outlet_id))
+            ->when($request->user()->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('outlet_id', $ids))
             ->where('status', OpenStock::STATUS_DRAFT)
             ->pluck('id')
             ->all();
@@ -345,7 +350,7 @@ class OpenStockController extends Controller
             'outlets' => Outlet::query()
                 ->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId))
                 ->where('status', 'ACTIVE')
-                ->when($user->outlet_id, fn ($q) => $q->where('id', $user->outlet_id))
+                ->when($user->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('id', $ids))
                 ->orderBy('name')
                 ->get(),
             'items' => Item::query()
