@@ -32,9 +32,9 @@ class StockTransferController extends Controller
 
         $transfers = StockTransfer::query()
             ->where('tenant_id', $tenantId)
-            ->when($request->user()->outlet_id, fn ($q) => $q->where(
-                fn ($inner) => $inner->where('from_outlet_id', $request->user()->outlet_id)
-                                     ->orWhere('to_outlet_id', $request->user()->outlet_id)
+            ->when($request->user()->accessibleOutletIds(), fn ($q, $ids) => $q->where(
+                fn ($inner) => $inner->whereIn('from_outlet_id', $ids)
+                                     ->orWhereIn('to_outlet_id', $ids)
             ))
             ->with(['fromOutlet', 'toOutlet', 'createdBy'])
             ->withCount('items')
@@ -54,7 +54,7 @@ class StockTransferController extends Controller
         $outlets = Outlet::query()
             ->where('tenant_id', $tenantId)
             ->where('status', 'ACTIVE')
-            ->when($request->user()->outlet_id, fn ($q) => $q->where('id', $request->user()->outlet_id))
+            ->when($request->user()->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('id', $ids))
             ->orderBy('name')
             ->get();
 
@@ -64,10 +64,19 @@ class StockTransferController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $tenantId = $this->tenantId($request);
+        $outletIds = $request->user()->accessibleOutletIds();
+
+        // Lanjutan akses multi-outlet (lihat b131d21 utk pola yang sama di
+        // Goods Receipt) -- sebelumnya from/to outlet_id cuma divalidasi
+        // "ada di tenant", tidak pernah dibatasi ke outlet milik user
+        // (konvensi PERMISIF -- transfer MEMANG wajar dipakai antar 2
+        // outlet milik user yang sama, beda dari Spoil & Waste yang
+        // fail-closed). Global (0 outlet) tetap bebas seperti sebelumnya.
+        $outletRule = $outletIds === [] ? Rule::exists('outlets', 'id')->where('tenant_id', $tenantId) : Rule::in($outletIds);
 
         $validated = $request->validate([
-            'from_outlet_id'  => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
-            'to_outlet_id'    => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'from_outlet_id'  => ['required', 'integer', $outletRule],
+            'to_outlet_id'    => ['required', 'integer', $outletRule],
             'transfer_date'   => ['required', 'date'],
             'notes'           => ['nullable', 'string', 'max:2000'],
             'items'           => ['required', 'array', 'min:1'],
@@ -105,8 +114,13 @@ class StockTransferController extends Controller
     {
         $transfer->load(['fromOutlet', 'toOutlet', 'createdBy', 'submittedBy', 'approvedBy', 'rejectedBy', 'voidedBy', 'items.item.inventoryUnit', 'items.item.baseUnit', 'items.unit']);
 
-        $userOutletId = $request->user()->outlet_id;
-        abort_if($userOutletId && (int) $transfer->from_outlet_id !== (int) $userOutletId && (int) $transfer->to_outlet_id !== (int) $userOutletId, 403);
+        $userOutletIds = $request->user()->accessibleOutletIds();
+        abort_if(
+            $userOutletIds !== []
+                && ! in_array((int) $transfer->from_outlet_id, $userOutletIds, true)
+                && ! in_array((int) $transfer->to_outlet_id, $userOutletIds, true),
+            403
+        );
 
         return view('operations.stock-transfers.show', compact('transfer'));
     }
