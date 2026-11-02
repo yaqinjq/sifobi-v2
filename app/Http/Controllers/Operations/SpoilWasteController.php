@@ -79,6 +79,9 @@ class SpoilWasteController extends Controller
             $request
         )->count();
 
+        $user = $request->user();
+        $activeOutletId = $this->effectiveSpoilOutletId($request);
+
         return view('operations.spoil-wastes.index', [
             'spoilWastes' => $query,
             'duplicateCount' => $duplicateCount,
@@ -87,16 +90,71 @@ class SpoilWasteController extends Controller
             'pendingIds' => $pendingIds,
             'sort' => $sort,
             'direction' => $direction,
+            'needsOutletSelection' => ! $this->isSuperAdmin($request) && $user?->hasMultipleOutlets() && ! $activeOutletId,
+            'activeOutletName' => $activeOutletId ? Outlet::query()->where('tenant_id', $tenantId)->find($activeOutletId)?->name : null,
+            'canSwitchOutlet' => (bool) $user?->hasMultipleOutlets(),
         ]);
     }
 
-    public function create(Request $request): View
+    public function create(Request $request): View|RedirectResponse
     {
         if (! $this->isSuperAdmin($request) && ! $this->hasValidSpoilScope($request)) {
+            // Akun multi-outlet yang belum pilih outlet aktif di session
+            // ini DIARAHKAN ke halaman pilih outlet (bukan bare 403) --
+            // beda dari akun yang memang tidak punya scope sah sama sekali
+            // (0 outlet/department_id kosong), yang tetap 403 seperti
+            // sebelumnya karena tidak ada apa pun yang bisa dipilih.
+            if ($request->user()?->hasMultipleOutlets()) {
+                return redirect()->route('operations.spoil-wastes.select-outlet');
+            }
+
             abort(403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah untuk mencatat spoil. Hubungi Super Admin.');
         }
 
         return view('operations.spoil-wastes.create', $this->formData($request));
+    }
+
+    /**
+     * Akun multi-outlet WAJIB pilih 1 outlet aktif secara eksplisit di
+     * sini sebelum bisa mencatat/approve spoil -- TIDAK PERNAH diam-diam
+     * memilihkan outlet pertama (lihat docblock effectiveSpoilOutletId()
+     * di EnforcesSuperAdminScope soal alasannya). Akun 1-outlet/global
+     * tidak butuh halaman ini sama sekali (soleOutletId() sudah cukup).
+     */
+    public function selectOutlet(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+
+        if (! $user?->hasMultipleOutlets()) {
+            return redirect()->route('operations.spoil-wastes.index');
+        }
+
+        $outlets = Outlet::query()
+            ->where('tenant_id', $this->tenantId($request))
+            ->whereIn('id', $user->accessibleOutletIds())
+            ->orderBy('name')
+            ->get();
+
+        return view('operations.spoil-wastes.select-outlet', [
+            'outlets' => $outlets,
+            'activeOutletId' => (int) session('spoil_active_outlet_id', 0),
+        ]);
+    }
+
+    public function setOutlet(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user?->hasMultipleOutlets(), 403);
+
+        $validated = $request->validate([
+            'outlet_id' => ['required', 'integer', Rule::in($user->accessibleOutletIds())],
+        ]);
+
+        session(['spoil_active_outlet_id' => (int) $validated['outlet_id']]);
+
+        return redirect()
+            ->route('operations.spoil-wastes.index')
+            ->with('success', 'Outlet aktif untuk Spoil & Waste berhasil diganti.');
     }
 
     public function store(Request $request): RedirectResponse
@@ -124,7 +182,7 @@ class SpoilWasteController extends Controller
         // menang, apa pun yang ada di form/request (jaga-jaga dari form yang
         // dimanipulasi, bukan cuma percaya UI dropdown yang sudah dibatasi).
         if (! $isSuperAdmin) {
-            $validated['outlet_id'] = (int) $user->outlet_id;
+            $validated['outlet_id'] = (int) $this->effectiveSpoilOutletId($request);
             $validated['department_id'] = (int) $user->department_id;
         }
 
@@ -360,11 +418,13 @@ class SpoilWasteController extends Controller
                 );
             }
         } else {
-            // Non-superadmin: outlet_id SELALU dipaksa dari akun sendiri.
-            // outlet_id yang dikirim lewat request DIABAIKAN TOTAL --
-            // jangan sampai saldo outlet lain bisa "diintip" lewat
-            // parameter ini cuma karena item-nya kebetulan boleh dicari.
-            $outletId = (int) $request->user()->outlet_id;
+            // Non-superadmin: outlet_id SELALU dipaksa dari outlet AKTIF
+            // akun ini (soleOutletId() atau pilihan session eksplisit utk
+            // akun multi-outlet). outlet_id yang dikirim lewat request
+            // DIABAIKAN TOTAL -- jangan sampai saldo outlet lain bisa
+            // "diintip" lewat parameter ini cuma karena item-nya kebetulan
+            // boleh dicari.
+            $outletId = (int) ($this->effectiveSpoilOutletId($request) ?? 0);
         }
 
         $items = Item::query()
@@ -429,7 +489,7 @@ class SpoilWasteController extends Controller
             'outlets' => Outlet::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'ACTIVE')
-                ->when(! $isSuperAdmin, fn ($q) => $q->where('id', $request->user()->outlet_id))
+                ->when(! $isSuperAdmin, fn ($q) => $q->where('id', $this->effectiveSpoilOutletId($request)))
                 ->orderBy('name')
                 ->get(),
             'departments' => Department::query()
@@ -620,7 +680,7 @@ class SpoilWasteController extends Controller
 
         $user = $request->user();
 
-        return $query->where('outlet_id', $user->outlet_id)
+        return $query->where('outlet_id', $this->effectiveSpoilOutletId($request))
             ->where('department_id', $user->department_id);
     }
 
@@ -656,7 +716,7 @@ class SpoilWasteController extends Controller
         );
 
         abort_if(
-            (int) $spoil->outlet_id !== (int) $user->outlet_id
+            (int) $spoil->outlet_id !== (int) $this->effectiveSpoilOutletId($request)
                 || (int) $spoil->department_id !== (int) $user->department_id,
             403,
             'Anda tidak berwenang untuk spoil ini.'

@@ -497,6 +497,12 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
         Route::get('/spoil-wastes', [SpoilWasteController::class, 'index'])
             ->middleware('permission:record_spoil')
             ->name('spoil-wastes.index');
+        Route::get('/spoil-wastes-select-outlet', [SpoilWasteController::class, 'selectOutlet'])
+            ->middleware('permission:record_spoil')
+            ->name('spoil-wastes.select-outlet');
+        Route::post('/spoil-wastes-select-outlet', [SpoilWasteController::class, 'setOutlet'])
+            ->middleware('permission:record_spoil')
+            ->name('spoil-wastes.set-outlet');
         Route::get('/spoil-wastes/create', [SpoilWasteController::class, 'create'])
             ->middleware('permission:record_spoil')
             ->name('spoil-wastes.create');

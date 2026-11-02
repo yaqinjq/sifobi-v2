@@ -3,8 +3,11 @@
 @section('title', 'Spoil & Waste')
 
 @section('content')
-<x-sf.page-header title="Spoil & Waste" subtitle="{{ auth()->user()->outlet->name ?? 'Semua outlet' }}">
+<x-sf.page-header title="Spoil & Waste" subtitle="{{ $activeOutletName ?? auth()->user()->outlet->name ?? 'Semua outlet' }}">
     <x-slot:actions>
+        @if($canSwitchOutlet)
+            <a href="{{ route('operations.spoil-wastes.select-outlet') }}" class="sf-btn-secondary min-h-11 px-3 text-xs">Ganti Outlet</a>
+        @endif
         @can('approve_spoil')
             <a href="{{ route('operations.spoil-wastes.import-form') }}" class="sf-btn-secondary min-h-11 px-3 text-xs">Import</a>
         @endcan
@@ -18,6 +21,13 @@
 </x-sf.page-header>
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4" x-data="{ selected: [] }">
+    @if($needsOutletSelection)
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            Akun Anda punya akses ke beberapa outlet. Pilih outlet aktif dulu untuk mencatat/melihat Spoil & Waste.
+            <a href="{{ route('operations.spoil-wastes.select-outlet') }}" class="font-semibold underline">Pilih Outlet</a>
+        </div>
+    @endif
+
     @if($duplicateCount > 0)
         <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
             <strong>{{ $duplicateCount }}</strong> laporan spoil pending memakai foto duplikat.
