@@ -71,7 +71,7 @@ class SpoilWasteService
             // approve nanti akan melihat kalau stoknya belum cukup.
             [$photoPath, $photoHash, $photoMeta, $duplicate] = $this->handlePhoto($data['photo_file'] ?? null, $tenantId);
 
-            $recordedAt = Carbon::parse($data['recorded_at'] ?? now());
+            $recordedAt = Carbon::parse($data['recorded_at'] ?? $data['recorded_date'] ?? now());
 
             $spoil = SpoilWaste::query()->create([
                 'tenant_id' => $tenantId,
@@ -165,7 +165,7 @@ class SpoilWasteService
                     'reference_type' => SpoilWaste::class,
                     'reference_id' => $spoil->id,
                     'performed_by' => $userId,
-                    'performed_at' => now(),
+                    'performed_at' => $spoil->recorded_at,
                     'notes' => "Spoil: {$spoil->reason_category}",
                     'metadata' => [
                         'spoil_waste_id' => $spoil->id,

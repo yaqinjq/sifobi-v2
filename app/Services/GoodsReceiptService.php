@@ -278,7 +278,7 @@ class GoodsReceiptService
                     'reference_type' => GoodsReceipt::class,
                     'reference_id' => $receipt->id,
                     'performed_by' => $userId,
-                    'performed_at' => now(),
+                    'performed_at' => $receipt->receipt_date,
                     'notes' => "Penerimaan {$receipt->code}",
                     'metadata' => [
                         'goods_receipt_item_id' => $receiptItem->id,
