@@ -9,10 +9,18 @@ use Illuminate\Http\Request;
 
 /**
  * Returns all catalog items for a given PO type, grouped by category.
- * Used for marketplace-style browse on the CK tab (Wipro items).
+ * Used for marketplace-style browse on tabs backed by an external catalog
+ * (CK = Wipro items, OCIA Roastery = OCIA items). Other PO types have no
+ * catalog source and get an empty collection -- they stay on the plain
+ * search box.
  */
 class PoCatalogBrowseController extends Controller
 {
+    private const ITEM_SOURCE_BY_PO_TYPE = [
+        'CENTRAL_KITCHEN' => 'WIPRO',
+        'OCIA_ROASTERY'   => 'OCIA',
+    ];
+
     public function __invoke(Request $request): JsonResponse
     {
         $tenantId = (int) $request->user()?->tenant_id;
@@ -20,11 +28,16 @@ class PoCatalogBrowseController extends Controller
         abort_unless($tenantId, 403);
 
         $poType = (string) $request->string('po_type');
+        $itemSource = self::ITEM_SOURCE_BY_PO_TYPE[$poType] ?? null;
+
+        if (! $itemSource) {
+            return response()->json([]);
+        }
 
         $items = Item::query()
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
-            ->where('item_source', 'WIPRO')
+            ->where('item_source', $itemSource)
             ->with(['purchaseUnit', 'baseUnit', 'category'])
             ->orderBy('name')
             ->get(['id', 'name', 'canonical_sku', 'purchase_unit_id', 'base_unit_id', 'purchase_ratio', 'item_category_id', 'item_source'])

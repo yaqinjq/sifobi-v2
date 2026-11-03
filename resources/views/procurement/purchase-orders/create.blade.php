@@ -82,8 +82,8 @@
         <template x-for="tab in tabs" :key="tab.type">
             <div x-show="activeTab === tab.type" x-cloak>
 
-                {{-- ========== CENTRAL_KITCHEN: Marketplace Wipro ========== --}}
-                <div x-show="tab.type === 'CENTRAL_KITCHEN'">
+                {{-- ========== CK & OCIA: Marketplace katalog ========== --}}
+                <div x-show="usesCatalogMode(tab.type)">
 
                     {{-- Loading state --}}
                     <div x-show="tab.catalogLoading" class="text-center py-10 text-gray-400 text-sm">
@@ -91,16 +91,17 @@
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                         </svg>
-                        Memuat katalog Wipro…
+                        <span x-text="'Memuat katalog ' + tab.label + '…'"></span>
                     </div>
 
-                    {{-- Kosong / belum di-import --}}
+                    {{-- Kosong / belum disinkron --}}
                     <div x-show="!tab.catalogLoading && tab.catalogEmpty" class="text-center py-10">
                         <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                         </svg>
-                        <p class="text-sm text-gray-500 font-medium mb-1">Katalog Wipro belum tersedia</p>
-                        <p class="text-xs text-gray-400">Admin perlu mengimport katalog terlebih dahulu.</p>
+                        <p class="text-sm text-gray-500 font-medium mb-1" x-text="'Katalog ' + tab.label + ' belum tersedia'"></p>
+                        <p class="text-xs text-gray-400"
+                           x-text="tab.type === 'CENTRAL_KITCHEN' ? 'Admin perlu mengimport katalog terlebih dahulu.' : 'Admin perlu menyinkronkan katalog produk di menu Integrasi terlebih dahulu.'"></p>
                     </div>
 
                     {{-- Katalog sudah ada --}}
@@ -190,7 +191,7 @@
                 </div>
 
                 {{-- ========== Tab LAIN: Search autocomplete (existing) ========== --}}
-                <div x-show="tab.type !== 'CENTRAL_KITCHEN'">
+                <div x-show="!usesCatalogMode(tab.type)">
                     {{-- Supplier opsional, khusus tab Drygood/Purchasing --}}
                     <div x-show="tab.type === 'DRYGOOD'" class="mb-3">
                         <label class="block text-xs font-medium text-gray-600 mb-1">Supplier</label>
@@ -500,7 +501,7 @@ function poForm() {
                 search:         '',
                 results:        [],
                 loading:        false,
-                // Marketplace fields (CK tab only)
+                // Marketplace fields (CK & OCIA tabs)
                 catalog:        {},   // { kategori: [item, ...] }
                 catalogFilter:  '',
                 catalogLoading: false,
@@ -508,9 +509,8 @@ function poForm() {
             }));
             this.activeTab = this.tabs.length > 0 ? this.tabs[0].type : '';
 
-            // Pre-load CK catalog on init
-            const ckTab = this.tabs.find(t => t.type === 'CENTRAL_KITCHEN');
-            if (ckTab) this.loadCatalog(ckTab);
+            // Pre-load katalog untuk semua tab yang pakai mode marketplace
+            this.tabs.filter(t => this.usesCatalogMode(t.type)).forEach(t => this.loadCatalog(t));
         },
 
         onDateChange() {
@@ -519,11 +519,15 @@ function poForm() {
 
         // ── Marketplace helpers ─────────────────────────────────────────────
 
+        usesCatalogMode(type) {
+            return ['CENTRAL_KITCHEN', 'OCIA_ROASTERY'].includes(type);
+        },
+
         async loadCatalog(tab) {
-            if (tab.type !== 'CENTRAL_KITCHEN') return;
+            if (!this.usesCatalogMode(tab.type)) return;
             tab.catalogLoading = true;
             try {
-                const res = await fetch(`/api/items/po-catalog?po_type=CENTRAL_KITCHEN`, {
+                const res = await fetch(`/api/items/po-catalog?po_type=${tab.type}`, {
                     credentials: 'same-origin',
                     headers:     { Accept: 'application/json' },
                 });

@@ -45,6 +45,26 @@
         </div>
     @endif
 
+    @php
+        $reasonLabels = [
+            'EXPIRED' => 'Kadaluarsa',
+            'RUSAK' => 'Rusak/Cacat',
+            'KESALAHAN_PRODUKSI' => 'Kesalahan Produksi',
+            'TUMPAH' => 'Tumpah',
+            'QUALITY_REJECT' => 'Reject Kualitas',
+            'LAINNYA' => 'Lainnya',
+        ];
+        $reasonClass = [
+            'EXPIRED' => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-red-100 text-red-800',
+            'RUSAK' => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-orange-100 text-orange-800',
+            'KESALAHAN_PRODUKSI' => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-purple-100 text-purple-800',
+            'TUMPAH' => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-blue-100 text-blue-800',
+            'QUALITY_REJECT' => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-amber-100 text-amber-800',
+            'LAINNYA' => 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5 bg-gray-100 text-gray-800',
+        ];
+        $photoBadgeClass = 'inline-flex items-center rounded-full text-xs font-semibold px-2.5 py-0.5';
+    @endphp
+
     <div class="lg:hidden space-y-3">
         @forelse($spoils as $spoil)
             @php
@@ -65,10 +85,14 @@
                         <p class="text-xs text-gray-500">{{ $spoil->outlet_name }} | {{ $spoil->department_name ?? '-' }}</p>
                     </div>
                     <p class="text-sm text-gray-700">Qty: {{ number_format((float) $spoil->qty, 4, ',', '.') }} {{ $spoil->unit }}</p>
-                    <p class="text-sm text-gray-500">Alasan: {{ $spoil->reason_category }}</p>
-                    @if($spoil->is_duplicate_photo)
-                        <span class="badge-rejected">Foto duplikat</span>
-                    @endif
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="{{ $reasonClass[$spoil->reason_category] ?? $reasonClass['LAINNYA'] }}">{{ $reasonLabels[$spoil->reason_category] ?? $spoil->reason_category }}</span>
+                        @if($spoil->is_duplicate_photo)
+                            <span class="{{ $photoBadgeClass }} bg-red-100 text-red-800">Foto Duplikat</span>
+                        @elseif($spoil->photo || $spoil->photo_path)
+                            <span class="{{ $photoBadgeClass }} bg-gray-100 text-gray-600">Ada Foto</span>
+                        @endif
+                    </div>
                 </div>
             </x-sf.card>
         @empty
@@ -90,7 +114,6 @@
                             <x-sf.sortable-th column="sw.reason_category" :sort="$sort" :direction="$direction">Alasan</x-sf.sortable-th>
                             <x-sf.sortable-th column="sw.status" :sort="$sort" :direction="$direction">Status</x-sf.sortable-th>
                             <th class="px-4 py-3">Foto</th>
-                            <th class="px-4 py-3">Duplikat?</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 text-sm">
@@ -111,20 +134,21 @@
                                 <td class="px-4 py-3">{{ $spoil->outlet_name }}</td>
                                 <td class="px-4 py-3">{{ $spoil->department_name ?? '-' }}</td>
                                 <td class="px-4 py-3 text-right">{{ number_format((float) $spoil->qty, 4, ',', '.') }} {{ $spoil->unit }}</td>
-                                <td class="px-4 py-3">{{ $spoil->reason_category }}</td>
+                                <td class="px-4 py-3"><span class="{{ $reasonClass[$spoil->reason_category] ?? $reasonClass['LAINNYA'] }}">{{ $reasonLabels[$spoil->reason_category] ?? $spoil->reason_category }}</span></td>
                                 <td class="px-4 py-3"><span class="{{ $statusClass }}">{{ $spoil->status }}</span></td>
-                                <td class="px-4 py-3">{{ $spoil->photo || $spoil->photo_path ? 'Ada' : '-' }}</td>
                                 <td class="px-4 py-3">
                                     @if($spoil->is_duplicate_photo)
-                                        <span class="badge-rejected">Ya</span>
+                                        <span class="{{ $photoBadgeClass }} bg-red-100 text-red-800">Foto Duplikat</span>
+                                    @elseif($spoil->photo || $spoil->photo_path)
+                                        <span class="{{ $photoBadgeClass }} bg-gray-100 text-gray-600">Ada Foto</span>
                                     @else
-                                        <span class="badge-draft">Tidak</span>
+                                        <span class="text-gray-400">—</span>
                                     @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="px-4 py-10 text-center text-gray-500">Belum ada spoil.</td>
+                                <td colspan="8" class="px-4 py-10 text-center text-gray-500">Belum ada spoil.</td>
                             </tr>
                         @endforelse
                     </tbody>
