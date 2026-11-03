@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Procurement\Models\PurchaseOrderApprovalEvent;
 use App\Modules\Procurement\Models\PurchaseOrderItem;
+use App\Modules\Procurement\Models\PurchaseOrderShipment;
 use App\Notifications\WorkflowNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -50,6 +51,7 @@ class PurchaseOrderService
                 'needed_at'         => $data['needed_at'],
                 'planned_submit_at' => $isPlanned ? $neededAt->startOfDay() : null,
                 'notes'             => $data['notes'] ?? null,
+                'supplier_id'       => $poType === PurchaseOrder::TYPE_DRYGOOD ? ($data['supplier_id'] ?? null) : null,
             ], $userId);
 
             foreach ($items as $item) {
@@ -83,6 +85,7 @@ class PurchaseOrderService
                 'status'            => PurchaseOrder::STATUS_DRAFT,
                 'notes'             => $data['notes'] ?? null,
                 'requested_by'      => $userId,
+                'supplier_id'       => $data['supplier_id'] ?? null,
             ]);
 
             return $po;
@@ -325,6 +328,50 @@ class PurchaseOrderService
             $this->logEvent($po, $userId, PurchaseOrderApprovalEvent::EVENT_CLOSE, $oldStatus, PurchaseOrder::STATUS_CLOSED);
 
             return $po->refresh();
+        });
+    }
+
+    /**
+     * Manually record a shipment/DO for a DRYGOOD PO (internal MKO
+     * purchasing or a physical external supplier) -- the manual-web
+     * equivalent of what WiproWebhookController::dispatchNotification()
+     * does automatically for Wipro. A PO can receive multiple shipments
+     * (1 per box/DO), exactly like Wipro; only the first call flips the
+     * status to SHIPPED.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function recordShipment(PurchaseOrder $po, int $userId, array $data): PurchaseOrderShipment
+    {
+        return DB::transaction(function () use ($po, $userId, $data): PurchaseOrderShipment {
+            $po = PurchaseOrder::query()->lockForUpdate()->findOrFail($po->id);
+
+            if ($po->po_type !== PurchaseOrder::TYPE_DRYGOOD) {
+                throw ValidationException::withMessages(['status' => 'Pencatatan pengiriman manual hanya untuk PO tipe Drygood / Purchasing.']);
+            }
+
+            if (! in_array($po->status, [PurchaseOrder::STATUS_SENT, PurchaseOrder::STATUS_SHIPPED], true)) {
+                throw ValidationException::withMessages(['status' => 'PO harus berstatus Terkirim ke Vendor sebelum pengiriman bisa dicatat.']);
+            }
+
+            $shippedAt = filled($data['shipped_at'] ?? null) ? now()->parse($data['shipped_at']) : now();
+
+            $shipment = PurchaseOrderShipment::create([
+                'tenant_id'         => $po->tenant_id,
+                'purchase_order_id' => $po->id,
+                'do_number'         => $data['do_number'] ?? null,
+                'invoice_number'    => $data['invoice_number'] ?? null,
+                'shipped_at'        => $shippedAt,
+                'notes'             => $data['notes'] ?? null,
+            ]);
+
+            $oldStatus = $po->status;
+
+            $po->update(['status' => PurchaseOrder::STATUS_SHIPPED]);
+
+            $this->logEvent($po, $userId, PurchaseOrderApprovalEvent::EVENT_SHIP, $oldStatus, PurchaseOrder::STATUS_SHIPPED, $data['notes'] ?? null);
+
+            return $shipment;
         });
     }
 

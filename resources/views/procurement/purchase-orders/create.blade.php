@@ -191,6 +191,17 @@
 
                 {{-- ========== Tab LAIN: Search autocomplete (existing) ========== --}}
                 <div x-show="tab.type !== 'CENTRAL_KITCHEN'">
+                    {{-- Supplier opsional, khusus tab Drygood/Purchasing --}}
+                    <div x-show="tab.type === 'DRYGOOD'" class="mb-3">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Supplier</label>
+                        <select x-model="supplierId" class="sf-input text-sm w-full">
+                            <option value="">— Tanpa supplier (Purchasing Internal MKO) —</option>
+                            @foreach($suppliers as $supplier)
+                                <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     {{-- Live search (Google-style) --}}
                     <div class="relative mb-3">
                         <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
@@ -475,6 +486,7 @@ function poForm() {
         date:        today,
         notes:       '',
         outletId:    @js($outlet?->id ? (string) $outlet->id : ''),
+        supplierId:  '',
         isPlanned:   false,
         showConfirm: false,
         submitting:  false,
@@ -650,10 +662,11 @@ function poForm() {
                     },
                     credentials: 'same-origin',
                     body: JSON.stringify({
-                        needed_at: this.date,
-                        notes:     this.notes,
-                        tabs:      tabsPayload,
-                        outlet_id: this.outletId || undefined,
+                        needed_at:   this.date,
+                        notes:       this.notes,
+                        tabs:        tabsPayload,
+                        outlet_id:   this.outletId || undefined,
+                        supplier_id: this.supplierId || undefined,
                     }),
                 });
 

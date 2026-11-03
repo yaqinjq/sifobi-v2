@@ -362,6 +362,14 @@
     </x-sf.card>
 
     {{-- ── PENGIRIMAN / DO ── --}}
+    @php
+        $canRecordShipment = $purchaseOrder->po_type === \App\Modules\Procurement\Models\PurchaseOrder::TYPE_DRYGOOD
+            && in_array($purchaseOrder->status, [
+                \App\Modules\Procurement\Models\PurchaseOrder::STATUS_SENT,
+                \App\Modules\Procurement\Models\PurchaseOrder::STATUS_SHIPPED,
+            ]);
+    @endphp
+
     @if($purchaseOrder->shipments->isNotEmpty())
         <x-sf.card>
             <x-slot:header>
@@ -417,7 +425,7 @@
                                 <div class="mt-2">
                                     <button type="button"
                                             data-qr-target="shipment-qr-{{ $shipment->id }}"
-                                            data-qr-payload="{{ htmlspecialchars($qrPayload) }}"
+                                            data-qr-payload="{{ $qrPayload }}"
                                             onclick="toggleShipmentQr(this)"
                                             class="inline-flex items-center gap-1.5 text-xs font-medium text-primary-700 hover:text-primary-900 border border-primary-200 rounded-lg px-2.5 py-1.5 hover:bg-primary-50 transition-colors">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -447,6 +455,37 @@
                 @endforeach
             </div>
         </x-sf.card>
+    @endif
+
+    @if($canRecordShipment)
+        @can('approve_po')
+            <x-sf.card title="Catat Pengiriman">
+                <form method="POST" action="{{ route('procurement.purchase-orders.shipments.store', $purchaseOrder) }}" class="space-y-3">
+                    @csrf
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">No. Surat Jalan / DO</label>
+                            <input type="text" name="do_number" class="sf-input text-sm" placeholder="Opsional" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">No. Invoice</label>
+                            <input type="text" name="invoice_number" class="sf-input text-sm" placeholder="Opsional" />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Tanggal Kirim</label>
+                        <input type="datetime-local" name="shipped_at" class="sf-input text-sm" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Catatan</label>
+                        <input type="text" name="notes" class="sf-input text-sm" placeholder="Opsional, mis. nama box/isi kiriman" />
+                    </div>
+                    <button type="submit" class="sf-btn-primary w-full text-sm">
+                        + Catat Pengiriman Ini
+                    </button>
+                </form>
+            </x-sf.card>
+        @endcan
     @endif
 
     {{-- ── PENERIMAAN BARANG TERKAIT ── --}}

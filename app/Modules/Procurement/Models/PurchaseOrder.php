@@ -42,6 +42,7 @@ class PurchaseOrder extends Model
     const TYPE_LABELS_ACTIVE = [
         self::TYPE_OCIA_ROASTERY   => 'OCIA / Roastery',
         self::TYPE_CENTRAL_KITCHEN => 'Central Kitchen (Wipro)',
+        self::TYPE_DRYGOOD         => 'Drygood / Purchasing',
     ];
 
     const STATUS_LABELS = [

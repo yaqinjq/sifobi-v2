@@ -806,6 +806,10 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
                 ->middleware('permission:approve_po')
                 ->name('close');
 
+            Route::post('/{purchaseOrder}/shipments', [PurchaseOrderController::class, 'storeShipment'])
+                ->middleware('permission:approve_po')
+                ->name('shipments.store');
+
             Route::post('/{purchaseOrder}/resend', [PurchaseOrderController::class, 'resend'])
                 ->middleware('permission:approve_po')
                 ->name('resend');

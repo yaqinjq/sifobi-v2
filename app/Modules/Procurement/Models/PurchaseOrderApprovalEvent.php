@@ -14,6 +14,7 @@ class PurchaseOrderApprovalEvent extends Model
     const EVENT_APPROVE = 'APPROVE';
     const EVENT_REJECT  = 'REJECT';
     const EVENT_SEND    = 'SEND';
+    const EVENT_SHIP    = 'SHIP';
     const EVENT_CLOSE   = 'CLOSE';
     const EVENT_REOPEN  = 'REOPEN';
 
@@ -22,6 +23,7 @@ class PurchaseOrderApprovalEvent extends Model
         self::EVENT_APPROVE => 'Disetujui',
         self::EVENT_REJECT  => 'Ditolak',
         self::EVENT_SEND    => 'Dikirim ke Vendor',
+        self::EVENT_SHIP    => 'Pengiriman Dicatat',
         self::EVENT_CLOSE   => 'Selesai',
         self::EVENT_REOPEN  => 'Dibuka kembali',
     ];

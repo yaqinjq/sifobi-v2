@@ -12,6 +12,7 @@ use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\Unit;
 use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Procurement\Models\PurchaseOrderItem;
+use App\Modules\Receiving\Models\Supplier;
 use App\Services\PurchaseOrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -98,10 +99,16 @@ class PurchaseOrderController extends Controller
 
         $typeLabels = array_intersect_key(PurchaseOrder::TYPE_LABELS_ACTIVE, array_flip($allowedTypes));
 
+        $suppliers = Supplier::query()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         $today = now()->toDateString();
 
         return view('procurement.purchase-orders.create', compact(
-            'outlet', 'outlets', 'canChangeOutlet', 'department', 'typeLabels', 'today'
+            'outlet', 'outlets', 'canChangeOutlet', 'department', 'typeLabels', 'suppliers', 'today'
         ));
     }
 
@@ -125,6 +132,7 @@ class PurchaseOrderController extends Controller
             'tabs.*.*.item_id'      => ['required', 'integer', Rule::exists('items', 'id')->where('tenant_id', $tenantId)],
             'tabs.*.*.unit_id'      => ['required', 'integer', Rule::exists('units', 'id')->where('tenant_id', $tenantId)],
             'tabs.*.*.qty_ordered'  => ['required', 'numeric', 'min:0.001'],
+            'supplier_id'           => ['nullable', 'integer', Rule::exists('suppliers', 'id')->where('tenant_id', $tenantId)],
         ];
 
         // >1 outlet -> outlet_id WAJIB dikirim client, dan HARUS salah
@@ -401,6 +409,29 @@ class PurchaseOrderController extends Controller
         return redirect()
             ->route('procurement.purchase-orders.show', $purchaseOrder)
             ->with('success', 'PO ditandai selesai.');
+    }
+
+    public function storeShipment(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        abort_unless((int) $purchaseOrder->tenant_id === $this->tenantId($request), 403);
+        abort_unless($purchaseOrder->po_type === PurchaseOrder::TYPE_DRYGOOD, 404);
+
+        $validated = $request->validate([
+            'do_number'      => ['nullable', 'string', 'max:120'],
+            'invoice_number' => ['nullable', 'string', 'max:120'],
+            'shipped_at'     => ['nullable', 'date'],
+            'notes'          => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        try {
+            $this->service->recordShipment($purchaseOrder, (int) $request->user()->id, $validated);
+        } catch (ValidationException $exception) {
+            return back()->withErrors($exception->errors());
+        }
+
+        return redirect()
+            ->route('procurement.purchase-orders.show', $purchaseOrder)
+            ->with('success', 'Pengiriman berhasil dicatat. QR box siap ditampilkan untuk penerimaan barang.');
     }
 
     public function resend(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
