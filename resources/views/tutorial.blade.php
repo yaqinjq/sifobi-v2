@@ -335,6 +335,9 @@
                     <li>Screenshot atau cetak QR tersebut</li>
                     <li>Tempelkan di box / kirimkan ke tim penerima sebelum barang tiba</li>
                 </ol>
+                <div class="mt-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-800">
+                    <strong>Khusus PO Drygood / Purchasing</strong> (internal MKO atau Supplier Luar): karena tidak ada sistem vendor otomatis seperti Wipro, box "Pengiriman dari Vendor (DO)" tidak langsung muncul. Setelah PO berstatus "Terkirim ke Vendor", buka halaman detail PO tersebut dan isi form <strong>"Catat Pengiriman"</strong> (No. Surat Jalan/DO, No. Invoice, tanggal kirim) terlebih dahulu — setelah disimpan, tombol "Tampilkan QR Box" baru muncul seperti biasa. Bisa dicatat berkali-kali kalau barang datang dalam beberapa box.
+                </div>
             </div>
 
             <div class="border-t border-gray-100 pt-3">
@@ -800,7 +803,7 @@
         <x-slot:header>
             <div class="flex items-center gap-3">
                 <span class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-bold text-sm shrink-0">12</span>
-                <h3 class="font-heading font-bold text-gray-900">Integrasi Wipro (Central Kitchen)</h3>
+                <h3 class="font-heading font-bold text-gray-900">Integrasi Wipro & OCIA</h3>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-4 text-sm text-gray-700">
@@ -846,6 +849,37 @@
                         <p class="text-gray-500 mt-0.5">Tidak perlu pilih departemen — klik langsung untuk mengembalikan item ke kondisi semula (tidak ikut Opname lagi), misalnya kalau ternyata item itu tidak perlu dihitung fisik.</p>
                     </div>
                 </div>
+            </div>
+
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2">Alur Data OCIA (Roastery)</p>
+                <p class="text-xs text-gray-600 mb-2">Berbeda dari Wipro, OCIA tidak punya webhook pengiriman otomatis — alurnya lewat sinkronisasi katalog dan pencatatan manual:</p>
+                <div class="space-y-2 text-xs">
+                    <div class="flex gap-3 items-start">
+                        <span class="badge-info px-2 py-0.5 rounded text-xs shrink-0 mt-0.5">Sync Katalog</span>
+                        <p class="text-gray-600">Settings → Integrasi → profil OCIA → <strong>"Sync Katalog Produk"</strong> — menarik daftar produk terbaru dari OCIA sebagai Item baru/update di SIFOBI.</p>
+                    </div>
+                    <div class="flex gap-3 items-start">
+                        <span class="badge-posted px-2 py-0.5 rounded text-xs shrink-0 mt-0.5">PO & Katalog</span>
+                        <p class="text-gray-600">Saat buat PO tipe "OCIA / Roastery", tab-nya menampilkan katalog produk OCIA langsung di bawah kolom pencarian (mirip tampilan Central Kitchen) — tinggal klik tombol "+" dan isi qty, tanpa perlu ketik manual.</p>
+                    </div>
+                    <div class="flex gap-3 items-start">
+                        <span class="badge-approved px-2 py-0.5 rounded text-xs shrink-0 mt-0.5">Catat Pengiriman</span>
+                        <p class="text-gray-600">OCIA belum punya integrasi notifikasi pengiriman otomatis, jadi QR Box untuk PO OCIA belum tersedia — fitur ini menyusul kalau integrasinya sudah siap.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-100 pt-3">
+                <p class="font-semibold text-gray-800 mb-2">Data Item OCIA</p>
+                <p class="text-xs text-gray-600 mb-2">Sama seperti Wipro, item hasil sync OCIA punya halaman Master Data tersendiri dan TIDAK ikut muncul di Opname secara default:</p>
+                <ol class="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
+                    <li>Buka <strong>Master Data → Data Item OCIA</strong></li>
+                    <li>Centang item yang memang dihitung fisik di outlet, pilih <strong>Departemen</strong> tujuan, lalu klik <strong>"Aktifkan untuk Opname"</strong></li>
+                    <li>Item langsung muncul di sesi Opname departemen tersebut untuk semua outlet</li>
+                    <li>Edit item OCIA hanya bisa untuk <strong>Foto</strong>, <strong>Deskripsi</strong>, dan <strong>Keterangan Pembeda</strong> — field lain ikut sinkronisasi katalog, sama seperti Wipro</li>
+                </ol>
+                <p class="text-xs text-gray-500 mt-2">Item yang sudah diaktifkan tidak akan ter-reset meski katalog OCIA disinkronkan ulang.</p>
             </div>
 
             <div class="border-t border-gray-100 pt-3">

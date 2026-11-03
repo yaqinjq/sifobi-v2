@@ -8,12 +8,36 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.50 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.50 &mdash; 3 November 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Katalog browse OCIA di form Buat PO</strong> -- tab "OCIA / Roastery" kini menampilkan grid produk lengkap dengan tombol tambah cepat dan info konversi satuan, persis seperti tampilan Central Kitchen (Wipro), jadi tidak perlu ketik manual</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Tampilan <strong>Laporan Spoil &amp; Waste</strong> dirapikan -- kolom Alasan kini pakai badge warna, kolom Foto &amp; Duplikat digabung jadi satu badge yang lebih ringkas</li>
+                    <li>Tutorial aplikasi diperbarui: menambahkan panduan <strong>Data Item OCIA</strong> dan langkah <strong>Catat Pengiriman</strong> untuk PO Drygood</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.49 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.49 &mdash; 3 November 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
