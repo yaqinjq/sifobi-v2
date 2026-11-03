@@ -8,12 +8,36 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.49 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.49 &mdash; 3 November 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Purchase Order tipe Drygood / Purchasing</strong> -- untuk pembelian Internal MKO maupun ke Supplier Luar, lengkap dengan pilihan Supplier opsional saat membuat PO</li>
+                    <li><strong>Catat Pengiriman manual</strong> untuk PO Drygood -- setelah PO terkirim ke vendor, bisa dicatat nomor DO/invoice per box, lalu <strong>QR Box</strong> otomatis bisa ditampilkan dan di-scan saat Penerimaan Barang untuk auto-isi seluruh daftar item, persis seperti yang sudah berjalan untuk Wipro</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Payload QR Box (dipakai saat scan Penerimaan Barang) diperbaiki dari bug double-escaping yang berpotensi membuat hasil scan tidak valid</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.48 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.48 &mdash; 2 November 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
