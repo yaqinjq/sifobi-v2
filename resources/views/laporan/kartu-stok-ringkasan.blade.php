@@ -71,59 +71,61 @@
         <x-sf.empty-state x-show="filteredRows.length === 0" title="Tidak ada pergerakan" description="Coba ubah pencarian/filter kategori, atau pilih outlet dan rentang tanggal lain." />
     </div>
 
+    @php
+        $gridDays = [];
+        for ($d = $dateFrom->copy()->startOfDay(); $d->lte($dateTo); $d->addDay()) {
+            $gridDays[] = $d->copy();
+        }
+        $gridTableWidth = 180 + 100 + count($gridDays) * (4 * 56);
+    @endphp
+
     <div class="hidden lg:block">
         <x-sf.card padding="false">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-100">
-                    <thead class="bg-gray-50">
-                        <tr class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            <th class="px-4 py-3 cursor-pointer select-none" @click="sortBy('item_name')">
+            <p class="px-4 pt-3 text-xs text-gray-500">Klik header Item untuk urutkan A-Z/Z-A. Geser tabel ke samping untuk lihat tanggal lain.</p>
+            <div class="overflow-x-auto max-h-[75vh] overflow-y-auto mt-2">
+                <table class="text-xs border-collapse table-fixed" style="width: {{ $gridTableWidth }}px">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th rowspan="2" class="sticky top-0 left-0 z-30 bg-gray-50 px-3 py-2 text-left font-semibold text-gray-600 w-[180px] align-bottom cursor-pointer select-none" @click="sortBy('item_name')">
                                 <span class="inline-flex items-center gap-1">Item <i class="ti" :class="sortIconClass('item_name')" aria-hidden="true"></i></span>
                             </th>
-                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('saldo_awal')">
+                            <th rowspan="2" class="sticky top-0 left-[180px] z-30 bg-gray-50 px-2 py-2 text-right font-semibold text-gray-600 w-[100px] align-bottom cursor-pointer select-none" @click="sortBy('saldo_awal')">
                                 <span class="inline-flex items-center gap-1">Saldo Awal <i class="ti" :class="sortIconClass('saldo_awal')" aria-hidden="true"></i></span>
                             </th>
-                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('total_masuk')">
-                                <span class="inline-flex items-center gap-1">Masuk <i class="ti" :class="sortIconClass('total_masuk')" aria-hidden="true"></i></span>
-                            </th>
-                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('total_keluar')">
-                                <span class="inline-flex items-center gap-1">Keluar <i class="ti" :class="sortIconClass('total_keluar')" aria-hidden="true"></i></span>
-                            </th>
-                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('total_spoil')">
-                                <span class="inline-flex items-center gap-1">Spoil <i class="ti" :class="sortIconClass('total_spoil')" aria-hidden="true"></i></span>
-                            </th>
-                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('saldo_akhir')">
-                                <span class="inline-flex items-center gap-1">Saldo Akhir <i class="ti" :class="sortIconClass('saldo_akhir')" aria-hidden="true"></i></span>
-                            </th>
-                            <th class="px-4 py-3 text-right cursor-pointer select-none" @click="sortBy('jumlah_transaksi')">
-                                <span class="inline-flex items-center gap-1">Transaksi <i class="ti" :class="sortIconClass('jumlah_transaksi')" aria-hidden="true"></i></span>
-                            </th>
-                            <th class="px-4 py-3"></th>
+                            @foreach($gridDays as $gd)
+                                <th colspan="4" class="sticky top-0 z-20 bg-gray-50 h-9 px-2 text-center font-semibold text-gray-600 border-l border-gray-200 whitespace-nowrap leading-9">{{ $gd->translatedFormat('D, d/m') }}</th>
+                            @endforeach
+                        </tr>
+                        <tr class="bg-gray-50">
+                            @foreach($gridDays as $gd)
+                                <th class="sticky top-9 z-20 bg-gray-50 px-1 py-1.5 text-center font-medium text-gray-500 border-l border-gray-200 w-[56px]">IN</th>
+                                <th class="sticky top-9 z-20 bg-gray-50 px-1 py-1.5 text-center font-medium text-gray-500 w-[56px]">OUT</th>
+                                <th class="sticky top-9 z-20 bg-gray-50 px-1 py-1.5 text-center font-medium text-gray-500 w-[56px]">SPOIL</th>
+                                <th class="sticky top-9 z-20 bg-gray-50 px-1 py-1.5 text-center font-medium text-gray-500 w-[56px]">BAL</th>
+                            @endforeach
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100 text-sm">
+                    <tbody>
                         <template x-for="row in filteredRows" :key="row.item_id">
-                            <tr :class="parseFloat(row.saldo_akhir) <= 0 ? 'bg-red-50/40' : ''">
-                                <td class="px-4 py-3">
+                            <tr class="border-t border-gray-100" :class="parseFloat(row.saldo_akhir) <= 0 ? 'bg-red-50/40' : ''">
+                                <td class="sticky left-0 z-10 bg-white px-3 py-2 align-top w-[180px]" :class="parseFloat(row.saldo_akhir) <= 0 ? 'bg-red-50/40' : ''">
                                     <p class="font-semibold text-gray-900" x-text="row.item_name"></p>
-                                    <p class="text-xs text-gray-500" x-text="row.canonical_sku + ' · ' + row.category_name"></p>
+                                    <p class="text-[11px] text-gray-500" x-text="row.canonical_sku + ' · ' + row.category_name"></p>
+                                    <a :href="detailUrl(row.item_id)" class="text-primary-700 underline text-[11px]">Lihat Kartu</a>
                                 </td>
-                                <td class="px-4 py-3 text-right" x-text="formatQty(row.saldo_awal) + ' ' + row.unit"></td>
-                                <td class="px-4 py-3 text-right text-green-700" x-text="'+' + formatQty(row.total_masuk)"></td>
-                                <td class="px-4 py-3 text-right text-red-600" x-text="formatQty(row.total_keluar)"></td>
-                                <td class="px-4 py-3 text-right text-amber-600" x-text="formatQty(row.total_spoil ?? 0)"></td>
-                                <td class="px-4 py-3 text-right font-bold" :class="parseFloat(row.saldo_akhir) <= 0 ? 'text-red-600' : 'text-gray-900'">
-                                    <span x-text="formatQty(row.saldo_akhir) + ' ' + row.unit"></span>
-                                    <span class="badge-void ml-1" x-show="parseFloat(row.saldo_akhir) <= 0">Habis</span>
-                                </td>
-                                <td class="px-4 py-3 text-right text-gray-500" x-text="row.jumlah_transaksi"></td>
-                                <td class="px-4 py-3 text-right">
-                                    <a :href="detailUrl(row.item_id)" class="text-primary-700 underline text-xs">Lihat Kartu</a>
-                                </td>
+                                <td class="sticky left-[180px] z-10 bg-white px-2 py-2 align-top text-right text-gray-700" :class="parseFloat(row.saldo_akhir) <= 0 ? 'bg-red-50/40' : ''" x-text="formatQty(row.saldo_awal)"></td>
+                                <template x-for="day in row.days" :key="row.item_id + '-' + day.date">
+                                    <td class="px-1 py-2 border-l border-gray-100 text-center align-top">
+                                        <div class="text-green-700" x-text="parseFloat(day.in) > 0 ? '+' + formatQty(day.in) : '-'"></div>
+                                        <div class="text-red-600" x-text="parseFloat(day.out) < 0 ? formatQty(day.out) : '-'"></div>
+                                        <div class="text-amber-600" x-text="parseFloat(day.spoil) < 0 ? formatQty(day.spoil) : '-'"></div>
+                                        <div class="font-semibold" :class="parseFloat(day.bal) <= 0 ? 'text-red-600' : 'text-gray-900'" x-text="formatQty(day.bal)"></div>
+                                    </td>
+                                </template>
                             </tr>
                         </template>
                         <tr x-show="filteredRows.length === 0">
-                            <td colspan="8" class="px-4 py-10 text-center text-gray-500">Tidak ada pergerakan yang cocok dengan pencarian/filter.</td>
+                            <td colspan="{{ 2 + count($gridDays) * 4 }}" class="px-4 py-10 text-center text-gray-500">Tidak ada pergerakan yang cocok dengan pencarian/filter.</td>
                         </tr>
                     </tbody>
                 </table>

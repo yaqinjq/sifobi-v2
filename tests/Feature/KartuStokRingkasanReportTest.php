@@ -74,6 +74,24 @@ test('Kartu Stok Ringkasan menghitung saldo awal, masuk, keluar, spoil, dan sald
         ->and((float) $row->total_spoil)->toBe(-10.0)
         ->and((float) $row->saldo_akhir)->toBe(90.0);
 
+    // Grid harian: rentang 3 hari (H-2..H), spoil terjadi H-1 -- harus
+    // nempel di sel tanggal H-1 saja, bukan nyebar/ketimpuk ke hari lain.
+    expect($row->days)->toHaveCount(3);
+
+    $dayMinus2 = $row->days[0];
+    $dayMinus1 = $row->days[1];
+    $dayToday  = $row->days[2];
+
+    expect($dayMinus2['date'])->toBe(now()->subDays(2)->toDateString())
+        ->and((float) $dayMinus2['spoil'])->toBe(0.0)
+        ->and((float) $dayMinus2['bal'])->toBe(100.0)
+        ->and($dayMinus1['date'])->toBe(now()->subDay()->toDateString())
+        ->and((float) $dayMinus1['spoil'])->toBe(-10.0)
+        ->and((float) $dayMinus1['bal'])->toBe(90.0)
+        ->and($dayToday['date'])->toBe(now()->toDateString())
+        ->and((float) $dayToday['spoil'])->toBe(0.0)
+        ->and((float) $dayToday['bal'])->toBe(90.0);
+
     $detailResponse = $this->actingAs($this->user)->get(route('laporan.kartu-stok.detail', [
         'item'      => $this->item->id,
         'outlet_id' => $this->outlet->id,
@@ -83,6 +101,51 @@ test('Kartu Stok Ringkasan menghitung saldo awal, masuk, keluar, spoil, dan sald
 
     $detailResponse->assertOk();
     expect((float) $detailResponse->viewData('saldo_akhir'))->toBe(90.0);
+});
+
+test('dua transaksi masuk di tanggal berbeda tampil di sel hari yang berbeda, tidak ketimpuk jadi satu', function (): void {
+    $ledger = app(StockLedgerService::class);
+
+    $ledger->receiveGoods([
+        'tenant_id'    => $this->tenant->id,
+        'outlet_id'    => $this->outlet->id,
+        'item_id'      => $this->item->id,
+        'unit_id'      => $this->item->inventory_unit_id,
+        'qty'          => 30,
+        'performed_at' => now()->subDays(3),
+    ]);
+
+    $ledger->receiveGoods([
+        'tenant_id'    => $this->tenant->id,
+        'outlet_id'    => $this->outlet->id,
+        'item_id'      => $this->item->id,
+        'unit_id'      => $this->item->inventory_unit_id,
+        'qty'          => 50,
+        'performed_at' => now()->subDay(),
+    ]);
+
+    $response = $this->actingAs($this->user)->get(route('laporan.kartu-stok', [
+        'outlet_id' => $this->outlet->id,
+        'date_from' => now()->subDays(3)->toDateString(),
+        'date_to'   => now()->toDateString(),
+    ]));
+
+    $response->assertOk();
+
+    $row = $response->viewData('rows')->firstWhere('item_id', $this->item->id);
+
+    expect($row->days)->toHaveCount(4);
+
+    $byDate = collect($row->days)->keyBy('date');
+
+    expect((float) $byDate[now()->subDays(3)->toDateString()]['in'])->toBe(30.0)
+        ->and((float) $byDate[now()->subDays(3)->toDateString()]['bal'])->toBe(30.0)
+        ->and((float) $byDate[now()->subDays(2)->toDateString()]['in'])->toBe(0.0)
+        ->and((float) $byDate[now()->subDays(2)->toDateString()]['bal'])->toBe(30.0)
+        ->and((float) $byDate[now()->subDay()->toDateString()]['in'])->toBe(50.0)
+        ->and((float) $byDate[now()->subDay()->toDateString()]['bal'])->toBe(80.0)
+        ->and((float) $byDate[now()->toDateString()]['in'])->toBe(0.0)
+        ->and((float) $byDate[now()->toDateString()]['bal'])->toBe(80.0);
 });
 
 test('pencarian nama item di Kartu Stok Ringkasan tidak error', function (): void {

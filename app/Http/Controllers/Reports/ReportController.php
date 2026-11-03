@@ -774,8 +774,62 @@ class ReportController extends Controller
             ->orderBy('i.name')
             ->get();
 
-        return $rows->map(function ($row) {
+        if ($rows->isEmpty()) {
+            return $rows;
+        }
+
+        // Rincian harian per item (grid IN/OUT/SPOIL/BAL per tanggal di
+        // halaman Ringkasan) -- query terpisah dari agregat di atas supaya
+        // total_masuk/total_keluar/total_spoil/saldo_akhir (dipakai mobile
+        // card + stat cards + export) tetap dihitung dari query yang sudah
+        // lama terbukti benar, tidak ikut berubah.
+        $dailyByItem = DB::table('stock_mutations as sm')
+            ->where('sm.tenant_id', $tenantId)
+            ->where('sm.outlet_id', $outletId)
+            ->whereIn('sm.item_id', $rows->pluck('item_id')->all())
+            ->whereBetween('sm.performed_at', [$dateFrom, $dateTo])
+            ->selectRaw('
+                sm.item_id,
+                DATE(sm.performed_at) as d,
+                COALESCE(SUM(CASE WHEN sm.qty_change > 0 THEN sm.qty_change ELSE 0 END), 0) as day_in,
+                COALESCE(SUM(CASE WHEN sm.qty_change < 0 AND sm.mutation_type <> ? THEN sm.qty_change ELSE 0 END), 0) as day_out,
+                COALESCE(SUM(CASE WHEN sm.mutation_type = ? THEN sm.qty_change ELSE 0 END), 0) as day_spoil
+            ', [StockMutation::TYPE_SPOIL_WASTE, StockMutation::TYPE_SPOIL_WASTE])
+            ->groupBy('sm.item_id', 'd')
+            ->get()
+            ->groupBy('item_id');
+
+        $dateList = [];
+        for ($d = $dateFrom->copy()->startOfDay(); $d->lte($dateTo); $d->addDay()) {
+            $dateList[] = $d->copy();
+        }
+
+        return $rows->map(function ($row) use ($dailyByItem, $dateList) {
             $row->saldo_akhir = bcadd(bcadd(bcadd((string) $row->saldo_awal, (string) $row->total_masuk, 6), (string) $row->total_keluar, 6), (string) $row->total_spoil, 6);
+
+            $byDate = ($dailyByItem->get($row->item_id) ?? collect())->keyBy('d');
+            $running = (string) $row->saldo_awal;
+            $row->days = [];
+
+            foreach ($dateList as $date) {
+                $key = $date->toDateString();
+                $dayRow = $byDate->get($key);
+
+                $in = $dayRow ? (string) $dayRow->day_in : '0';
+                $out = $dayRow ? (string) $dayRow->day_out : '0';
+                $spoil = $dayRow ? (string) $dayRow->day_spoil : '0';
+
+                $running = bcadd(bcadd(bcadd($running, $in, 6), $out, 6), $spoil, 6);
+
+                $row->days[] = [
+                    'date' => $key,
+                    'label' => $date->translatedFormat('D, d/m'),
+                    'in' => $in,
+                    'out' => $out,
+                    'spoil' => $spoil,
+                    'bal' => $running,
+                ];
+            }
 
             return $row;
         });
