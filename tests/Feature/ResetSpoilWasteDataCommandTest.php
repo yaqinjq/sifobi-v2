@@ -121,6 +121,47 @@ test('spoil masih pending (belum pernah approved): dihapus, saldo stok tidak ter
         ->and(currentBalance($this))->toBe('100.000000');
 });
 
+test('laporan dry-run menghitung jumlah spoil yang pernah menyentuh ledger dengan benar untuk >1 spoil', function (): void {
+    $itemB = Item::query()->where('tenant_id', $this->tenant->id)->where('canonical_sku', 'MKO-GULA-PASIR')->firstOrFail();
+
+    app(StockLedgerService::class)->receiveGoods([
+        'tenant_id'    => $this->tenant->id,
+        'outlet_id'    => $this->outlet->id,
+        'item_id'      => $itemB->id,
+        'unit_id'      => $itemB->base_unit_id,
+        'qty'          => 50,
+        'performed_at' => now()->subWeek(),
+    ]);
+
+    $spoilA = app(SpoilWasteService::class)->record([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => null,
+        'item_id' => $this->item->id,
+        'qty_loose' => 10,
+        'reason_category' => SpoilWaste::REASON_RUSAK,
+        'recorded_date' => now()->toDateString(),
+    ], (int) $this->admin->id);
+    app(SpoilWasteService::class)->approve($spoilA, (int) $this->admin->id);
+
+    $spoilB = app(SpoilWasteService::class)->record([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => null,
+        'item_id' => $itemB->id,
+        'qty_loose' => 5,
+        'reason_category' => SpoilWaste::REASON_RUSAK,
+        'recorded_date' => now()->toDateString(),
+    ], (int) $this->admin->id);
+    app(SpoilWasteService::class)->approve($spoilB, (int) $this->admin->id);
+
+    Artisan::call('sifobi:reset-spoil-wastes', ['tenant_code' => 'MKO', '--dry-run' => true]);
+    $output = Artisan::output();
+
+    expect($output)->toMatch('/Pernah menyentuh ledger stok[^|]*\|\s*2\s*\|/')
+        ->and($output)->toMatch('/Baris stock_balances yang akan disesuaikan\s*\|\s*2\s*\|/');
+});
+
 test('dry-run tidak menghapus atau mengubah apa pun', function (): void {
     $spoil = app(SpoilWasteService::class)->record([
         'tenant_id' => $this->tenant->id,

@@ -64,7 +64,7 @@ class ResetSpoilWasteDataCommand extends Command
         $mutations = DB::table('stock_mutations')
             ->where('reference_type', SpoilWaste::class)
             ->whereIn('reference_id', $spoilIds)
-            ->get(['id', 'source_mutation_id', 'outlet_id', 'item_id', 'stock_target', 'qty_change']);
+            ->get(['id', 'source_mutation_id', 'reference_id', 'outlet_id', 'item_id', 'stock_target', 'qty_change']);
 
         $mutationIds = $mutations->pluck('id');
 
