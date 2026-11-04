@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Modules\Core\Models\Tenant;
+use App\Modules\Operations\Models\SpoilWaste;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -50,25 +51,39 @@ class ResetSpoilWasteDataCommand extends Command
             return self::SUCCESS;
         }
 
-        $mutationIds = $spoils->pluck('mutation_id')->filter()->values();
+        $spoilIds = $spoils->pluck('id');
 
-        // Jaga-jaga: kalau ada mutasi lain (mis. VOID_REVERSAL) yang
-        // menunjuk balik ke salah satu mutasi spoil ini lewat
-        // source_mutation_id, FK restrictOnDelete akan menolak hapus --
-        // dicek dulu di sini supaya errornya jelas, bukan error SQL mentah.
+        // Jangan cuma pakai spoil_wastes.mutation_id (cuma menunjuk mutasi
+        // approve() yang pertama) -- kalau sebuah spoil yang sudah approved
+        // lalu DITOLAK, SpoilWasteService::reject() membuat mutasi
+        // VOID_REVERSAL terpisah yang reference_type/reference_id-nya
+        // JUGA diset ke spoil yang sama (lihat SpoilWasteService.php:212-218),
+        // tapi TIDAK tercatat balik ke kolom mutation_id. Supaya reversal
+        // saldo dihitung benar untuk kedua jenis mutasi itu sekaligus,
+        // dicari lewat reference_type+reference_id, bukan mutation_id.
+        $mutations = DB::table('stock_mutations')
+            ->where('reference_type', SpoilWaste::class)
+            ->whereIn('reference_id', $spoilIds)
+            ->get(['id', 'source_mutation_id', 'outlet_id', 'item_id', 'stock_target', 'qty_change']);
+
+        $mutationIds = $mutations->pluck('id');
+
+        // Jaga-jaga: VOID_REVERSAL tidak bisa di-void lagi (lihat
+        // StockLedgerService::voidMutation(), ditolak eksplisit), jadi
+        // seharusnya tidak ada mutasi LAIN di luar set ini yang menunjuk
+        // balik ke salah satu mutasi di atas lewat source_mutation_id.
+        // Dicek di sini supaya kalau ternyata ada (kasus tak terduga),
+        // errornya jelas dan tidak menabrak FK restrictOnDelete mentah-mentah.
         $blockedBy = DB::table('stock_mutations')
             ->whereIn('source_mutation_id', $mutationIds)
+            ->whereNotIn('id', $mutationIds)
             ->count();
 
         if ($blockedBy > 0) {
-            $this->error("Ada {$blockedBy} mutasi stok lain yang masih bergantung pada mutasi spoil ini (mis. pembalikan/void). Tidak bisa dihapus otomatis -- butuh pengecekan manual.");
+            $this->error("Ada {$blockedBy} mutasi stok lain yang masih bergantung pada mutasi spoil ini (di luar pasangan approve/void yang sudah ditangani). Tidak bisa dihapus otomatis -- butuh pengecekan manual.");
 
             return self::FAILURE;
         }
-
-        $mutations = DB::table('stock_mutations')
-            ->whereIn('id', $mutationIds)
-            ->get(['id', 'outlet_id', 'item_id', 'stock_target', 'qty_change']);
 
         $adjustments = $mutations
             ->groupBy(fn ($m) => $m->outlet_id.'|'.$m->item_id.'|'.$m->stock_target)
@@ -77,14 +92,21 @@ class ResetSpoilWasteDataCommand extends Command
                 'item_id' => $group->first()->item_id,
                 'stock_target' => $group->first()->stock_target,
                 'sum_qty_change' => $group->reduce(fn ($carry, $m) => bcadd($carry, (string) $m->qty_change, 6), '0.000000'),
-            ]);
+            ])
+            // Spoil yang approved lalu ditolak nett-nya 0 (mutasi asli +
+            // VOID_REVERSAL saling meniadakan) -- saldonya sudah benar
+            // apa adanya, tidak perlu disentuh lagi.
+            ->filter(fn ($adj) => bccomp($adj['sum_qty_change'], '0.000000', 6) !== 0);
+
+        $touchedSpoilIds = $mutations->pluck('reference_id')->unique();
 
         $this->table(
             ['Status', 'Jumlah'],
             [
                 ['Total record Spoil & Waste', $spoils->count()],
-                ['Sudah approved (sudah potong stok, saldo akan dikembalikan)', $mutationIds->count()],
-                ['Belum/tidak approved (tidak ada dampak stok)', $spoils->count() - $mutationIds->count()],
+                ['Pernah menyentuh ledger stok (approved, termasuk yang lalu ditolak)', $touchedSpoilIds->count()],
+                ['Tidak pernah menyentuh ledger (masih pending/ditolak sebelum approve)', $spoils->count() - $touchedSpoilIds->count()],
+                ['Mutasi stok yang akan dihapus (approve + void reversal)', $mutations->count()],
                 ['Baris stock_balances yang akan disesuaikan', $adjustments->count()],
             ]
         );
@@ -106,7 +128,7 @@ class ResetSpoilWasteDataCommand extends Command
             }
         }
 
-        DB::transaction(function () use ($tenantId, $mutationIds, $adjustments): void {
+        DB::transaction(function () use ($tenantId, $mutations, $adjustments): void {
             foreach ($adjustments as $adj) {
                 $balance = DB::table('stock_balances')
                     ->where('tenant_id', $tenantId)
@@ -137,8 +159,19 @@ class ResetSpoilWasteDataCommand extends Command
                 ]);
             }
 
-            if ($mutationIds->isNotEmpty()) {
-                DB::table('stock_mutations')->whereIn('id', $mutationIds)->delete();
+            // Anak (VOID_REVERSAL, source_mutation_id terisi) wajib dihapus
+            // SEBELUM induknya (mutasi asli yang jadi source-nya) --
+            // kalau dihapus dalam 1 statement sekaligus, urutan internal
+            // DB tidak terjamin dan bisa menabrak FK stock_mutations.
+            // source_mutation_id (restrictOnDelete).
+            [$children, $parents] = $mutations->partition(fn ($m) => $m->source_mutation_id !== null);
+
+            if ($children->isNotEmpty()) {
+                DB::table('stock_mutations')->whereIn('id', $children->pluck('id'))->delete();
+            }
+
+            if ($parents->isNotEmpty()) {
+                DB::table('stock_mutations')->whereIn('id', $parents->pluck('id'))->delete();
             }
 
             DB::table('spoil_wastes')->where('tenant_id', $tenantId)->delete();
