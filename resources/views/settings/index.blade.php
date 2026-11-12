@@ -10,7 +10,7 @@
 .sh-item:last-child{border-bottom:none}
 .sh-item:hover{background:#F8FAFC}
 .sh-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
-.sh-icon-green{background:#D8F3DC;color:#1B4332}
+.sh-icon-green{background:#DFF0EA;color:#0E1F18}
 .sh-icon-blue{background:#EFF6FF;color:#1D4ED8}
 .sh-icon-amber{background:#FFFBEB;color:#92400E}
 .sh-icon-purple{background:#F5F3FF;color:#6D28D9}

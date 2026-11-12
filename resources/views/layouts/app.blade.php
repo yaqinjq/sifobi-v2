@@ -15,8 +15,8 @@
         $appLogo = $appSetting?->logo_path ? \Illuminate\Support\Facades\Storage::url($appSetting->logo_path) : null;
         $appFavicon = $appSetting?->favicon_path ? \Illuminate\Support\Facades\Storage::url($appSetting->favicon_path) : null;
         $appInitials = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $appName) ?: 'SF', 0, 2));
-        $appPrimaryColor = $appSetting?->primary_color ?: '#1B4332';
-        $appColorScale = $appPrimaryColor !== '#1B4332' ? \App\Support\ColorScale::fromHex($appPrimaryColor) : null;
+        $appPrimaryColor = $appSetting?->primary_color ?: '#0E1F18';
+        $appColorScale = $appPrimaryColor !== '#0E1F18' ? \App\Support\ColorScale::fromHex($appPrimaryColor) : null;
     @endphp
 
     <meta name="theme-color" content="{{ $appPrimaryColor }}">
@@ -344,70 +344,136 @@
             </a>
         </div>
 
-        {{-- User footer --}}
-        <div class="shrink-0 border-t border-primary-700/60 p-4" x-data="{ notifOpen: false }">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="h-9 w-9 rounded-full bg-primary-700 flex items-center justify-center shrink-0">
+    </aside>
+    @endauth
+
+    {{-- ══════════════════════════════════════════
+         DESKTOP TOPBAR (lg+, persisten)
+    ══════════════════════════════════════════ --}}
+    @auth
+    <header class="hidden lg:flex lg:fixed lg:top-0 lg:left-64 lg:right-0 lg:z-40 lg:h-16
+                    items-center gap-4 bg-white border-b border-gray-100 px-6">
+
+        {{-- Search -- filter client-side ke $sidebarNav yang sudah dibangun di <aside> --}}
+        <div class="flex-1 max-w-md relative" x-data="{ q: '', open: false }" @click.outside="open = false">
+            <div class="relative">
+                <i class="ti ti-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true"></i>
+                <input type="text" x-model="q" @focus="open = true"
+                       placeholder="Cari menu..."
+                       class="sf-topbar-search">
+            </div>
+            <div x-show="open && q.length > 0" x-cloak
+                 class="absolute mt-2 w-full rounded-xl border border-gray-100 bg-white shadow-lg z-50 max-h-80 overflow-y-auto">
+                @foreach($sidebarNav as $item)
+                    @continue(isset($item['permission']) && ! auth()->user()->can($item['permission']))
+                    @continue(isset($item['permission_any']) && ! auth()->user()->hasAnyPermission($item['permission_any']))
+                    <a href="{{ route($item['route']) }}"
+                       x-show="'{{ strtolower($item['label']) }}'.includes(q.toLowerCase())"
+                       class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        {{ $item['label'] }}
+                    </a>
+                @endforeach
+            </div>
+        </div>
+
+        {{-- "+ Buat" quick-create dropdown --}}
+        <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+            <button type="button" @click="open = !open" class="sf-btn-primary rounded-full text-xs px-4 py-2" style="min-height:0;min-width:0">
+                <i class="ti ti-plus" aria-hidden="true"></i> Buat
+            </button>
+            <div x-show="open" x-cloak x-transition
+                 class="absolute right-0 mt-2 w-56 rounded-xl border border-gray-100 bg-white shadow-lg z-50 py-1">
+                @can('create_po')
+                    <a href="{{ route('procurement.purchase-orders.create') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <i class="ti ti-file-invoice text-gray-400" aria-hidden="true"></i> PO Baru
+                    </a>
+                @endcan
+                @can('input_opname')
+                    <a href="{{ route('operations.opname.create') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <i class="ti ti-clipboard-check text-gray-400" aria-hidden="true"></i> Opname Baru
+                    </a>
+                @endcan
+                @can('record_spoil')
+                    <a href="{{ route('operations.spoil-wastes.create') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <i class="ti ti-trash text-gray-400" aria-hidden="true"></i> Spoil Baru
+                    </a>
+                @endcan
+                @can('create_goods_receipt')
+                    <a href="{{ route('receiving.goods-receipts.create') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <i class="ti ti-truck-delivery text-gray-400" aria-hidden="true"></i> Penerimaan Baru
+                    </a>
+                @endcan
+            </div>
+        </div>
+
+        {{-- Fullscreen toggle --}}
+        <button type="button" class="sf-topbar-icon-btn"
+                onclick="document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()"
+                aria-label="Fullscreen">
+            <i class="ti ti-arrows-maximize text-lg" aria-hidden="true"></i>
+        </button>
+
+        {{-- Notifikasi -- pindahan dari footer sidebar, variabel & route sama persis --}}
+        <div class="relative" x-data="{ notifOpen: false }" @click.outside="notifOpen = false">
+            <button type="button" @click="notifOpen = !notifOpen" class="sf-topbar-icon-btn" aria-label="Notifikasi">
+                <i class="ti ti-bell text-lg" aria-hidden="true"></i>
+                @if($unreadNotifCount > 0)
+                    <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-lime-500"></span>
+                @endif
+            </button>
+            <div x-show="notifOpen" x-cloak @click.outside="notifOpen = false"
+                 class="absolute right-0 top-12 z-50 w-80 max-h-96 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                    <p class="text-sm font-semibold text-gray-900">Notifikasi</p>
+                    <a href="{{ route('notifications.index') }}" class="text-xs text-primary-600 hover:underline">Lihat Semua</a>
+                </div>
+                @forelse($recentNotifs as $notif)
+                    <a href="{{ route('notifications.open', $notif->id) }}"
+                       class="block px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 {{ $notif->read_at ? '' : 'bg-primary-50' }}">
+                        <p class="text-sm font-medium text-gray-900 truncate">{{ $notif->data['title'] ?? '-' }}</p>
+                        <p class="text-xs text-gray-500 truncate">{{ $notif->data['body'] ?? '' }}</p>
+                        <p class="text-[11px] text-gray-400 mt-0.5">{{ $notif->created_at->diffForHumans() }}</p>
+                    </a>
+                @empty
+                    <div class="px-4 py-6 text-center text-sm text-gray-400">Belum ada notifikasi.</div>
+                @endforelse
+            </div>
+        </div>
+
+        {{-- Profil dropdown --}}
+        <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+            <button type="button" @click="open = !open" class="flex items-center gap-2 pl-1">
+                <div class="h-9 w-9 rounded-full bg-primary-800 flex items-center justify-center shrink-0">
                     <span class="text-white text-sm font-semibold">
                         {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
                     </span>
                 </div>
-                <div class="min-w-0 flex-1">
-                    <p class="text-white text-sm font-medium truncate">{{ auth()->user()->name ?? '—' }}</p>
-                    <p class="text-primary-400 text-xs truncate">{{ auth()->user()->email ?? '' }}</p>
-                </div>
-                <div class="relative shrink-0">
-                    <button type="button" @click="notifOpen = !notifOpen"
-                            class="relative flex items-center justify-center w-9 h-9 rounded-xl text-primary-300 hover:text-white hover:bg-primary-700/50 transition-colors"
-                            aria-label="Notifikasi">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                        </svg>
-                        @if($unreadNotifCount > 0)
-                            <span class="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
-                                {{ $unreadNotifCount > 99 ? '99+' : $unreadNotifCount }}
-                            </span>
-                        @endif
+                <span class="text-sm font-medium text-gray-700 max-w-[10rem] truncate">{{ auth()->user()->name ?? '—' }}</span>
+                <i class="ti ti-chevron-down text-gray-400 text-sm" aria-hidden="true"></i>
+            </button>
+            <div x-show="open" x-cloak x-transition
+                 class="absolute right-0 mt-2 w-48 rounded-xl border border-gray-100 bg-white shadow-lg z-50 py-1">
+                @can('manage_settings')
+                    <a href="{{ route('settings.index') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <i class="ti ti-settings text-gray-400" aria-hidden="true"></i> Pengaturan
+                    </a>
+                    <div class="my-1 border-t border-gray-100"></div>
+                @endcan
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">
+                        <i class="ti ti-logout" aria-hidden="true"></i> Keluar
                     </button>
-                    <div x-show="notifOpen" x-cloak @click.outside="notifOpen = false"
-                         class="absolute bottom-12 left-0 z-50 w-80 max-h-96 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
-                        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                            <p class="text-sm font-semibold text-gray-900">Notifikasi</p>
-                            <a href="{{ route('notifications.index') }}" class="text-xs text-primary-600 hover:underline">Lihat Semua</a>
-                        </div>
-                        @forelse($recentNotifs as $notif)
-                            <a href="{{ route('notifications.open', $notif->id) }}"
-                               class="block px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 {{ $notif->read_at ? '' : 'bg-primary-50' }}">
-                                <p class="text-sm font-medium text-gray-900 truncate">{{ $notif->data['title'] ?? '-' }}</p>
-                                <p class="text-xs text-gray-500 truncate">{{ $notif->data['body'] ?? '' }}</p>
-                                <p class="text-[11px] text-gray-400 mt-0.5">{{ $notif->created_at->diffForHumans() }}</p>
-                            </a>
-                        @empty
-                            <div class="px-4 py-6 text-center text-sm text-gray-400">Belum ada notifikasi.</div>
-                        @endforelse
-                    </div>
-                </div>
+                </form>
             </div>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit"
-                        class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl
-                               text-primary-300 hover:text-white hover:bg-primary-700/50
-                               text-sm font-medium transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                    </svg>
-                    Keluar
-                </button>
-            </form>
         </div>
-    </aside>
+    </header>
     @endauth
 
     {{-- ══════════════════════════════════════════
          MAIN AREA
     ══════════════════════════════════════════ --}}
-    <div class="lg:pl-64 flex flex-col min-h-full">
+    <div class="lg:pl-64 lg:pt-16 flex flex-col min-h-full">
 
         {{-- ── MOBILE TOPBAR (hidden on desktop) ── --}}
         @auth
@@ -450,7 +516,7 @@
              x-transition:leave="transition ease-in duration-200"
              x-transition:leave-start="opacity-100 translate-y-0"
              x-transition:leave-end="opacity-0 -translate-y-3"
-             class="fixed top-4 inset-x-4 md:left-auto md:right-4 md:max-w-sm z-50
+             class="fixed top-4 inset-x-4 md:left-auto md:right-4 md:max-w-sm lg:top-20 z-50
                     bg-green-600 text-white px-4 py-3 rounded-2xl shadow-lg
                     flex items-center gap-3">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -475,7 +541,7 @@
              x-transition:leave="transition ease-in duration-200"
              x-transition:leave-start="opacity-100 translate-y-0"
              x-transition:leave-end="opacity-0 -translate-y-3"
-             class="fixed top-4 inset-x-4 md:left-auto md:right-4 md:max-w-sm z-50
+             class="fixed top-4 inset-x-4 md:left-auto md:right-4 md:max-w-sm lg:top-20 z-50
                     bg-red-600 text-white px-4 py-3 rounded-2xl shadow-lg
                     flex items-center gap-3">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -492,7 +558,7 @@
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="opacity-0 -translate-y-3"
              x-transition:enter-end="opacity-100 translate-y-0"
-             class="fixed top-4 inset-x-4 md:left-auto md:right-4 md:max-w-sm z-50
+             class="fixed top-4 inset-x-4 md:left-auto md:right-4 md:max-w-sm lg:top-20 z-50
                     bg-accent-500 text-white px-4 py-3 rounded-2xl shadow-lg
                     flex items-center gap-3">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

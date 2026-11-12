@@ -11,65 +11,24 @@
 @section('hide-bottom-nav', 'true')
 
 @section('content')
-<div class="min-h-screen flex">
+<div class="min-h-screen flex items-center justify-center bg-gray-50 relative overflow-hidden px-4 py-12">
 
-    {{-- ── LEFT PANEL (desktop only) ── --}}
-    <div class="hidden lg:flex lg:w-1/2 xl:w-2/5 bg-primary-800 flex-col items-center justify-center p-12 relative overflow-hidden">
-        {{-- Background pattern --}}
-        <div class="absolute inset-0 opacity-5">
-            <div class="absolute top-10 left-10 w-64 h-64 rounded-full border-2 border-white"></div>
-            <div class="absolute bottom-20 right-10 w-96 h-96 rounded-full border border-white"></div>
-            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full border-4 border-white"></div>
-        </div>
+    {{-- Dekorasi blur lime, CSS murni (bukan gambar) --}}
+    <div class="pointer-events-none absolute -top-24 -left-24 w-80 h-80 rounded-full bg-lime-300/40 blur-3xl"></div>
+    <div class="pointer-events-none absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-lime-400/30 blur-3xl"></div>
 
-        <div class="relative z-10 text-center">
-            <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-primary-700 mb-8">
-                @if($loginAppLogo)
-                    <img src="{{ $loginAppLogo }}" alt="{{ $loginAppName }}" class="h-14 w-14 object-contain">
-                @else
-                    <span class="font-heading font-black text-white text-3xl">{{ $loginAppInitials }}</span>
-                @endif
-            </div>
-            <h1 class="font-heading font-black text-white text-4xl mb-3">{{ $loginAppName }}</h1>
-            <p class="text-primary-300 text-lg font-medium mb-8">{{ $loginAppTagline }}</p>
-            <div class="space-y-3 text-left max-w-xs mx-auto">
-                @foreach(['Kelola stok bahan baku secara real-time', 'Pantau penerimaan barang & spoilage', 'Laporan harian otomatis per outlet'] as $feat)
-                <div class="flex items-center gap-3">
-                    <div class="w-5 h-5 rounded-full bg-primary-600 flex items-center justify-center shrink-0">
-                        <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                        </svg>
-                    </div>
-                    <p class="text-primary-200 text-sm">{{ $feat }}</p>
+    <div class="relative z-10 w-full max-w-sm">
+        <div class="sf-card p-8">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-800 mb-4">
+                    @if($loginAppLogo)
+                        <img src="{{ $loginAppLogo }}" alt="{{ $loginAppName }}" class="h-11 w-11 object-contain">
+                    @else
+                        <span class="font-heading font-black text-white text-2xl">{{ $loginAppInitials }}</span>
+                    @endif
                 </div>
-                @endforeach
-            </div>
-        </div>
-
-        <p class="relative z-10 absolute bottom-8 text-primary-500 text-xs">
-            &copy; {{ date('Y') }} MKO Group
-        </p>
-    </div>
-
-    {{-- ── RIGHT PANEL — login form ── --}}
-    <div class="flex-1 flex flex-col items-center justify-center px-6 py-12 lg:px-12 bg-gray-50">
-        {{-- Mobile logo --}}
-        <div class="lg:hidden text-center mb-10">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-800 mb-4">
-                @if($loginAppLogo)
-                    <img src="{{ $loginAppLogo }}" alt="{{ $loginAppName }}" class="h-11 w-11 object-contain">
-                @else
-                    <span class="font-heading font-black text-white text-2xl">{{ $loginAppInitials }}</span>
-                @endif
-            </div>
-            <h1 class="font-heading font-black text-gray-900 text-3xl">{{ $loginAppName }}</h1>
-            <p class="text-gray-500 text-sm mt-1">{{ $loginAppTagline }}</p>
-        </div>
-
-        <div class="w-full max-w-sm">
-            <div class="mb-8 lg:block hidden">
-                <h2 class="font-heading font-bold text-gray-900 text-2xl">Selamat datang</h2>
-                <p class="text-gray-500 text-sm mt-1">Masuk ke akun {{ $loginAppName }} Anda</p>
+                <h1 class="font-heading font-bold text-gray-900 text-2xl">{{ $loginAppName }}</h1>
+                <p class="text-gray-500 text-sm mt-1">{{ $loginAppTagline }}</p>
             </div>
 
             <form method="POST" action="{{ route('login.store') }}" class="space-y-5">
@@ -159,11 +118,11 @@
                     Masuk ke {{ $loginAppName }}
                 </button>
             </form>
-
-            <p class="text-center text-xs text-gray-400 mt-10 lg:hidden">
-                &copy; {{ date('Y') }} MKO Group
-            </p>
         </div>
+
+        <p class="text-center text-xs text-gray-400 mt-8">
+            &copy; {{ date('Y') }} MKO Group
+        </p>
     </div>
 </div>
 @endsection
