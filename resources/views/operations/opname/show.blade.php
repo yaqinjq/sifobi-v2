@@ -54,6 +54,37 @@
         </div>
     </x-sf.card>
 
+    @if($session->status === 'DRAFT')
+        <details class="rounded-2xl border border-gray-100 bg-white px-4 py-3">
+            <summary class="flex items-center justify-between cursor-pointer text-sm font-semibold text-gray-700">
+                <span class="inline-flex items-center gap-2">
+                    <i class="ti ti-file-spreadsheet text-primary-700" aria-hidden="true"></i>
+                    Isi Massal lewat Excel (opsional)
+                </span>
+                <i class="ti ti-chevron-down text-gray-400" aria-hidden="true"></i>
+            </summary>
+            <div class="mt-3 space-y-3 text-sm">
+                <p class="text-gray-500 text-xs">
+                    Download template berisi semua item sesi ini (urutan sama seperti mode "Sesuai Form"), isi kolom
+                    <strong>Fisik Utuh</strong> / <strong>Fisik Ecer</strong> seperti lembar hitung fisik di kertas, lalu
+                    upload kembali. Baris yang dikosongkan tidak akan mengubah apa pun. Input manual per item di bawah
+                    tetap bisa dipakai seperti biasa, kapan saja.
+                </p>
+                <a href="{{ route('operations.opname.fill-template', $session) }}"
+                   class="sf-btn-secondary text-xs px-3 py-1.5 min-h-9 inline-flex items-center gap-1.5">
+                    <i class="ti ti-download text-sm" aria-hidden="true"></i> Download Template
+                </a>
+                <form method="POST" action="{{ route('operations.opname.fill-import', $session) }}"
+                      enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
+                    @csrf
+                    <input type="file" name="file" accept=".xlsx,.xls,.csv" required
+                           class="sf-input text-xs flex-1 min-w-[180px] min-h-9">
+                    <button type="submit" class="sf-btn-primary text-xs px-3 py-1.5 min-h-9">Upload &amp; Isi</button>
+                </form>
+            </div>
+        </details>
+    @endif
+
     <div class="sticky top-0 z-10 -mx-4 border-y border-gray-100 bg-white px-4 py-3 lg:mx-0 lg:rounded-2xl lg:border">
         <form method="GET" action="{{ route('operations.opname.show', $session) }}" class="flex flex-wrap items-center gap-2" id="opname-filter-form">
             <div class="relative flex-1 min-w-[180px]">

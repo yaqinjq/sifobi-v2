@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Operations;
 
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
+use App\Exports\Templates\OpnameSessionFillTemplate;
 use App\Http\Requests\Operations\BulkApproveOpnameRequest;
 use App\Http\Requests\Operations\BulkSubmitOpnameRequest;
+use App\Imports\OpnameSessionFillImport;
 use App\Modules\Core\Models\Brand;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
@@ -23,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
 
 class OpnameController extends Controller
 {
@@ -623,6 +626,64 @@ class OpnameController extends Controller
             'variance' => (string) $updated->variance,
             'variance_value' => (string) $updated->variance_value,
         ]);
+    }
+
+    /**
+     * Download template Excel berisi semua item sesi ini (urutan sama
+     * seperti mode "Sesuai Form") untuk diisi massal -- alternatif cepat
+     * dari input manual per item, dipakai terutama saat mentranskripsi
+     * hasil hitung fisik dari kertas (lihat OpnameSessionFillImport).
+     */
+    public function exportFillTemplate(Request $request, OpnameSession $session)
+    {
+        $this->authorizeSessionOwnership($request, $session);
+
+        $userDepartmentId = $request->user()->department_id;
+
+        $items = $session->items()
+            ->with(['item.category', 'item.inventoryUnit', 'item.baseUnit', 'department'])
+            ->when($userDepartmentId, fn ($q) => $q->where(
+                fn ($dq) => $dq->where('department_id', $userDepartmentId)->orWhereNull('department_id')
+            ))
+            ->get();
+
+        return Excel::download(
+            new OpnameSessionFillTemplate($items),
+            "Template-Isi-Opname-{$session->id}.xlsx"
+        );
+    }
+
+    /**
+     * Terapkan file template yang sudah diisi ke sesi ini -- cuma mengisi
+     * OpnameItem yang sudah ada lewat OpnameService::updateItem(), setara
+     * otorisasi dengan edit manual per item. TIDAK pernah submit/approve.
+     */
+    public function importFill(Request $request, OpnameSession $session): RedirectResponse
+    {
+        $this->authorizeSessionOwnership($request, $session);
+
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
+        ]);
+
+        $import = new OpnameSessionFillImport();
+        Excel::import($import, $validated['file']);
+
+        $result = $import->applyTo($session, $this->opnameService, $request->user()->department_id);
+
+        $parts = ["{$result['applied']} item berhasil diisi dari file."];
+        if ($result['skipped_blank'] > 0) {
+            $parts[] = "{$result['skipped_blank']} baris dilewati (kosong).";
+        }
+        if ($result['not_found'] !== [] || $result['errors'] !== []) {
+            $issues = array_slice(array_merge($result['not_found'], $result['errors']), 0, 5);
+            $total = count($result['not_found']) + count($result['errors']);
+            $parts[] = "{$total} bermasalah: ".implode(' | ', $issues);
+        }
+
+        $flashKey = $result['applied'] > 0 ? 'success' : 'error';
+
+        return redirect()->route('operations.opname.show', $session)->with($flashKey, implode(' ', $parts));
     }
 
     public function submit(Request $request, OpnameSession $session): RedirectResponse

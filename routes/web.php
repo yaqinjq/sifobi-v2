@@ -591,6 +591,12 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::post('/{session}/items/{item}/sync', [OpnameController::class, 'syncItem'])
                 ->middleware('permission:input_opname')
                 ->name('sync-item');
+            Route::get('/{session}/fill-template', [OpnameController::class, 'exportFillTemplate'])
+                ->middleware('permission:input_opname')
+                ->name('fill-template');
+            Route::post('/{session}/fill-import', [OpnameController::class, 'importFill'])
+                ->middleware('permission:input_opname')
+                ->name('fill-import');
             Route::post('/{session}/submit', [OpnameController::class, 'submit'])
                 ->middleware('permission:input_opname')
                 ->name('submit');
