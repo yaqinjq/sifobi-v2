@@ -377,7 +377,7 @@
         </div>
 
         {{-- "+ Buat" quick-create dropdown --}}
-        <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+        <div class="relative ml-auto" x-data="{ open: false }" @click.outside="open = false">
             <button type="button" @click="open = !open" class="sf-btn-primary rounded-full text-xs px-4 py-2" style="min-height:0;min-width:0">
                 <i class="ti ti-plus" aria-hidden="true"></i> Buat
             </button>

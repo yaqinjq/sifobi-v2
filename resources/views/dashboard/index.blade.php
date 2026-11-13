@@ -6,25 +6,18 @@
 
 {{-- ══ GREETING SECTION ══ --}}
 <div class="px-4 py-5 lg:px-6 lg:py-6">
-    <div class="flex items-center justify-between gap-4">
-        <div>
-            @php
-                $hour = now()->hour;
-                $greeting = $hour < 11 ? 'Selamat pagi' : ($hour < 15 ? 'Selamat siang' : ($hour < 18 ? 'Selamat sore' : 'Selamat malam'));
-            @endphp
-            <p class="text-sm text-gray-500">{{ $greeting }},</p>
-            <h1 class="font-heading font-bold text-gray-900 text-xl leading-tight mt-0.5">
-                {{ $user->name }}
-            </h1>
-            @if($roles->isNotEmpty())
-                <span class="badge-active mt-1.5 inline-flex">{{ $roles->first() }}</span>
-            @endif
-        </div>
-        <div class="shrink-0 w-12 h-12 rounded-2xl bg-primary-800 flex items-center justify-center">
-            <span class="font-heading font-bold text-white text-lg">
-                {{ strtoupper(substr($user->name, 0, 1)) }}
-            </span>
-        </div>
+    <div>
+        @php
+            $hour = now()->hour;
+            $greeting = $hour < 11 ? 'Selamat pagi' : ($hour < 15 ? 'Selamat siang' : ($hour < 18 ? 'Selamat sore' : 'Selamat malam'));
+        @endphp
+        <p class="text-sm text-gray-500">{{ $greeting }},</p>
+        <h1 class="font-heading font-bold text-gray-900 text-xl leading-tight mt-0.5">
+            {{ $user->name }}
+        </h1>
+        @if($roles->isNotEmpty())
+            <span class="badge-active mt-1.5 inline-flex">{{ $roles->first() }}</span>
+        @endif
     </div>
 </div>
 
