@@ -4,6 +4,30 @@
 
 @section('content')
 
+@php
+    $deltaText = function (float $today, float $yesterday): string {
+        if ($yesterday == 0.0) {
+            return $today == 0.0 ? 'Sama dengan kemarin (0)' : sprintf('+%s dari kemarin (0)', number_format($today, 0, ',', '.'));
+        }
+        $pct = round((($today - $yesterday) / $yesterday) * 100);
+        $sign = $pct >= 0 ? '+' : '';
+        return "{$sign}{$pct}% dari kemarin (".number_format($yesterday, 0, ',', '.').')';
+    };
+
+    // $whenUp: arah warna ketika angka NAIK ('good'/'bad'/'neutral').
+    // Turun otomatis jadi kebalikannya, kecuali 'neutral' (selalu netral).
+    $deltaDirection = function (float $today, float $yesterday, string $whenUp): ?string {
+        if ($today == $yesterday) {
+            return null;
+        }
+        if ($whenUp === 'neutral') {
+            return 'neutral';
+        }
+        $up = $today > $yesterday;
+        return $up ? $whenUp : ($whenUp === 'good' ? 'bad' : 'good');
+    };
+@endphp
+
 {{-- ══ GREETING SECTION ══ --}}
 <div class="px-4 py-5 lg:px-6 lg:py-6">
     <div>
@@ -56,6 +80,8 @@
             :value="$metrics['open_stock_today']"
             icon="📋"
             :href="route('operations.open-stocks.index')"
+            :trend="$deltaText((float) $metrics['open_stock_today'], (float) $trends['open_stock']->yesterday)"
+            :trend-direction="$deltaDirection((float) $metrics['open_stock_today'], (float) $trends['open_stock']->yesterday, 'neutral')"
         />
 
         <x-sf.stat
@@ -70,8 +96,38 @@
             :value="$metrics['spoil_today']"
             icon="🗑️"
             :href="route('operations.spoil-wastes.index')"
+            :trend="$deltaText((float) $metrics['spoil_today'], (float) $trends['spoil']->yesterday)"
+            :trend-direction="$deltaDirection((float) $metrics['spoil_today'], (float) $trends['spoil']->yesterday, 'bad')"
         />
 
+        @if($canViewPos)
+            <x-sf.stat
+                label="Omzet Hari Ini"
+                :value="'Rp '.number_format((float) $trends['pos']->revenue_today, 0, ',', '.')"
+                icon="💰"
+                :href="route('pos.reports.index')"
+                :trend="$deltaText((float) $trends['pos']->revenue_today, (float) $trends['pos']->revenue_yesterday)"
+                :trend-direction="$deltaDirection((float) $trends['pos']->revenue_today, (float) $trends['pos']->revenue_yesterday, 'good')"
+            />
+        @endif
+
+    </div>
+</div>
+
+{{-- ══ TREN 7 HARI ══ --}}
+<div class="px-4 mt-6 lg:px-6">
+    <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Tren 7 Hari</h2>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <x-sf.card>
+            <p class="text-sm text-gray-600 mb-2">Aktivitas Mutasi Stok</p>
+            <x-sf.sparkline :values="$sparklines['mutations']" label="Mutasi stok 7 hari terakhir" />
+        </x-sf.card>
+        @if($canViewPos)
+            <x-sf.card>
+                <p class="text-sm text-gray-600 mb-2">Omzet POS</p>
+                <x-sf.sparkline :values="$sparklines['pos_revenue']" label="Omzet POS 7 hari terakhir" />
+            </x-sf.card>
+        @endif
     </div>
 </div>
 
@@ -200,7 +256,10 @@
                 </div>
                 <span class="text-sm text-gray-700 font-medium">Terkirim Hari Ini</span>
             </div>
-            <span class="badge-posted">{{ $metrics['po_sent_today'] }}</span>
+            <div class="text-right">
+                <span class="badge-posted">{{ $metrics['po_sent_today'] }}</span>
+                <p class="text-xs text-gray-400 mt-0.5">{{ $deltaText((float) $metrics['po_sent_today'], (float) $trends['po_sent']->yesterday) }}</p>
+            </div>
         </div>
     </x-sf.card>
 </div>

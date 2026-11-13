@@ -1,6 +1,13 @@
-@props(['label', 'value', 'icon' => null, 'trend' => null, 'href' => null])
+@props(['label', 'value', 'icon' => null, 'trend' => null, 'trendDirection' => null, 'href' => null])
 
-@php $tag = $href ? 'a' : 'div'; @endphp
+@php
+    $tag = $href ? 'a' : 'div';
+    $trendColor = match ($trendDirection) {
+        'good' => 'text-green-600',
+        'bad' => 'text-red-500',
+        default => 'text-gray-400',
+    };
+@endphp
 
 <{{ $tag }}
     {{ $href ? "href=$href" : '' }}
@@ -10,7 +17,7 @@
             <p class="sf-stat-label">{{ $label }}</p>
             <p class="sf-stat-value mt-1">{{ $value }}</p>
             @if($trend)
-                <p class="text-xs mt-1 {{ str_starts_with((string) $trend, '+') ? 'text-green-600' : 'text-red-500' }}">
+                <p class="text-xs mt-1 {{ $trendColor }}">
                     {{ $trend }}
                 </p>
             @endif

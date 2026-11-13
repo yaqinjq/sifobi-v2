@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Modules\Operations\Models\OpenStock;
 use App\Modules\Operations\Models\OpnameSession;
 use App\Modules\Operations\Models\SpoilWaste;
+use App\Modules\Pos\Models\PosOrder;
 use App\Modules\Procurement\Models\PurchaseOrder;
 use App\Modules\Receiving\Models\GoodsReceipt;
 use Illuminate\Http\Request;
@@ -75,6 +76,91 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
+        $today = today();
+        $yesterday = today()->subDay();
+        $sevenDaysAgo = today()->subDays(6)->startOfDay();
+        // String tanggal polos ("Y-m-d") untuk binding ke selectRaw() --
+        // Carbon instance akan ter-stringify jadi "Y-m-d H:i:s" kalau
+        // dibind langsung, yang TIDAK PERNAH cocok dengan hasil DATE(col).
+        $todayStr = $today->toDateString();
+        $yesterdayStr = $yesterday->toDateString();
+
+        // Perbandingan periode (hari ini vs kemarin) -- cuma untuk metrik
+        // yang memang berbasis tanggal kejadian (event-date), BUKAN metrik
+        // backlog/snapshot (mis. po_submitted) yang tidak punya baseline
+        // "kemarin" yang valid. Scoping tetap pakai $tenantTable (outlet_id
+        // tunggal) yang sama seperti metrik aslinya -- supaya trend-nya
+        // benar-benar sepadan dengan angka "hari ini" yang sudah ditampilkan.
+        $openStockTrend = $tenantTable('open_stocks')
+            ->selectRaw('
+                COALESCE(SUM(CASE WHEN DATE(created_at) = ? THEN 1 ELSE 0 END), 0) as today,
+                COALESCE(SUM(CASE WHEN DATE(created_at) = ? THEN 1 ELSE 0 END), 0) as yesterday
+            ', [$todayStr, $yesterdayStr])
+            ->first();
+
+        $spoilTrend = $tenantTable('spoil_wastes')
+            ->selectRaw('
+                COALESCE(SUM(CASE WHEN DATE(recorded_date) = ? THEN 1 ELSE 0 END), 0) as today,
+                COALESCE(SUM(CASE WHEN DATE(recorded_date) = ? THEN 1 ELSE 0 END), 0) as yesterday
+            ', [$todayStr, $yesterdayStr])
+            ->first();
+
+        $poSentTrend = $tenantTable('purchase_orders')
+            ->where('status', PurchaseOrder::STATUS_SENT)
+            ->selectRaw('
+                COALESCE(SUM(CASE WHEN DATE(sent_at) = ? THEN 1 ELSE 0 END), 0) as today,
+                COALESCE(SUM(CASE WHEN DATE(sent_at) = ? THEN 1 ELSE 0 END), 0) as yesterday
+            ', [$todayStr, $yesterdayStr])
+            ->first();
+
+        // Omzet POS: metrik BARU, jadi pakai accessibleOutletIds() (multi-
+        // outlet aware) bukan $outletId tunggal, dan di-gate permission
+        // view_pos_reports -- sama seperti gerbang menu POS di sidebar.
+        $canViewPos = $user->can('view_pos_reports');
+        $posTrend = null;
+        $posSparklineByDay = [];
+
+        if ($canViewPos) {
+            $outletIds = $user->accessibleOutletIds();
+            $posBase = PosOrder::query()
+                ->where('tenant_id', $tenantId)
+                ->where('status', PosOrder::STATUS_PAID)
+                ->when($outletIds, fn ($q, $ids) => $q->whereIn('outlet_id', $ids));
+
+            $posTrend = (clone $posBase)->selectRaw('
+                COALESCE(SUM(CASE WHEN DATE(closed_at) = ? THEN total_amount ELSE 0 END), 0) as revenue_today,
+                COALESCE(SUM(CASE WHEN DATE(closed_at) = ? THEN total_amount ELSE 0 END), 0) as revenue_yesterday,
+                COALESCE(SUM(CASE WHEN DATE(closed_at) = ? THEN 1 ELSE 0 END), 0) as orders_today,
+                COALESCE(SUM(CASE WHEN DATE(closed_at) = ? THEN 1 ELSE 0 END), 0) as orders_yesterday
+            ', [$todayStr, $yesterdayStr, $todayStr, $yesterdayStr])->first();
+
+            $posSparklineByDay = (clone $posBase)
+                ->where('closed_at', '>=', $sevenDaysAgo)
+                ->selectRaw('DATE(closed_at) as day, SUM(total_amount) as total')
+                ->groupBy('day')
+                ->orderBy('day')
+                ->pluck('total', 'day')
+                ->all();
+        }
+
+        $mutationSparklineByDay = $tenantTable('stock_mutations')
+            ->where('performed_at', '>=', $sevenDaysAgo)
+            ->selectRaw('DATE(performed_at) as day, COUNT(*) as total')
+            ->groupBy('day')
+            ->orderBy('day')
+            ->pluck('total', 'day')
+            ->all();
+
+        $fillSparkline = function (array $byDay) use ($sevenDaysAgo): array {
+            $out = [];
+            for ($i = 0; $i < 7; $i++) {
+                $day = $sevenDaysAgo->copy()->addDays($i)->toDateString();
+                $out[] = (float) ($byDay[$day] ?? 0);
+            }
+
+            return $out;
+        };
+
         return view('dashboard.index', [
             'user' => $user,
             'roles' => $user->getRoleNames()->values(),
@@ -124,6 +210,17 @@ class DashboardController extends Controller
                 'po_draft'               => $tenantTable('purchase_orders')->where('status', PurchaseOrder::STATUS_DRAFT)->count(),
                 'po_submitted'           => $tenantTable('purchase_orders')->where('status', PurchaseOrder::STATUS_SUBMITTED)->count(),
                 'po_sent_today'          => $tenantTable('purchase_orders')->where('status', PurchaseOrder::STATUS_SENT)->whereDate('sent_at', today())->count(),
+            ],
+            'trends' => [
+                'open_stock' => $openStockTrend,
+                'spoil' => $spoilTrend,
+                'po_sent' => $poSentTrend,
+                'pos' => $posTrend,
+            ],
+            'canViewPos' => $canViewPos,
+            'sparklines' => [
+                'mutations' => $fillSparkline($mutationSparklineByDay),
+                'pos_revenue' => $fillSparkline($posSparklineByDay),
             ],
             'latestMutations' => DB::table('stock_mutations as sm')
                 ->join('items as i', 'i.id', '=', 'sm.item_id')
