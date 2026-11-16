@@ -30,6 +30,17 @@ class OpnameSessionFillImport implements ToCollection, WithHeadingRow
     }
 
     /**
+     * Header template sekarang 2 baris (label kategori di baris 1, label
+     * unik per kolom -- No/Kode Item/.../Utuh/Ecer/Total/Per Satuan -- di
+     * baris 2, lihat OpnameGridWriter) -- baris 1 sebagian kosong/duplikat
+     * akibat merge vertikal, jadi heading row WAJIB baris 2.
+     */
+    public function headingRow(): int
+    {
+        return 2;
+    }
+
+    /**
      * @return array{applied: int, skipped_blank: int, not_found: list<string>, errors: list<string>}
      */
     public function applyTo(OpnameSession $session, OpnameService $service, ?int $userDepartmentId): array
@@ -62,13 +73,13 @@ class OpnameSessionFillImport implements ToCollection, WithHeadingRow
         $errors = [];
 
         foreach ($this->rows ?? collect() as $row) {
-            $sku = strtolower(trim((string) ($row['sku'] ?? '')));
+            $sku = strtolower(trim((string) ($row['kode_item'] ?? '')));
             if ($sku === '') {
                 continue;
             }
 
-            $whole = trim((string) ($row['fisik_utuh'] ?? ''));
-            $loose = trim((string) ($row['fisik_ecer'] ?? ''));
+            $whole = trim((string) ($row['utuh'] ?? ''));
+            $loose = trim((string) ($row['ecer'] ?? ''));
 
             if ($whole === '' && $loose === '') {
                 $skippedBlank++;

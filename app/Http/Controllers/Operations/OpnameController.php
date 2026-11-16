@@ -15,6 +15,7 @@ use App\Modules\Inventory\Models\ItemCategory;
 use App\Modules\Inventory\Models\ItemDepartmentCategory;
 use App\Modules\Operations\Models\OpnameItem;
 use App\Modules\Operations\Models\OpnameSession;
+use App\Modules\Stock\Models\StockBalance;
 use App\Modules\Stock\Models\StockMutation;
 use App\Services\OpnameService;
 use App\Support\Decimal;
@@ -647,8 +648,20 @@ class OpnameController extends Controller
             ))
             ->get();
 
+        $gudangBalances = StockBalance::query()
+            ->where('tenant_id', $session->tenant_id)
+            ->where('outlet_id', $session->outlet_id)
+            ->where('stock_target', StockMutation::TARGET_OUTLET_WAREHOUSE)
+            ->whereIn('item_id', $items->pluck('item_id'))
+            ->pluck('qty_on_hand', 'item_id')
+            ->all();
+
+        $areaLabel = $session->department?->name
+            ? strtoupper($session->department->name).' AREA'
+            : 'FISIK AREA';
+
         return Excel::download(
-            new OpnameSessionFillTemplate($items),
+            new OpnameSessionFillTemplate($items, $gudangBalances, $areaLabel),
             "Template-Isi-Opname-{$session->id}.xlsx"
         );
     }

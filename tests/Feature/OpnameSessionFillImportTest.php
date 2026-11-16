@@ -41,7 +41,11 @@ beforeEach(function (): void {
 });
 
 /**
- * @param  list<array{kategori?: string, item: string, sku: string, departemen?: string, satuan_utuh?: string, satuan_ecer?: string, fisik_utuh?: string, fisik_ecer?: string}>  $rows
+ * Mirror struktur OpnameGridWriter (header 2 baris, kolom No|Kode Item|ITEM|
+ * Satuan|SET OF(Ml|Gr|Pcs)|GUDANG(Balance)|AREA(Utuh|Ecer|Total)|TOTAL(Per
+ * Satuan)|Departemen) -- importer baca heading row ke-2, data mulai row 3.
+ *
+ * @param  list<array{item: string, sku: string, departemen?: string, fisik_utuh?: string, fisik_ecer?: string}>  $rows
  */
 function buildOpnameFillXlsx(array $rows, string $filename): string
 {
@@ -52,21 +56,18 @@ function buildOpnameFillXlsx(array $rows, string $filename): string
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('ISI_OPNAME');
 
-    $header = ['Kategori', 'Item', 'SKU', 'Departemen', 'Satuan Utuh', 'Satuan Ecer', 'Fisik Utuh', 'Fisik Ecer'];
-    foreach ($header as $col => $value) {
-        $sheet->getCellByColumnAndRow($col + 1, 1)->setValueExplicit($value, DataType::TYPE_STRING);
+    $headerRow2 = ['A' => 'No', 'B' => 'Kode Item', 'C' => 'ITEM', 'D' => 'Satuan', 'I' => 'Utuh', 'J' => 'Ecer', 'K' => 'Total', 'M' => 'Departemen'];
+    foreach ($headerRow2 as $col => $value) {
+        $sheet->setCellValueExplicit("{$col}2", $value, DataType::TYPE_STRING);
     }
 
-    $row = 2;
+    $row = 3;
     foreach ($rows as $data) {
-        $sheet->setCellValue("A{$row}", $data['kategori'] ?? 'Lainnya');
-        $sheet->setCellValue("B{$row}", $data['item']);
-        $sheet->setCellValue("C{$row}", $data['sku']);
-        $sheet->setCellValue("D{$row}", $data['departemen'] ?? '');
-        $sheet->setCellValue("E{$row}", $data['satuan_utuh'] ?? '');
-        $sheet->setCellValue("F{$row}", $data['satuan_ecer'] ?? '');
-        $sheet->setCellValue("G{$row}", $data['fisik_utuh'] ?? '');
-        $sheet->setCellValue("H{$row}", $data['fisik_ecer'] ?? '');
+        $sheet->setCellValue("B{$row}", $data['sku']);
+        $sheet->setCellValue("C{$row}", $data['item']);
+        $sheet->setCellValue("M{$row}", $data['departemen'] ?? '');
+        $sheet->setCellValue("I{$row}", $data['fisik_utuh'] ?? '');
+        $sheet->setCellValue("J{$row}", $data['fisik_ecer'] ?? '');
         $row++;
     }
 
