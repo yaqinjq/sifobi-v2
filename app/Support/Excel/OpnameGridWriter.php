@@ -41,21 +41,27 @@ final class OpnameGridWriter
     {
         $row2 = $headerRow + 1;
 
+        // CATATAN PENTING: kolom No/Kode Item/ITEM/Satuan/Departemen SENGAJA
+        // TIDAK di-mergeCells() walau SECARA VISUAL terlihat seperti 1 label
+        // yang span 2 baris -- PhpSpreadsheet::mergeCells() MENGHAPUS value
+        // cell non-top-left begitu dipanggil (bukan cuma efek visual),
+        // sehingga importer (WithHeadingRow(2)) tidak akan bisa baca label
+        // baris ke-2 kalau kolom ini di-merge. Dibiarkan sebagai 2 baris
+        // terpisah berisi teks yang sama -- sedikit kurang rapi secara
+        // visual, tapi aman dibaca ulang. Beda dengan merge HORIZONTAL
+        // (SET OF/AREA/tanggal di bawah) yang aman -- cell yang perlu dibaca
+        // importer selalu top-left dari range horizontal itu.
         $sheet->setCellValue(self::COL_NO.$headerRow, 'No');
         $sheet->setCellValue(self::COL_NO.$row2, 'No');
-        $sheet->mergeCells(self::COL_NO.$headerRow.':'.self::COL_NO.$row2);
 
         $sheet->setCellValue(self::COL_KODE_ITEM.$headerRow, 'Kode Item');
         $sheet->setCellValue(self::COL_KODE_ITEM.$row2, 'Kode Item');
-        $sheet->mergeCells(self::COL_KODE_ITEM.$headerRow.':'.self::COL_KODE_ITEM.$row2);
 
         $sheet->setCellValue(self::COL_ITEM.$headerRow, 'ITEM');
         $sheet->setCellValue(self::COL_ITEM.$row2, 'ITEM');
-        $sheet->mergeCells(self::COL_ITEM.$headerRow.':'.self::COL_ITEM.$row2);
 
         $sheet->setCellValue(self::COL_SATUAN.$headerRow, 'Satuan');
         $sheet->setCellValue(self::COL_SATUAN.$row2, 'Satuan');
-        $sheet->mergeCells(self::COL_SATUAN.$headerRow.':'.self::COL_SATUAN.$row2);
 
         $sheet->setCellValue(self::COL_SET_OF_ML.$headerRow, 'SET OF');
         $sheet->mergeCells(self::COL_SET_OF_ML.$headerRow.':'.self::COL_SET_OF_PCS.$headerRow);
@@ -77,7 +83,6 @@ final class OpnameGridWriter
 
         $sheet->setCellValue(self::COL_DEPARTEMEN.$headerRow, 'Departemen');
         $sheet->setCellValue(self::COL_DEPARTEMEN.$row2, 'Departemen');
-        $sheet->mergeCells(self::COL_DEPARTEMEN.$headerRow.':'.self::COL_DEPARTEMEN.$row2);
 
         $sheet->getStyle(self::COL_NO.$headerRow.':'.self::COL_DEPARTEMEN.$row2)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],

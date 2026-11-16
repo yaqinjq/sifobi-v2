@@ -39,9 +39,15 @@ beforeEach(function (): void {
 });
 
 /**
- * @param  array<string, array<string, string>>  $qtyByDateBySku  ['2026-11-01' => ['MKO-AJINOMOTO-500GR' => '20']]
+ * Mirror struktur OpnameMonthlyImportTemplate (header 2 baris, 4 sub-kolom
+ * IN|OUT|SPOIL|BAL per tanggal). Untuk kemudahan test lama yang cuma peduli
+ * BALANCE, nilai per sku per tanggal boleh berupa string polos (diartikan
+ * sebagai BAL saja, IN/OUT/SPOIL kosong) ATAU array ['in'=>,'out'=>,
+ * 'spoil'=>,'balance'=>] untuk test yang butuh semua sub-kolom.
+ *
+ * @param  array<string, array<string, string|array{in?: string, out?: string, spoil?: string, balance?: string}>>  $dataByDateBySku
  */
-function buildOpnameMonthlyXlsx(array $dates, array $qtyByDateBySku, string $filename): string
+function buildOpnameMonthlyXlsx(array $dates, array $dataByDateBySku, string $filename): string
 {
     $path = storage_path('framework/testing/'.$filename);
     File::ensureDirectoryExists(dirname($path));
@@ -50,28 +56,47 @@ function buildOpnameMonthlyXlsx(array $dates, array $qtyByDateBySku, string $fil
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('OPNAME_BULANAN');
 
-    $header = array_merge(['Item', 'SKU', 'Satuan Hitung'], $dates);
-    foreach ($header as $col => $value) {
-        $cell = $sheet->getCellByColumnAndRow($col + 1, 1);
-        $cell->setValueExplicit($value, DataType::TYPE_STRING);
+    foreach (['Item', 'SKU', 'Satuan Hitung'] as $col => $label) {
+        $sheet->getCellByColumnAndRow($col + 1, 1)->setValueExplicit($label, DataType::TYPE_STRING);
+        $sheet->getCellByColumnAndRow($col + 1, 2)->setValueExplicit($label, DataType::TYPE_STRING);
+    }
+
+    $col = 4;
+    foreach ($dates as $date) {
+        foreach (['IN', 'OUT', 'SPOIL', 'BAL'] as $subLabel) {
+            $sheet->getCellByColumnAndRow($col, 1)->setValueExplicit($date, DataType::TYPE_STRING);
+            $sheet->getCellByColumnAndRow($col, 2)->setValueExplicit($subLabel, DataType::TYPE_STRING);
+            $col++;
+        }
     }
 
     $skus = [];
-    foreach ($qtyByDateBySku as $date => $bySku) {
+    foreach ($dataByDateBySku as $bySku) {
         foreach (array_keys($bySku) as $sku) {
             $skus[$sku] = true;
         }
     }
 
-    $row = 2;
+    $row = 3;
     foreach (array_keys($skus) as $sku) {
         $sheet->setCellValue("A{$row}", $sku);
         $sheet->setCellValue("B{$row}", $sku);
         $sheet->setCellValue("C{$row}", 'GR');
 
-        foreach ($dates as $col => $date) {
-            $qty = $qtyByDateBySku[$date][$sku] ?? '';
-            $sheet->setCellValueByColumnAndRow($col + 4, $row, $qty);
+        $col = 4;
+        foreach ($dates as $date) {
+            $data = $dataByDateBySku[$date][$sku] ?? '';
+            if (is_array($data)) {
+                [$in, $out, $spoil, $bal] = [$data['in'] ?? '', $data['out'] ?? '', $data['spoil'] ?? '', $data['balance'] ?? ''];
+            } else {
+                [$in, $out, $spoil, $bal] = ['', '', '', $data];
+            }
+
+            $sheet->setCellValueByColumnAndRow($col, $row, $in);
+            $sheet->setCellValueByColumnAndRow($col + 1, $row, $out);
+            $sheet->setCellValueByColumnAndRow($col + 2, $row, $spoil);
+            $sheet->setCellValueByColumnAndRow($col + 3, $row, $bal);
+            $col += 4;
         }
         $row++;
     }
@@ -95,6 +120,54 @@ test('template download returns the opname monthly grid with items ordered by ca
 
     $response->assertOk();
     $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+});
+
+test('a real downloaded monthly template can be filled in and re-uploaded end to end', function (): void {
+    // BEDA dari test lain di file ini (buildOpnameMonthlyXlsx() bangun
+    // fixture tangan TANPA mergeCells()) -- ini download file ASLI dari
+    // OpnameMonthlyImportTemplate (header 2-baris + merge horizontal per
+    // tanggal) supaya kalau ada masalah merge yang bikin importer gagal
+    // baca kolom, test ini yang menangkapnya.
+    $downloadPath = storage_path('framework/testing/opname-monthly-real-template.xlsx');
+    File::ensureDirectoryExists(dirname($downloadPath));
+    $content = $this->actingAs($this->admin)->get(route('operations.opname.import-bulanan.template', [
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->bar->id,
+        'month' => '2026-11',
+    ]))->streamedContent();
+    file_put_contents($downloadPath, $content);
+
+    $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($downloadPath);
+    $sheet = $spreadsheet->getSheetByName('OPNAME_BULANAN');
+
+    $targetRow = null;
+    for ($row = 3; $row <= $sheet->getHighestRow(); $row++) {
+        if ($sheet->getCell('B'.$row)->getValue() === $this->item->canonical_sku) {
+            $targetRow = $row;
+            break;
+        }
+    }
+    expect($targetRow)->not->toBeNull();
+
+    // Tanggal 1 di bulan itu = kolom D (IN) s/d G (BAL) -- isi BAL saja.
+    $sheet->setCellValue("G{$targetRow}", 25);
+    (new Xlsx($spreadsheet))->save($downloadPath);
+
+    $response = $this->actingAs($this->admin)->post(route('operations.opname.import-bulanan.preview'), [
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->bar->id,
+        'month' => '2026-11',
+        'file' => uploadOpnameMonthlyFile($downloadPath),
+    ]);
+
+    $response->assertOk();
+    $rows = collect($response->json('rows'))->keyBy('date');
+    expect($rows->has('2026-11-01'))->toBeTrue();
+    $item = collect($rows['2026-11-01']['items'])->firstWhere('sku', $this->item->canonical_sku);
+    expect($item)->not->toBeNull()
+        ->and($item['balance'])->toBe('25.000000');
+
+    @unlink($downloadPath);
 });
 
 test('preview classifies dates as new_session, update_draft, or skip_locked', function (): void {
@@ -215,7 +288,7 @@ test('job processes dates in ascending order and ends with the correct live bala
     expect((string) $balance->qty_on_hand)->toBe('17.000000');
 });
 
-test('job isolates a failing date and still processes the rest', function (): void {
+test('job no longer fails on an already-processed date -- it just leaves BAL untouched', function (): void {
     app(StockLedgerService::class)->openStock([
         'tenant_id' => $this->tenant->id,
         'outlet_id' => $this->outlet->id,
@@ -226,8 +299,11 @@ test('job isolates a failing date and still processes the rest', function (): vo
         'performed_by' => $this->admin->id,
     ]);
 
-    // Tanggal 02 sudah di-approve duluan (PROCESSED) -- job harus
-    // melewati tanggal ini (di luar scope V1), tapi tetap lanjut ke 01 & 03.
+    // Tanggal 02 sudah di-approve duluan (PROCESSED). BEDA dari perilaku
+    // sebelum fitur IN/OUT/SPOIL: ini SEKARANG tidak lagi dianggap gagal --
+    // job tetap processed++ (BAL-nya cuma dilewati, tidak diubah), supaya
+    // tanggal ini tetap bisa dipakai utk koreksi IN/OUT/SPOIL lewat upload
+    // ulang (lihat test terpisah utk itu).
     $existing = app(OpnameService::class)->startSession([
         'tenant_id' => $this->tenant->id,
         'outlet_id' => $this->outlet->id,
@@ -268,12 +344,17 @@ test('job isolates a failing date and still processes the rest', function (): vo
     $run->refresh();
     expect($run->status)->toBe(MonthlyImportRun::STATUS_DONE)
         ->and($run->total_units)->toBe(3)
-        ->and($run->processed_units)->toBe(2)
-        ->and($run->failed_units)->toBe(1)
-        ->and($run->errors)->toHaveCount(1);
+        ->and($run->processed_units)->toBe(3)
+        ->and($run->failed_units)->toBe(0);
 
     expect(OpnameSession::query()->where('outlet_id', $this->outlet->id)->whereDate('opname_date', '2026-11-01')->first()->status)
         ->toBe(OpnameSession::STATUS_PROCESSED);
     expect(OpnameSession::query()->where('outlet_id', $this->outlet->id)->whereDate('opname_date', '2026-11-03')->first()->status)
         ->toBe(OpnameSession::STATUS_PROCESSED);
+
+    // Tanggal 02 (sudah PROCESSED SEBELUM job jalan) -- BAL di file upload
+    // (18) TIDAK PERNAH diterapkan, physical_qty tetap nilai asli (1/0)
+    // dari updateItem() manual di atas, bukan ter-update jadi 18.
+    $lockedItem = $existing->fresh(['items'])->items->firstWhere('item_id', $this->item->id);
+    expect((string) $lockedItem->physical_qty_whole)->toBe('1.000000');
 });

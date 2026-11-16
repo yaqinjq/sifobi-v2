@@ -46,15 +46,65 @@ class OpnameMonthlyImportController extends Controller
         abort_unless($this->isSuperAdmin($request), 403, 'Import Opname Bulanan cuma bisa dilakukan Super Admin.');
 
         $validated = $this->validateScope($request, $tenantId);
+        $outletId = (int) $validated['outlet_id'];
         $departmentId = (int) $validated['department_id'];
 
-        $items = $opnameService->itemsForOpname($tenantId, (int) $validated['outlet_id'], OpnameSession::TYPE_DAILY, $departmentId);
+        $items = $opnameService->itemsForOpname($tenantId, $outletId, OpnameSession::TYPE_DAILY, $departmentId);
         $dates = $this->datesInMonth($validated['month']);
 
         return Excel::download(
-            new OpnameMonthlyImportTemplate($items, $dates, $departmentId),
+            new OpnameMonthlyImportTemplate($items, $dates, $departmentId, $this->prefillData($tenantId, $outletId, $departmentId, $dates)),
             "Template-Opname-Bulanan-{$validated['month']}.xlsx"
         );
+    }
+
+    /**
+     * Isi ulang IN/OUT/SPOIL/BAL dari OpnameItem yang SUDAH ADA (sesi DRAFT
+     * maupun PROCESSED) untuk bulan ini -- supaya tim HQ yang mau
+     * membetulkan 1 angka tidak perlu ketik ulang semuanya dari nol, tinggal
+     * download template baru, ubah 1 sel, upload lagi (lihat
+     * OpnameMonthlyImport::processDate() untuk aturan BAL terkunci kalau
+     * sudah PROCESSED, sementara IN/OUT/SPOIL tetap bisa dikoreksi).
+     *
+     * @param  list<string>  $dates
+     * @return array<string, array{in: ?string, out: ?string, spoil: ?string, balance: ?string}>
+     */
+    private function prefillData(int $tenantId, int $outletId, ?int $departmentId, array $dates): array
+    {
+        $sessions = OpnameSession::query()
+            ->where('tenant_id', $tenantId)
+            ->where('outlet_id', $outletId)
+            ->where('department_id', $departmentId)
+            ->whereIn('opname_date', $dates)
+            ->with(['items.item'])
+            ->get();
+
+        $prefill = [];
+
+        foreach ($sessions as $session) {
+            $date = $session->opname_date->toDateString();
+
+            foreach ($session->items as $opnameItem) {
+                $item = $opnameItem->item;
+                if (! $item) {
+                    continue;
+                }
+
+                $usesInventoryUnit = (int) $item->inventory_unit_id !== (int) $item->base_unit_id;
+                $balance = $opnameItem->is_counted
+                    ? (string) ($usesInventoryUnit ? $opnameItem->physical_qty_whole : $opnameItem->physical_qty_loose)
+                    : null;
+
+                $prefill["{$item->id}|{$date}"] = [
+                    'in' => $opnameItem->reported_in_qty !== null ? (string) $opnameItem->reported_in_qty : null,
+                    'out' => $opnameItem->reported_out_qty !== null ? (string) $opnameItem->reported_out_qty : null,
+                    'spoil' => $opnameItem->reported_spoil_qty !== null ? (string) $opnameItem->reported_spoil_qty : null,
+                    'balance' => $balance,
+                ];
+            }
+        }
+
+        return $prefill;
     }
 
     public function preview(Request $request): JsonResponse

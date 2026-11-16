@@ -73,14 +73,14 @@
                             <template x-for="date in weekDates()" :key="date">
                                 <th class="px-2 py-2 text-center font-semibold text-gray-600 border-l border-gray-200">
                                     <div x-text="date"></div>
-                                    <template x-if="dateRowStatus(date) !== 'skip_locked'">
+                                    <template x-if="reportedFieldsUpdatable(date)">
                                         <label class="flex items-center justify-center gap-1 mt-1 font-normal">
                                             <input type="checkbox" :checked="selectedDates[date]" @change="toggleDate(date, $event.target.checked)">
-                                            <span x-text="dateRowStatus(date) === 'update_draft' ? 'Timpa draft' : 'Baru'"></span>
+                                            <span x-text="checkboxLabel(date)"></span>
                                         </label>
                                     </template>
-                                    <template x-if="dateRowStatus(date) === 'skip_locked'">
-                                        <span class="text-gray-400 block mt-1">Sudah final</span>
+                                    <template x-if="!reportedFieldsUpdatable(date)">
+                                        <span class="text-gray-400 block mt-1">Tidak ada data</span>
                                     </template>
                                 </th>
                             </template>
@@ -91,7 +91,10 @@
                             <tr class="border-t border-gray-100">
                                 <td class="sticky left-0 bg-white px-3 py-1.5 font-medium text-gray-800" x-text="itemName"></td>
                                 <template x-for="date in weekDates()" :key="date">
-                                    <td class="px-2 py-1.5 text-center border-l border-gray-100" x-text="qtyFor(date, itemName)"></td>
+                                    <td class="px-2 py-1.5 text-center border-l border-gray-100">
+                                        <div class="font-semibold text-gray-800" x-text="balFor(date, itemName)"></div>
+                                        <div class="text-gray-400 text-[10px]" x-text="inOutSpoilFor(date, itemName)"></div>
+                                    </td>
                                 </template>
                             </tr>
                         </template>
@@ -222,6 +225,15 @@ function opnameMonthlyImport() {
         dateRowStatus(date) {
             return this.rowForDate(date)?.row_status || 'new_session';
         },
+        reportedFieldsUpdatable(date) {
+            return this.rowForDate(date)?.reported_fields_updatable ?? false;
+        },
+        checkboxLabel(date) {
+            const status = this.dateRowStatus(date);
+            if (status === 'update_draft') return 'Timpa draft';
+            if (status === 'skip_locked') return 'Koreksi IN/OUT/SPOIL (BAL terkunci)';
+            return 'Baru';
+        },
         itemNamesInWeek() {
             const names = new Set();
             this.weekDates().forEach(date => {
@@ -230,11 +242,24 @@ function opnameMonthlyImport() {
             });
             return Array.from(names).sort();
         },
-        qtyFor(date, itemName) {
+        itemFor(date, itemName) {
             const row = this.rowForDate(date);
-            if (!row) return '';
-            const item = row.items.find(i => i.item_name === itemName);
-            return item ? `${item.qty} ${item.satuan}` : '';
+            if (!row) return null;
+            return row.items.find(i => i.item_name === itemName) || null;
+        },
+        balFor(date, itemName) {
+            const item = this.itemFor(date, itemName);
+            if (!item) return '';
+            return item.balance !== null && item.balance !== undefined ? `${item.balance} ${item.satuan}` : '-';
+        },
+        inOutSpoilFor(date, itemName) {
+            const item = this.itemFor(date, itemName);
+            if (!item) return '';
+            const parts = [];
+            if (item.in !== null && item.in !== undefined) parts.push(`IN ${item.in}`);
+            if (item.out !== null && item.out !== undefined) parts.push(`OUT ${item.out}`);
+            if (item.spoil !== null && item.spoil !== undefined) parts.push(`SPOIL ${item.spoil}`);
+            return parts.join(' / ');
         },
         toggleDate(date, checked) {
             this.selectedDates[date] = checked;

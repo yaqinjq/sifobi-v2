@@ -14,16 +14,29 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use Throwable;
 
 /**
- * Import grid Opname Bulanan: baris = item, kolom = tanggal. Dibaca lewat
- * ToCollection manual (BUKAN WithHeadingRow) karena jumlah kolom tanggal
- * dinamis per bulan -- WithHeadingRow akan memaksa semua header lewat
- * formatter global ('slug'), yang akan merusak header tanggal.
+ * Import grid Opname Bulanan: baris = item, kolom = 4 sub-kolom
+ * (IN|OUT|SPOIL|BAL) per tanggal. Dibaca lewat ToCollection manual (BUKAN
+ * WithHeadingRow) karena jumlah grup tanggal dinamis per bulan --
+ * WithHeadingRow akan memaksa semua header lewat formatter global ('slug'),
+ * yang akan merusak header tanggal/sub-label.
+ *
+ * Makna tiap sub-kolom (lihat OpnameMonthlyImportTemplate untuk konteks
+ * lengkap): HANYA BAL yang menyentuh ledger stok (lewat
+ * OpnameService::updateItem() di processDate(), persis seperti BALANCE
+ * tunggal yang ada sebelum fitur ini). IN/OUT/SPOIL murni arsip laporan
+ * outlet (opname_items.reported_in_qty/out_qty/spoil_qty) -- TIDAK PERNAH
+ * membentuk mutasi stok apa pun, independen dari status sesi (bisa
+ * dikoreksi kapan pun lewat upload ulang, bahkan untuk tanggal yang
+ * sesinya sudah PROCESSED -- beda dari BAL yang terkunci permanen begitu
+ * PROCESSED).
  *
  * Sheet PETUNJUK sengaja TIDAK dimasukkan ke sheets() -- WithMultipleSheets
  * cuma memproses sheet yang namanya ada di map ini, sheet lain diabaikan.
  */
 class OpnameMonthlyImport implements WithMultipleSheets
 {
+    private const SUB_LABELS = ['in', 'out', 'spoil', 'balance'];
+
     private OpnameMonthlyGridSheetImport $grid;
 
     public function __construct()
@@ -40,37 +53,32 @@ class OpnameMonthlyImport implements WithMultipleSheets
     }
 
     /**
-     * @return array{dates: list<string>, items: list<array{sku: string, satuan: string, qty_by_date: array<string, string>}>}
+     * @return array{dates: list<string>, items: list<array{sku: string, satuan: string, qty_by_date: array<string, array{in: ?string, out: ?string, spoil: ?string, balance: ?string}>}>}
      */
     public function parseGrid(): array
     {
         $rows = $this->grid->rows ?? collect();
 
-        if ($rows->isEmpty()) {
+        if ($rows->count() < 2) {
             return ['dates' => [], 'items' => []];
         }
 
-        $header = $rows->first();
-        $dateColumns = [];
+        $headerRow1 = $rows->get(0);
+        $dateGroups = []; // startColumnIndex => date
 
-        foreach ($header as $index => $value) {
-            if ($index < 3) {
-                continue;
-            }
-
-            $date = $this->normalizeDateHeader($value);
+        for ($index = 3; $index < count($headerRow1); $index += 4) {
+            $date = $this->normalizeDateHeader($headerRow1[$index] ?? null);
 
             if ($date !== null) {
-                $dateColumns[$index] = $date;
+                $dateGroups[$index] = $date;
             }
         }
 
         $items = [];
 
-        // Baris pemisah kategori (kolom "Item" kosong, SKU kosong) ikut
-        // dilewati di sini secara alami -- sama seperti baris benar-benar
-        // kosong, tidak perlu deteksi khusus.
-        foreach ($rows->skip(1) as $row) {
+        // Baris pemisah kategori (kolom "Item"/SKU kosong) ikut dilewati di
+        // sini secara alami, sama seperti baris benar-benar kosong.
+        foreach ($rows->skip(2) as $row) {
             $sku = trim((string) ($row[1] ?? ''));
 
             if ($sku === '') {
@@ -80,14 +88,20 @@ class OpnameMonthlyImport implements WithMultipleSheets
             $satuan = trim((string) ($row[2] ?? ''));
             $qtyByDate = [];
 
-            foreach ($dateColumns as $index => $date) {
-                $raw = $row[$index] ?? null;
+            foreach ($dateGroups as $startIndex => $date) {
+                $entry = [];
+                foreach (self::SUB_LABELS as $offset => $subLabel) {
+                    $raw = $row[$startIndex + $offset] ?? null;
+                    $entry[$subLabel] = ($raw === null || trim((string) $raw) === '')
+                        ? null
+                        : Decimal::toFixed(trim((string) $raw), 6);
+                }
 
-                if ($raw === null || trim((string) $raw) === '') {
+                if ($entry['in'] === null && $entry['out'] === null && $entry['spoil'] === null && $entry['balance'] === null) {
                     continue;
                 }
 
-                $qtyByDate[$date] = Decimal::toFixed(trim((string) $raw), 6);
+                $qtyByDate[$date] = $entry;
             }
 
             if (empty($qtyByDate)) {
@@ -97,15 +111,16 @@ class OpnameMonthlyImport implements WithMultipleSheets
             $items[] = ['sku' => $sku, 'satuan' => $satuan, 'qty_by_date' => $qtyByDate];
         }
 
-        return ['dates' => array_values($dateColumns), 'items' => $items];
+        return ['dates' => array_values($dateGroups), 'items' => $items];
     }
 
     /**
      * Untuk tiap tanggal yang punya minimal 1 sel terisi, tentukan apakah
-     * akan jadi sesi baru, menimpa sesi draft existing, atau dilewati
-     * (sesi existing sudah submitted/processed -- di luar scope V1).
+     * akan jadi sesi baru, menimpa sesi draft existing, atau BAL-nya terkunci
+     * (sesi sudah diproses -- tetap TERMASUK dalam hasil supaya IN/OUT/SPOIL
+     * masih bisa dikoreksi, lihat reported_fields_updatable).
      *
-     * @return list<array{date: string, row_status: string, session_status: string|null, items: list<array<string, mixed>>}>
+     * @return list<array{date: string, row_status: string, session_status: string|null, reported_fields_updatable: bool, items: list<array<string, mixed>>}>
      */
     public function preview(int $tenantId, int $outletId, ?int $departmentId): array
     {
@@ -122,14 +137,13 @@ class OpnameMonthlyImport implements WithMultipleSheets
                 continue;
             }
 
-            foreach ($itemRow['qty_by_date'] as $date => $qty) {
-                $byDate[$date][] = [
+            foreach ($itemRow['qty_by_date'] as $date => $entry) {
+                $byDate[$date][] = array_merge($entry, [
                     'item_id' => (int) $item->id,
                     'item_name' => $item->name,
                     'sku' => $item->canonical_sku,
                     'satuan' => $itemRow['satuan'],
-                    'qty' => $qty,
-                ];
+                ]);
             }
         }
 
@@ -153,6 +167,12 @@ class OpnameMonthlyImport implements WithMultipleSheets
                 'date' => $date,
                 'row_status' => $rowStatus,
                 'session_status' => $session?->status,
+                // IN/OUT/SPOIL bisa dikoreksi selama ADA sesi utk tanggal ini
+                // (DRAFT atau PROCESSED) -- cuma tanggal yang BENAR-BENAR
+                // belum punya sesi sama sekali DAN tidak ada BAL yang bisa
+                // membuat sesi baru (lihat processDate()) yang tidak berguna
+                // dipilih.
+                'reported_fields_updatable' => $session !== null || collect($itemsForDate)->contains(fn ($r) => $r['balance'] !== null),
                 'items' => $itemsForDate,
             ];
         }
@@ -163,11 +183,14 @@ class OpnameMonthlyImport implements WithMultipleSheets
     }
 
     /**
-     * Dipanggil per tanggal (SUDAH diurutkan ascending oleh pemanggil) --
-     * buat/pakai ulang sesi draft, isi tiap item, submit, lalu approve
-     * langsung. Melempar exception kalau sesi untuk tanggal ini sudah
-     * submitted/processed (di luar scope V1 -- caller mengisolasi per
-     * tanggal, tidak menghentikan tanggal lain).
+     * Dipanggil per tanggal (SUDAH diurutkan ascending oleh pemanggil).
+     * IN/OUT/SPOIL (opname_items.reported_*_qty) di-update TANPA syarat
+     * status sesi -- murni informasional. BAL cuma diterapkan (lewat
+     * updateItem()+submit()+approve(), identik perilaku sebelum fitur ini)
+     * kalau sesi masih DRAFT (atau belum ada sama sekali, dibuat baru) DAN
+     * item itu memang mengirim nilai BAL -- kalau sesi sudah BUKAN DRAFT,
+     * bagian ini dilewati diam-diam (bukan exception) supaya tanggal itu
+     * tetap bisa diproses utk koreksi IN/OUT/SPOIL-nya saja.
      *
      * @param  list<array<string, mixed>>  $itemsForDate
      */
@@ -187,11 +210,16 @@ class OpnameMonthlyImport implements WithMultipleSheets
             ->whereDate('opname_date', $date)
             ->first();
 
-        if ($session && $session->status !== OpnameSession::STATUS_DRAFT) {
-            throw new \RuntimeException("Tanggal {$date} sudah punya sesi opname berstatus {$session->status} -- dilewati, tidak bisa diubah lewat import ini.");
-        }
+        $hasAnyBalance = collect($itemsForDate)->contains(fn ($row) => $row['balance'] !== null);
 
         if (! $session) {
+            if (! $hasAnyBalance) {
+                // Tidak ada sesi utk ditempeli catatan IN/OUT/SPOIL, dan
+                // tidak ada BAL utk membuat sesi baru -- tidak ada yang bisa
+                // dilakukan utk tanggal ini.
+                return;
+            }
+
             $session = $service->startSession([
                 'tenant_id' => $tenantId,
                 'outlet_id' => $outletId,
@@ -202,12 +230,32 @@ class OpnameMonthlyImport implements WithMultipleSheets
             ], $userId);
         }
 
+        $balanceLocked = $session->status !== OpnameSession::STATUS_DRAFT;
+
         $session->load(['items.item.inventoryUnit', 'items.item.baseUnit']);
 
         foreach ($itemsForDate as $row) {
             $opnameItem = $session->items->firstWhere('item_id', $row['item_id']);
 
             if (! $opnameItem) {
+                continue;
+            }
+
+            $reportedUpdates = [];
+            if ($row['in'] !== null) {
+                $reportedUpdates['reported_in_qty'] = $row['in'];
+            }
+            if ($row['out'] !== null) {
+                $reportedUpdates['reported_out_qty'] = $row['out'];
+            }
+            if ($row['spoil'] !== null) {
+                $reportedUpdates['reported_spoil_qty'] = $row['spoil'];
+            }
+            if ($reportedUpdates !== []) {
+                $opnameItem->update($reportedUpdates);
+            }
+
+            if ($balanceLocked || $row['balance'] === null) {
                 continue;
             }
 
@@ -224,10 +272,14 @@ class OpnameMonthlyImport implements WithMultipleSheets
                 && (int) $item->inventory_unit_id !== (int) $item->base_unit_id
                 && strcasecmp((string) $item->inventoryUnit->abbreviation, (string) $row['satuan']) === 0;
 
-            $whole = $isInventoryUnit ? $row['qty'] : '0';
-            $loose = $isInventoryUnit ? '0' : $row['qty'];
+            $whole = $isInventoryUnit ? $row['balance'] : '0';
+            $loose = $isInventoryUnit ? '0' : $row['balance'];
 
             $service->updateItem($opnameItem, $whole, $loose);
+        }
+
+        if ($balanceLocked || ! $hasAnyBalance) {
+            return;
         }
 
         $session->refresh();

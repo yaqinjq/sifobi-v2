@@ -8,13 +8,35 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
-    {{-- v2.56 --}}
+    {{-- v2.57 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
-                <h3 class="font-heading font-bold text-gray-900">v2.56 &mdash; 16 November 2026</h3>
+                <h3 class="font-heading font-bold text-gray-900">v2.57 &mdash; 16 November 2026</h3>
                 <span class="badge-info text-xs">Terbaru</span>
             </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Import Opname Bulanan: kolom IN/OUT/SPOIL per tanggal</strong> -- template sekarang punya 4 sub-kolom per tanggal (IN/OUT/SPOIL/BAL), persis form kertas harian yang dipakai outlet. Hanya BAL yang menentukan stok sistem (sama seperti sebelumnya); IN/OUT/SPOIL murni dicatat sebagai arsip laporan outlet dan bisa dikoreksi kapan pun lewat download-ulang-template (otomatis terisi dari data yang sudah ada) &rarr; ubah &rarr; upload lagi -- termasuk untuk tanggal yang BAL-nya sudah final (Processed)</li>
+                    <li>Halaman detail sesi Opname menampilkan "Laporan Outlet: IN/OUT/SPOIL" sebagai info tambahan (read-only) kalau datanya ada</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Catatan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Makna "OUT" bisa beda tergantung konteks outlet (keluar dari gudang vs terpakai di area) -- sengaja TIDAK dibuat jadi pergerakan stok otomatis, supaya tidak bentrok dengan modul Transfer Stok/Penerimaan Barang yang sudah ada sendiri-sendiri</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- v2.56 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <h3 class="font-heading font-bold text-gray-900">v2.56 &mdash; 16 November 2026</h3>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
             <div>

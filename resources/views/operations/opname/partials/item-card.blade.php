@@ -75,6 +75,18 @@
             </p>
         @endif
 
+        @if($opnameItem->reported_in_qty !== null || $opnameItem->reported_out_qty !== null || $opnameItem->reported_spoil_qty !== null)
+            {{-- Arsip laporan outlet dari Import Bulanan -- cuma informasi,
+                 TIDAK pernah menyentuh stok sistem. Koreksi lewat download
+                 ulang template Import Bulanan, bukan di sini. --}}
+            <div class="rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                Laporan Outlet:
+                @if($opnameItem->reported_in_qty !== null) IN {{ number_format((float) $opnameItem->reported_in_qty, 2) }} @endif
+                @if($opnameItem->reported_out_qty !== null) &middot; OUT {{ number_format((float) $opnameItem->reported_out_qty, 2) }} @endif
+                @if($opnameItem->reported_spoil_qty !== null) &middot; SPOIL {{ number_format((float) $opnameItem->reported_spoil_qty, 2) }} @endif
+            </div>
+        @endif
+
         @if($session->status === 'DRAFT')
             <div x-show="isBaselineStale" x-cloak class="bg-amber-50 border border-amber-200 rounded-xl p-3">
                 <div class="flex items-start gap-2">

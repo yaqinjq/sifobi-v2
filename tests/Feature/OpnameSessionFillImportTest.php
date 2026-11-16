@@ -88,6 +88,50 @@ test('template download returns xlsx matching the sessions actual items', functi
     $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 });
 
+test('a real downloaded template can be filled in and re-uploaded end to end', function (): void {
+    // BEDA dari test lain di file ini (yang pakai buildOpnameFillXlsx(),
+    // fixture dibangun tangan TANPA mergeCells()) -- ini download file ASLI
+    // yang di-generate OpnameSessionFillTemplate (lengkap dengan merge
+    // header 2-baris), supaya kalau ada masalah merge yang bikin importer
+    // gagal baca header (lihat OpnameGridWriter -- mergeCells() PhpSpreadsheet
+    // MENGHAPUS value cell non-top-left), test ini yang menangkapnya --
+    // bukan cuma menguji importer terhadap fixture yang sudah pasti "bersih".
+    $downloadPath = storage_path('framework/testing/opname-fill-real-template.xlsx');
+    \Illuminate\Support\Facades\File::ensureDirectoryExists(dirname($downloadPath));
+    $content = $this->actingAs($this->admin)->get(route('operations.opname.fill-template', $this->session))->streamedContent();
+    file_put_contents($downloadPath, $content);
+
+    $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($downloadPath);
+    $sheet = $spreadsheet->getSheetByName('ISI_OPNAME');
+
+    $targetRow = null;
+    for ($row = 3; $row <= $sheet->getHighestRow(); $row++) {
+        if ($sheet->getCell("B{$row}")->getValue() === $this->item->canonical_sku) {
+            $targetRow = $row;
+            break;
+        }
+    }
+    expect($targetRow)->not->toBeNull();
+
+    $sheet->setCellValue("I{$targetRow}", 6);
+    $sheet->setCellValue("J{$targetRow}", 1);
+    (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($downloadPath);
+
+    $response = $this->actingAs($this->admin)->post(route('operations.opname.fill-import', $this->session), [
+        'file' => uploadOpnameFillFile($downloadPath),
+    ]);
+
+    $response->assertRedirect(route('operations.opname.show', $this->session));
+    $response->assertSessionHas('success');
+
+    $opnameItem = OpnameItem::query()->where('opname_session_id', $this->session->id)->where('item_id', $this->item->id)->firstOrFail();
+    expect($opnameItem->is_counted)->toBeTrue();
+    expect((string) $opnameItem->physical_qty_whole)->toBe('6.000000');
+    expect((string) $opnameItem->physical_qty_loose)->toBe('1.000000');
+
+    @unlink($downloadPath);
+});
+
 test('upload applies qty to matched items via updateItem and leaves blank rows untouched', function (): void {
     $path = buildOpnameFillXlsx([
         ['item' => $this->item->name, 'sku' => $this->item->canonical_sku, 'departemen' => $this->bar->name, 'fisik_utuh' => '5', 'fisik_ecer' => '0'],
