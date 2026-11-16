@@ -19,6 +19,7 @@ use App\Support\Decimal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -634,6 +635,140 @@ class SpoilWasteController extends Controller
             new \App\Exports\Templates\SpoilWasteImportTemplate(),
             'Template-Import-SpoilWaste.xlsx'
         );
+    }
+
+    /**
+     * Halaman "Isi Massal lewat Excel" -- non-superadmin langsung lihat
+     * tombol download/upload (scope implisit dari akunnya), SUPER_ADMIN
+     * lihat form pilih outlet+departemen dulu.
+     */
+    public function fill(Request $request): View|RedirectResponse
+    {
+        $isSuperAdmin = $this->isSuperAdmin($request);
+
+        if (! $isSuperAdmin && ! $this->hasValidSpoilScope($request)) {
+            if ($request->user()?->hasMultipleOutlets()) {
+                return redirect()->route('operations.spoil-wastes.select-outlet');
+            }
+
+            abort(403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah untuk mencatat spoil. Hubungi Super Admin.');
+        }
+
+        $tenantId = $this->tenantId($request);
+
+        return view('operations.spoil-wastes.fill', [
+            'isSuperAdmin' => $isSuperAdmin,
+            'outlets' => $isSuperAdmin
+                ? Outlet::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get()
+                : collect(),
+            'departments' => $isSuperAdmin
+                ? Department::query()->where('tenant_id', $tenantId)->where('status', 'ACTIVE')->orderBy('name')->get()
+                : collect(),
+        ]);
+    }
+
+    /**
+     * Download template Excel "Isi Massal" -- item sesuai outlet+departemen
+     * (urutan "Sesuai Form", kategori sebagai baris) untuk ditranskripsi dari
+     * kertas hitung fisik. Non-superadmin TERKUNCI ke outlet/departemen
+     * sendiri (sama seperti create()); SUPER_ADMIN wajib kirim outlet_id &
+     * department_id eksplisit lewat query string.
+     */
+    public function exportFillTemplate(Request $request): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $isSuperAdmin = $this->isSuperAdmin($request);
+
+        if (! $isSuperAdmin && ! $this->hasValidSpoilScope($request)) {
+            abort(403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah untuk mencatat spoil. Hubungi Super Admin.');
+        }
+
+        [$outletId, $departmentId] = $this->fillScope($request, $tenantId, $isSuperAdmin);
+
+        $items = $this->eligibleSpoilItems($tenantId, $outletId, $departmentId);
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\Templates\SpoilWasteSessionFillTemplate($items, $departmentId),
+            "Template-Isi-Spoil-{$outletId}.xlsx"
+        );
+    }
+
+    /**
+     * Terapkan file template yang sudah diisi -- setiap baris STOK > 0
+     * memanggil SpoilWasteService::record() (status PENDING, approval
+     * manual tetap berjalan seperti alur normal, BUKAN auto-approve).
+     */
+    public function importFill(Request $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $isSuperAdmin = $this->isSuperAdmin($request);
+
+        if (! $isSuperAdmin && ! $this->hasValidSpoilScope($request)) {
+            abort(403, 'Akun Anda belum ditetapkan ke outlet & departemen yang sah untuk mencatat spoil. Hubungi Super Admin.');
+        }
+
+        [$outletId, $departmentId] = $this->fillScope($request, $tenantId, $isSuperAdmin);
+
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
+        ]);
+
+        $items = $this->eligibleSpoilItems($tenantId, $outletId, $departmentId);
+
+        $import = new \App\Imports\SpoilWasteSessionFillImport();
+        \Maatwebsite\Excel\Facades\Excel::import($import, $validated['file']);
+
+        $result = $import->applyTo($tenantId, $outletId, $departmentId, (int) $request->user()->id, $this->spoilWasteService, $items);
+
+        $parts = ["{$result['applied']} baris berhasil dicatat (status Pending, menunggu approval)."];
+        if ($result['skipped_blank'] > 0) {
+            $parts[] = "{$result['skipped_blank']} baris dilewati (kosong).";
+        }
+        if ($result['not_found'] !== [] || $result['errors'] !== []) {
+            $issues = array_slice(array_merge($result['not_found'], $result['errors']), 0, 5);
+            $total = count($result['not_found']) + count($result['errors']);
+            $parts[] = "{$total} bermasalah: ".implode(' | ', $issues);
+        }
+
+        $flashKey = $result['applied'] > 0 ? 'success' : 'error';
+
+        return redirect()->route('operations.spoil-wastes.index')->with($flashKey, implode(' ', $parts));
+    }
+
+    /**
+     * @return array{0: int, 1: ?int}  [outletId, departmentId]
+     */
+    private function fillScope(Request $request, int $tenantId, bool $isSuperAdmin): array
+    {
+        if (! $isSuperAdmin) {
+            return [(int) $this->effectiveSpoilOutletId($request), (int) $request->user()->department_id];
+        }
+
+        $validated = $request->validate([
+            'outlet_id' => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'department_id' => ['required', 'integer', Rule::exists('departments', 'id')->where('tenant_id', $tenantId)],
+        ]);
+
+        return [(int) $validated['outlet_id'], (int) $validated['department_id']];
+    }
+
+    /**
+     * @return Collection<int, Item>
+     */
+    private function eligibleSpoilItems(int $tenantId, int $outletId, ?int $departmentId): Collection
+    {
+        return Item::query()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->where('track_stock', true)
+            ->whereHas('outlets', fn ($q) => $q->where('outlets.id', $outletId))
+            ->when($departmentId, fn ($q) => $q->where(
+                fn ($dq) => $dq->where('primary_department_id', $departmentId)
+                    ->orWhereHas('departments', fn ($d) => $d->where('departments.id', $departmentId))
+            ))
+            ->with(['category', 'inventoryUnit', 'baseUnit'])
+            ->orderBy('name')
+            ->get();
     }
 
     private function tenantId(Request $request): int

@@ -11,6 +11,9 @@
         @can('approve_spoil')
             <a href="{{ route('operations.spoil-wastes.import-form') }}" class="sf-btn-secondary min-h-11 px-3 text-xs">Import</a>
         @endcan
+        @can('record_spoil')
+            <a href="{{ route('operations.spoil-wastes.fill') }}" class="sf-btn-secondary min-h-11 px-3 text-xs">Isi Massal</a>
+        @endcan
         @role('SUPER_ADMIN')
             <a href="{{ route('operations.spoil-wastes.import-bulanan.form') }}" class="sf-btn-secondary min-h-11 px-3 text-xs">Import Bulanan</a>
         @endrole
