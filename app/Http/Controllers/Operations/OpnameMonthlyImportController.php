@@ -122,6 +122,13 @@ class OpnameMonthlyImportController extends Controller
 
         $import = new OpnameMonthlyImport();
         Excel::import($import, Storage::disk('local')->path($path));
+
+        if ($formatError = $import->validateFormat()) {
+            Storage::disk('local')->delete($path);
+
+            return response()->json(['message' => $formatError], 422);
+        }
+
         $rows = $import->preview($tenantId, $outletId, $departmentId);
 
         $token = (string) Str::uuid();

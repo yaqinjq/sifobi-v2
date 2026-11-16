@@ -170,6 +170,42 @@ test('a real downloaded monthly template can be filled in and re-uploaded end to
     @unlink($downloadPath);
 });
 
+test('uploading an old-format file (pre IN/OUT/SPOIL, still has a Kategori column) fails with a clear message instead of an empty preview', function (): void {
+    // Laporan user 2026-11-16: file di-download dari template LAMA
+    // (header 1 baris, kolom "Kategori" masih ada, 1 kolom per tanggal)
+    // ter-upload ke importer BARU -- sebelum ada validateFormat(), ini
+    // menghasilkan preview KOSONG tanpa error sama sekali (kolom ke-geser
+    // diam-diam). Sekarang harus ditolak eksplisit di langkah preview.
+    $path = storage_path('framework/testing/opname-monthly-old-format.xlsx');
+    File::ensureDirectoryExists(dirname($path));
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('OPNAME_BULANAN');
+    $header = ['Kategori', 'Item', 'SKU', 'Satuan Hitung', '2026-11-01', '2026-11-02'];
+    foreach ($header as $col => $value) {
+        $sheet->getCellByColumnAndRow($col + 1, 1)->setValueExplicit($value, DataType::TYPE_STRING);
+    }
+    $sheet->setCellValue('A2', 'Bumbu');
+    $sheet->setCellValue('B2', $this->item->name);
+    $sheet->setCellValue('C2', $this->item->canonical_sku);
+    $sheet->setCellValue('D2', 'GR');
+    $sheet->setCellValue('E2', '20');
+    (new Xlsx($spreadsheet))->save($path);
+
+    $response = $this->actingAs($this->admin)->post(route('operations.opname.import-bulanan.preview'), [
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->bar->id,
+        'month' => '2026-11',
+        'file' => uploadOpnameMonthlyFile($path),
+    ]);
+
+    $response->assertStatus(422);
+    expect($response->json('message'))->toContain('template LAMA');
+
+    @unlink($path);
+});
+
 test('preview classifies dates as new_session, update_draft, or skip_locked', function (): void {
     app(StockLedgerService::class)->openStock([
         'tenant_id' => $this->tenant->id,

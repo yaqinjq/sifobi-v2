@@ -53,6 +53,31 @@ class OpnameMonthlyImport implements WithMultipleSheets
     }
 
     /**
+     * Deteksi dini kalau file yang diupload format LAMA (template sebelum
+     * fitur IN/OUT/SPOIL/BAL -- masih ada kolom "Kategori", header 1 baris,
+     * 1 kolom per tanggal) atau rusak/salah sheet -- supaya gagal dengan
+     * pesan JELAS, bukan diam-diam menghasilkan preview kosong/ngaco karena
+     * kolom ke-geser (lihat laporan user 2026-11-16: file lama ke-upload ke
+     * importer baru, preview-nya kosong tanpa penjelasan).
+     */
+    public function validateFormat(): ?string
+    {
+        $rows = $this->grid->rows ?? collect();
+
+        if ($rows->count() < 2) {
+            return 'File tidak terbaca sebagai template Opname Bulanan (sheet "OPNAME_BULANAN" kosong atau formatnya tidak sesuai).';
+        }
+
+        $headerRow2First = strtolower(trim((string) ($rows->get(1)[0] ?? '')));
+
+        if ($headerRow2First !== 'item') {
+            return 'Format file ini sepertinya dari template LAMA (sebelum kolom IN/OUT/SPOIL ditambahkan) atau rusak. Silakan download template BARU dulu (tombol "Download Template"), lalu pindahkan angka yang sudah Anda isi ke template baru itu.';
+        }
+
+        return null;
+    }
+
+    /**
      * @return array{dates: list<string>, items: list<array{sku: string, satuan: string, qty_by_date: array<string, array{in: ?string, out: ?string, spoil: ?string, balance: ?string}>}>}
      */
     public function parseGrid(): array
