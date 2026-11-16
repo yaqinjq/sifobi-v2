@@ -335,6 +335,34 @@ class OpnameService
         return $session;
     }
 
+    /**
+     * Hapus permanen 1 sesi Opname, berapa pun statusnya. Kalau sudah
+     * PROCESSED (sudah menyesuaikan stok lewat stock_mutations per item),
+     * saldo dikembalikan dulu lewat voidMutation() -- TYPE-AGNOSTIC,
+     * berlaku juga utk DAILY_OPNAME_ADJ/MONTHLY_OPNAME_ADJ (pola sama
+     * persis sifobi:void-opname-session / SpoilWasteService::delete()) --
+     * sebelum sesi & seluruh item-nya dihapus (cascade lewat FK
+     * opname_session_id).
+     */
+    public function delete(OpnameSession $session, int $userId): void
+    {
+        DB::transaction(function () use ($session, $userId): void {
+            $session = OpnameSession::query()->with('items')->lockForUpdate()->findOrFail($session->id);
+
+            foreach ($session->items as $opnameItem) {
+                if ($opnameItem->mutation_id !== null) {
+                    $this->stockLedgerService->voidMutation((int) $opnameItem->mutation_id, [
+                        'performed_by' => $userId,
+                        'void_reason' => 'Sesi opname dihapus.',
+                        'notes' => 'Sesi opname dihapus.',
+                    ]);
+                }
+            }
+
+            $session->delete();
+        });
+    }
+
     public function approve(OpnameSession $session, int $userId): OpnameSession
     {
         $session = DB::transaction(function () use ($session, $userId): OpnameSession {
@@ -502,6 +530,37 @@ class OpnameService
 
             try {
                 $this->approve($session, $userId);
+                $processed++;
+            } catch (ValidationException $exception) {
+                $errors[] = "{$label}: ".collect($exception->errors())->flatten()->implode(' ');
+            } catch (\Throwable $throwable) {
+                $errors[] = "{$label}: {$throwable->getMessage()}";
+            }
+        }
+
+        return [
+            'processed' => $processed,
+            'failed' => count($errors),
+            'errors' => $errors,
+        ];
+    }
+
+    /**
+     * @param  list<int>  $sessionIds
+     * @return array{processed: int, failed: int, errors: list<string>}
+     */
+    public function bulkDelete(array $sessionIds, int $userId): array
+    {
+        $processed = 0;
+        $errors = [];
+
+        $sessions = OpnameSession::query()->with('outlet')->whereIn('id', $sessionIds)->get();
+
+        foreach ($sessions as $session) {
+            $label = $session->outlet?->name.' - '.optional($session->opname_date)->format('d/m/Y');
+
+            try {
+                $this->delete($session, $userId);
                 $processed++;
             } catch (ValidationException $exception) {
                 $errors[] = "{$label}: ".collect($exception->errors())->flatten()->implode(' ');

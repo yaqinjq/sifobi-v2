@@ -594,6 +594,9 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::post('/bulk-approve', [OpnameController::class, 'bulkApprove'])
                 ->middleware('permission:approve_opname')
                 ->name('bulk-approve');
+            Route::post('/bulk-delete', [OpnameController::class, 'bulkDelete'])
+                ->middleware('permission:approve_opname')
+                ->name('bulk-delete');
 
             // Import Opname Bulanan -- WAJIB didaftarkan sebelum /{session}
             // (literal path, bukan wildcard) supaya tidak collide dengan
@@ -630,6 +633,9 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::post('/{session}/send-back', [OpnameController::class, 'sendBackToDraft'])
                 ->middleware('permission:approve_opname')
                 ->name('send-back');
+            Route::delete('/{session}', [OpnameController::class, 'destroy'])
+                ->middleware('permission:approve_opname')
+                ->name('destroy');
         });
 
         Route::prefix('stock-transfers')

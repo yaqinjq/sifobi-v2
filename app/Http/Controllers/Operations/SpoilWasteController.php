@@ -64,11 +64,6 @@ class SpoilWasteController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        $pendingIds = $query->getCollection()
-            ->where('status', SpoilWaste::STATUS_PENDING)
-            ->pluck('id')
-            ->values();
-
         // Badge duplikat HARUS ikut scope yang sama dengan daftar di
         // bawahnya -- sebelumnya menghitung SELURUH tenant tanpa
         // memandang outlet/departemen viewer, jadi staf non-superadmin
@@ -89,7 +84,6 @@ class SpoilWasteController extends Controller
             'duplicateCount' => $duplicateCount,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
-            'pendingIds' => $pendingIds,
             'sort' => $sort,
             'direction' => $direction,
             'needsOutletSelection' => ! $this->isSuperAdmin($request) && $user?->hasMultipleOutlets() && ! $activeOutletId,

@@ -23,8 +23,18 @@
     </x-slot:actions>
 </x-sf.page-header>
 
+@php
+    $allIds = $spoilWastes->getCollection()->pluck('id')->values();
+    $statusById = $spoilWastes->getCollection()->pluck('status', 'id');
+@endphp
+
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4"
-     x-data="{ selected: [], selectedDelete: [], deleteOpen: false, deleteUrl: '', deleteName: '' }">
+     x-data="{
+         selected: [],
+         statusById: @js($statusById),
+         deleteOpen: false, deleteUrl: '', deleteName: '',
+         get pendingSelected() { return this.selected.filter(id => this.statusById[id] === 'PENDING'); },
+     }">
     @if($needsOutletSelection)
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             Akun Anda punya akses ke beberapa outlet. Pilih outlet aktif dulu untuk mencatat/melihat Spoil & Waste.
@@ -85,8 +95,8 @@
                     <div class="flex items-center justify-between gap-2">
                         @can('approve_spoil')
                             <label class="flex items-center gap-2 text-xs text-gray-500">
-                                <input type="checkbox" x-model="selectedDelete" value="{{ $spoil->id }}" class="rounded border-gray-300 text-red-600">
-                                Pilih untuk hapus
+                                <input type="checkbox" x-model="selected" value="{{ $spoil->id }}" class="rounded border-gray-300 text-primary-700">
+                                Pilih
                             </label>
                         @endcan
                         <div class="flex items-center gap-2 ml-auto">
@@ -126,13 +136,12 @@
                         <tr class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                             @can('approve_spoil')
                                 <th class="px-4 py-3 w-10">
-                                    @if($pendingIds->isNotEmpty())
+                                    @if($allIds->isNotEmpty())
                                         <input type="checkbox" class="rounded border-gray-300 text-primary-700"
-                                               :checked="selected.length === {{ $pendingIds->count() }} && {{ $pendingIds->count() }} > 0"
-                                               @change="selected = $event.target.checked ? @js($pendingIds) : []">
+                                               :checked="selected.length === {{ $allIds->count() }} && {{ $allIds->count() }} > 0"
+                                               @change="selected = $event.target.checked ? @js($allIds) : []">
                                     @endif
                                 </th>
-                                <th class="px-4 py-3 w-10" title="Pilih untuk hapus"></th>
                             @endcan
                             <th class="px-4 py-3">No</th>
                             <x-sf.sortable-th column="recorded_at" :sort="$sort" :direction="$direction">Waktu</x-sf.sortable-th>
@@ -151,12 +160,7 @@
                             <tr>
                                 @can('approve_spoil')
                                     <td class="px-4 py-3">
-                                        @if($spoil->status === \App\Modules\Operations\Models\SpoilWaste::STATUS_PENDING)
-                                            <input type="checkbox" x-model="selected" value="{{ $spoil->id }}" class="rounded border-gray-300 text-primary-700">
-                                        @endif
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <input type="checkbox" x-model="selectedDelete" value="{{ $spoil->id }}" class="rounded border-gray-300 text-red-600">
+                                        <input type="checkbox" x-model="selected" value="{{ $spoil->id }}" class="rounded border-gray-300 text-primary-700">
                                     </td>
                                 @endcan
                                 <td class="px-4 py-3 text-gray-500">{{ $spoilWastes->firstItem() + $loop->index }}</td>
@@ -204,7 +208,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="12" class="px-4 py-10 text-center text-gray-500">Belum ada spoil.</td>
+                                <td colspan="11" class="px-4 py-10 text-center text-gray-500">Belum ada spoil.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -219,19 +223,27 @@
     </div>
 
     @can('approve_spoil')
-        <x-sf.bulk-action-bar
-            route="{{ route('operations.spoil-wastes.bulk-approve') }}"
-            confirm-message="Approve __COUNT__ spoil/waste pending terpilih?"
-            button-label="Approve Terpilih"
-            button-icon="ti-checks"
-        />
-        <x-sf.bulk-action-bar
-            selected-var="selectedDelete"
-            route="{{ route('operations.spoil-wastes.bulk-delete') }}"
-            confirm-message="Hapus permanen __COUNT__ record spoil terpilih? Yang sudah Approved akan dikembalikan dulu stoknya."
-            button-label="Hapus Terpilih"
-            button-icon="ti-trash"
-        />
+        <div x-show="selected.length > 0" x-cloak
+             class="fixed inset-x-0 bottom-16 z-30 border-t border-gray-200 bg-white px-4 py-3 shadow-lg md:bottom-0 md:px-6">
+            <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+                <p class="text-sm text-gray-600"><span class="font-semibold text-gray-900" x-text="selected.length"></span> terpilih</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <form method="POST" action="{{ route('operations.spoil-wastes.bulk-approve') }}"
+                          x-show="pendingSelected.length > 0"
+                          @submit="if (! confirm('Approve ' + pendingSelected.length + ' spoil/waste pending terpilih?')) { $event.preventDefault(); }">
+                        @csrf
+                        <template x-for="id in pendingSelected" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
+                        <button type="submit" class="sf-btn-secondary min-h-10 px-3 text-sm"><i class="ti ti-checks text-base" aria-hidden="true"></i> Approve (<span x-text="pendingSelected.length"></span>)</button>
+                    </form>
+                    <form method="POST" action="{{ route('operations.spoil-wastes.bulk-delete') }}"
+                          @submit="if (! confirm('Hapus permanen ' + selected.length + ' record spoil terpilih? Yang sudah Approved akan dikembalikan dulu stoknya.')) { $event.preventDefault(); }">
+                        @csrf
+                        <template x-for="id in selected" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
+                        <button type="submit" class="sf-btn-danger min-h-10 px-3 text-sm"><i class="ti ti-trash text-base" aria-hidden="true"></i> Hapus (<span x-text="selected.length"></span>)</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     @endcan
 
     <div x-show="deleteOpen"

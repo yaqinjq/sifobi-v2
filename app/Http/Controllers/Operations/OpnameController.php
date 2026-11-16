@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Exports\Templates\OpnameSessionFillTemplate;
 use App\Http\Requests\Operations\BulkApproveOpnameRequest;
+use App\Http\Requests\Operations\BulkDeleteOpnameRequest;
 use App\Http\Requests\Operations\BulkSubmitOpnameRequest;
 use App\Imports\OpnameSessionFillImport;
 use App\Modules\Core\Models\Brand;
@@ -276,6 +277,38 @@ class OpnameController extends Controller
         $result = $this->opnameService->bulkApprove($ids, (int) $request->user()->id);
 
         return $this->bulkRedirect($result, "{$result['processed']} sesi opname berhasil diproses ke stock ledger.");
+    }
+
+    /**
+     * Hapus permanen 1 sesi -- berapa pun statusnya. Kalau sudah PROCESSED,
+     * stok dikembalikan dulu lewat VOID_REVERSAL (lihat OpnameService::delete()).
+     */
+    public function destroy(Request $request, OpnameSession $session): RedirectResponse
+    {
+        $this->authorizeSessionOwnership($request, $session);
+        abort_unless($request->user()->can('approve_opname'), 403);
+
+        $this->opnameService->delete($session, (int) $request->user()->id);
+
+        return redirect()->route('operations.opname.index')->with('success', 'Sesi opname berhasil dihapus.');
+    }
+
+    public function bulkDelete(BulkDeleteOpnameRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $ids = OpnameSession::query()
+            ->whereIn('id', $request->input('ids', []))
+            ->where('tenant_id', $tenantId)
+            ->when($request->user()->accessibleOutletIds(), fn ($q, $ids) => $q->whereIn('outlet_id', $ids))
+            ->when($request->user()->department_id, fn ($q) => $q->where(
+                fn ($dq) => $dq->where('department_id', $request->user()->department_id)->orWhereNull('department_id')
+            ))
+            ->pluck('id')
+            ->all();
+
+        $result = $this->opnameService->bulkDelete($ids, (int) $request->user()->id);
+
+        return $this->bulkRedirect($result, "{$result['processed']} sesi opname berhasil dihapus.");
     }
 
     /**

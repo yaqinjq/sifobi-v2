@@ -19,11 +19,18 @@
 </x-sf.page-header>
 
 @php
-    $draftIds = $sessions->where('status', \App\Modules\Operations\Models\OpnameSession::STATUS_DRAFT)->pluck('id')->values();
-    $submittedIds = $sessions->where('status', \App\Modules\Operations\Models\OpnameSession::STATUS_SUBMITTED)->pluck('id')->values();
+    $allIds = $sessions->pluck('id')->values();
+    $statusById = $sessions->pluck('status', 'id');
 @endphp
 
-<div x-data="{ selectedDraft: [], selectedSubmitted: [] }" class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4">
+<div x-data="{
+        selected: [],
+        statusById: @js($statusById),
+        deleteOpen: false, deleteUrl: '', deleteName: '',
+        get draftSelected() { return this.selected.filter(id => this.statusById[id] === 'DRAFT'); },
+        get submittedSelected() { return this.selected.filter(id => this.statusById[id] === 'SUBMITTED'); },
+     }"
+     class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4">
     @if(config('app.inventory_simple_enabled') && auth()->user()->can('input_opname'))
         <a href="{{ route('operations.inventory-count.index') }}"
            class="flex items-center justify-between gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm">
@@ -81,15 +88,7 @@
             <x-sf.card>
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex items-start gap-2">
-                        @if($session->status === \App\Modules\Operations\Models\OpnameSession::STATUS_DRAFT)
-                            @can('input_opname')
-                                <input type="checkbox" x-model="selectedDraft" value="{{ $session->id }}" class="mt-1 rounded border-gray-300 text-primary-700 shrink-0">
-                            @endcan
-                        @elseif($session->status === \App\Modules\Operations\Models\OpnameSession::STATUS_SUBMITTED)
-                            @can('approve_opname')
-                                <input type="checkbox" x-model="selectedSubmitted" value="{{ $session->id }}" class="mt-1 rounded border-gray-300 text-primary-700 shrink-0">
-                            @endcan
-                        @endif
+                        <input type="checkbox" x-model="selected" value="{{ $session->id }}" class="mt-1 rounded border-gray-300 text-primary-700 shrink-0">
                         <div>
                             <span class="{{ $session->status_badge_class }}">{{ $session->status }}</span>
                             <p class="font-semibold text-gray-900 mt-2">{{ $session->outlet?->name ?? '-' }}</p>
@@ -99,12 +98,22 @@
                             <p class="text-xs text-gray-400 mt-1">Diinput oleh {{ $session->createdBy?->name ?? '-' }}@if($session->createdBy) ({{ $session->createdBy->primary_role }})@endif</p>
                         </div>
                     </div>
-                    <x-icon-btn
-                        icon="view"
-                        label="Detail"
-                        color="gray"
-                        href="{{ route('operations.opname.show', $session) }}"
-                    />
+                    <div class="flex items-center gap-1">
+                        @can('approve_opname')
+                            <x-icon-btn
+                                icon="delete"
+                                label="Hapus"
+                                color="red"
+                                @click="deleteOpen = true; deleteUrl = @js(route('operations.opname.destroy', $session)); deleteName = @js(($session->outlet?->name ?? '-').' - '.optional($session->opname_date)->format('d M Y'))"
+                            />
+                        @endcan
+                        <x-icon-btn
+                            icon="view"
+                            label="Detail"
+                            color="gray"
+                            href="{{ route('operations.opname.show', $session) }}"
+                        />
+                    </div>
                 </div>
             </x-sf.card>
         @empty
@@ -124,12 +133,10 @@
                     <thead class="bg-gray-50">
                         <tr class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                             <th class="px-4 py-3 w-10">
-                                @if($draftIds->isNotEmpty())
-                                    @can('input_opname')
-                                        <input type="checkbox" title="Pilih semua Draft" class="rounded border-gray-300 text-primary-700"
-                                               :checked="selectedDraft.length === {{ $draftIds->count() }} && {{ $draftIds->count() }} > 0"
-                                               @change="selectedDraft = $event.target.checked ? @js($draftIds) : []">
-                                    @endcan
+                                @if($allIds->isNotEmpty())
+                                    <input type="checkbox" title="Pilih semua" class="rounded border-gray-300 text-primary-700"
+                                           :checked="selected.length === {{ $allIds->count() }} && {{ $allIds->count() }} > 0"
+                                           @change="selected = $event.target.checked ? @js($allIds) : []">
                                 @endif
                             </th>
                             <th class="px-4 py-3">No</th>
@@ -147,15 +154,7 @@
                         @forelse($sessions as $session)
                             <tr>
                                 <td class="px-4 py-3">
-                                    @if($session->status === \App\Modules\Operations\Models\OpnameSession::STATUS_DRAFT)
-                                        @can('input_opname')
-                                            <input type="checkbox" x-model="selectedDraft" value="{{ $session->id }}" class="rounded border-gray-300 text-primary-700">
-                                        @endcan
-                                    @elseif($session->status === \App\Modules\Operations\Models\OpnameSession::STATUS_SUBMITTED)
-                                        @can('approve_opname')
-                                            <input type="checkbox" x-model="selectedSubmitted" value="{{ $session->id }}" class="rounded border-gray-300 text-primary-700">
-                                        @endcan
-                                    @endif
+                                    <input type="checkbox" x-model="selected" value="{{ $session->id }}" class="rounded border-gray-300 text-primary-700">
                                 </td>
                                 <td class="px-4 py-3 text-gray-500">{{ $sessions->firstItem() + $loop->index }}</td>
                                 <td class="px-4 py-3">{{ optional($session->opname_date)->format('d M Y') }}</td>
@@ -171,13 +170,24 @@
                                 <td class="px-4 py-3 text-right">{{ $session->items_count }}</td>
                                 <td class="px-4 py-3"><span class="{{ $session->status_badge_class }}">{{ $session->status }}</span></td>
                                 <td class="px-4 py-3 text-right">
-                                    <x-icon-btn
-                                        icon="view"
-                                        label="Detail"
-                                        color="gray"
-                                        size="sm"
-                                        href="{{ route('operations.opname.show', $session) }}"
-                                    />
+                                    <div class="flex items-center justify-end gap-1">
+                                        @can('approve_opname')
+                                            <x-icon-btn
+                                                icon="delete"
+                                                label="Hapus"
+                                                color="red"
+                                                size="sm"
+                                                @click="deleteOpen = true; deleteUrl = @js(route('operations.opname.destroy', $session)); deleteName = @js(($session->outlet?->name ?? '-').' - '.optional($session->opname_date)->format('d M Y'))"
+                                            />
+                                        @endcan
+                                        <x-icon-btn
+                                            icon="view"
+                                            label="Detail"
+                                            color="gray"
+                                            size="sm"
+                                            href="{{ route('operations.opname.show', $session) }}"
+                                        />
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -196,46 +206,74 @@
         {{ $sessions->links() }}
     </div>
 
-    @can('input_opname')
-        <div x-show="selectedDraft.length > 0" x-cloak
-             class="fixed inset-x-0 bottom-16 z-30 border-t border-gray-200 bg-white px-4 py-3 shadow-lg md:bottom-0 md:px-6">
-            <form method="POST" action="{{ route('operations.opname.bulk-submit') }}"
-                  class="mx-auto flex max-w-7xl items-center justify-between gap-3"
-                  @submit="if (! confirm('Submit ' + selectedDraft.length + ' sesi opname draft terpilih untuk approval?')) { $event.preventDefault(); }">
-                @csrf
-                <template x-for="id in selectedDraft" :key="id">
-                    <input type="hidden" name="ids[]" :value="id">
-                </template>
-                <p class="text-sm text-gray-600">
-                    <span class="font-semibold text-gray-900" x-text="selectedDraft.length"></span> draft terpilih
-                </p>
-                <button type="submit" class="sf-btn-primary min-h-11 px-4">
-                    <i class="ti ti-send text-base" aria-hidden="true"></i>
-                    Submit Terpilih
-                </button>
-            </form>
+    <div x-show="selected.length > 0" x-cloak
+         class="fixed inset-x-0 bottom-16 z-30 border-t border-gray-200 bg-white px-4 py-3 shadow-lg md:bottom-0 md:px-6">
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+            <p class="text-sm text-gray-600">
+                <span class="font-semibold text-gray-900" x-text="selected.length"></span> terpilih
+            </p>
+            <div class="flex flex-wrap items-center gap-2">
+                @can('input_opname')
+                    <form method="POST" action="{{ route('operations.opname.bulk-submit') }}"
+                          x-show="draftSelected.length > 0"
+                          @submit="if (! confirm('Submit ' + draftSelected.length + ' sesi opname draft terpilih untuk approval?')) { $event.preventDefault(); }">
+                        @csrf
+                        <template x-for="id in draftSelected" :key="id">
+                            <input type="hidden" name="ids[]" :value="id">
+                        </template>
+                        <button type="submit" class="sf-btn-secondary min-h-10 px-3 text-sm">
+                            <i class="ti ti-send text-base" aria-hidden="true"></i>
+                            Submit (<span x-text="draftSelected.length"></span>)
+                        </button>
+                    </form>
+                @endcan
+                @can('approve_opname')
+                    <form method="POST" action="{{ route('operations.opname.bulk-approve') }}"
+                          x-show="submittedSelected.length > 0"
+                          @submit="if (! confirm('Approve ' + submittedSelected.length + ' sesi opname submitted terpilih ke stock ledger?')) { $event.preventDefault(); }">
+                        @csrf
+                        <template x-for="id in submittedSelected" :key="id">
+                            <input type="hidden" name="ids[]" :value="id">
+                        </template>
+                        <button type="submit" class="sf-btn-primary min-h-10 px-3 text-sm">
+                            <i class="ti ti-checks text-base" aria-hidden="true"></i>
+                            Approve (<span x-text="submittedSelected.length"></span>)
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('operations.opname.bulk-delete') }}"
+                          @submit="if (! confirm('Hapus permanen ' + selected.length + ' sesi opname terpilih? Yang sudah Processed akan dikembalikan dulu stoknya.')) { $event.preventDefault(); }">
+                        @csrf
+                        <template x-for="id in selected" :key="id">
+                            <input type="hidden" name="ids[]" :value="id">
+                        </template>
+                        <button type="submit" class="sf-btn-danger min-h-10 px-3 text-sm">
+                            <i class="ti ti-trash text-base" aria-hidden="true"></i>
+                            Hapus (<span x-text="selected.length"></span>)
+                        </button>
+                    </form>
+                @endcan
+            </div>
         </div>
-    @endcan
+    </div>
 
-    @can('approve_opname')
-        <div x-show="selectedSubmitted.length > 0" x-cloak
-             class="fixed inset-x-0 bottom-16 z-30 border-t border-gray-200 bg-white px-4 py-3 shadow-lg md:bottom-0 md:px-6">
-            <form method="POST" action="{{ route('operations.opname.bulk-approve') }}"
-                  class="mx-auto flex max-w-7xl items-center justify-between gap-3"
-                  @submit="if (! confirm('Approve ' + selectedSubmitted.length + ' sesi opname submitted terpilih ke stock ledger?')) { $event.preventDefault(); }">
-                @csrf
-                <template x-for="id in selectedSubmitted" :key="id">
-                    <input type="hidden" name="ids[]" :value="id">
-                </template>
-                <p class="text-sm text-gray-600">
-                    <span class="font-semibold text-gray-900" x-text="selectedSubmitted.length"></span> submitted terpilih
-                </p>
-                <button type="submit" class="sf-btn-primary min-h-11 px-4">
-                    <i class="ti ti-checks text-base" aria-hidden="true"></i>
-                    Approve Terpilih
-                </button>
-            </form>
+    <div x-show="deleteOpen"
+         x-cloak
+         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-gray-900/40 p-4">
+        <div class="sf-card w-full max-w-sm p-4" @click.outside="deleteOpen = false">
+            <h2 class="font-heading font-semibold text-gray-900">Hapus sesi opname?</h2>
+            <p class="text-sm text-gray-500 mt-2">
+                Sesi <span class="font-semibold text-gray-800" x-text="deleteName"></span> akan dihapus permanen. Kalau
+                sudah Processed, stok yang sempat disesuaikan akan dikembalikan dulu.
+            </p>
+            <div class="mt-4 flex gap-2">
+                <button type="button" class="sf-btn-secondary flex-1" @click="deleteOpen = false">Batal</button>
+                <form method="POST" :action="deleteUrl" class="flex-1">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="sf-btn-danger w-full">Hapus</button>
+                </form>
+            </div>
         </div>
-    @endcan
+    </div>
 </div>
 @endsection
