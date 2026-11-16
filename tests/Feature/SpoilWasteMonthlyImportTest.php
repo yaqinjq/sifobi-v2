@@ -50,7 +50,7 @@ function buildSpoilMonthlyXlsx(array $dates, array $qtyByDateBySku, string $defa
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('SPOIL_BULANAN');
 
-    $header = array_merge(['Kategori', 'Item', 'SKU', 'Satuan Hitung', 'Kategori Alasan (default)'], $dates);
+    $header = array_merge(['Item', 'SKU', 'Satuan Hitung', 'Kategori Alasan (default)'], $dates);
     foreach ($header as $col => $value) {
         $sheet->getCellByColumnAndRow($col + 1, 1)->setValueExplicit($value, DataType::TYPE_STRING);
     }
@@ -64,15 +64,14 @@ function buildSpoilMonthlyXlsx(array $dates, array $qtyByDateBySku, string $defa
 
     $row = 2;
     foreach (array_keys($skus) as $sku) {
-        $sheet->setCellValue("A{$row}", 'Bumbu');
+        $sheet->setCellValue("A{$row}", $sku);
         $sheet->setCellValue("B{$row}", $sku);
-        $sheet->setCellValue("C{$row}", $sku);
-        $sheet->setCellValue("D{$row}", 'GR');
-        $sheet->setCellValue("E{$row}", $defaultReason);
+        $sheet->setCellValue("C{$row}", 'GR');
+        $sheet->setCellValue("D{$row}", $defaultReason);
 
         foreach ($dates as $col => $date) {
             $qty = $qtyByDateBySku[$date][$sku] ?? '';
-            $sheet->setCellValueByColumnAndRow($col + 6, $row, $qty);
+            $sheet->setCellValueByColumnAndRow($col + 5, $row, $qty);
         }
         $row++;
     }

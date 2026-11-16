@@ -3,12 +3,16 @@
 namespace App\Exports\Templates;
 
 use App\Modules\Operations\Models\SpoilWaste;
+use App\Support\Excel\CategoryDividerWriter;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
@@ -41,8 +45,11 @@ class SpoilWasteMonthlyImportTemplate implements WithMultipleSheets
     }
 }
 
-class SpoilWasteMonthlyTemplateSheet implements FromArray, ShouldAutoSize, WithStyles, WithTitle
+class SpoilWasteMonthlyTemplateSheet implements FromArray, ShouldAutoSize, WithEvents, WithStyles, WithTitle
 {
+    /** @var list<int> baris (1-indexed) tempat kategori ditulis -- diisi array(), dibaca registerEvents() */
+    private array $categoryRows = [];
+
     /**
      * @param  Collection<int, \App\Modules\Inventory\Models\Item>  $items
      * @param  list<string>  $dates
@@ -61,13 +68,15 @@ class SpoilWasteMonthlyTemplateSheet implements FromArray, ShouldAutoSize, WithS
             ->sortKeys();
 
         $rows = [
-            array_merge(['Kategori', 'Item', 'SKU', 'Satuan Hitung', 'Kategori Alasan (default)'], $this->dates),
+            array_merge(['Item', 'SKU', 'Satuan Hitung', 'Kategori Alasan (default)'], $this->dates),
         ];
 
         foreach ($grouped as $category => $items) {
+            $this->categoryRows[] = count($rows) + 1;
+            $rows[] = array_merge([$category], array_fill(0, 3 + count($this->dates), ''));
+
             foreach ($items->sortBy('name') as $item) {
                 $rows[] = array_merge([
-                    $category,
                     $item->name,
                     $item->canonical_sku,
                     $item->inventoryUnit?->abbreviation ?: $item->baseUnit?->abbreviation ?: '-',
@@ -77,6 +86,22 @@ class SpoilWasteMonthlyTemplateSheet implements FromArray, ShouldAutoSize, WithS
         }
 
         return $rows;
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event): void {
+                $sheet = $event->sheet->getDelegate();
+                $lastCol = Coordinate::stringFromColumnIndex(4 + count($this->dates));
+
+                foreach ($this->categoryRows as $row) {
+                    $category = (string) $sheet->getCell("A{$row}")->getValue();
+                    $sheet->setCellValue("A{$row}", '');
+                    CategoryDividerWriter::write($sheet, $row, 'A', $lastCol, $category);
+                }
+            },
+        ];
     }
 
     public function styles(Worksheet $sheet): array
@@ -112,7 +137,7 @@ class SpoilWasteMonthlyInstructionSheet implements FromArray, ShouldAutoSize, Wi
 
         return [
             ['Kolom', 'Keterangan', 'Wajib?'],
-            ['Kategori', 'Kategori item, cuma informasi -- tidak perlu diubah', 'Tidak'],
+            ['(baris abu-abu)', 'Nama kategori sebagai baris pemisah -- cuma informasi, tidak perlu diubah', 'Tidak'],
             ['Item', 'Nama item, cuma informasi -- tidak perlu diubah', 'Tidak'],
             ['SKU', 'SKU item, cuma informasi -- tidak perlu diubah', 'Tidak'],
             ['Satuan Hitung', 'Satuan yang dipakai untuk SEMUA sel tanggal di baris itu', 'Tidak'],

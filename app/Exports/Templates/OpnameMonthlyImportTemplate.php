@@ -2,7 +2,7 @@
 
 namespace App\Exports\Templates;
 
-use App\Exports\Concerns\WithSifobiExcelStyles;
+use App\Support\Excel\CategoryDividerWriter;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -10,6 +10,8 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
@@ -50,7 +52,8 @@ class OpnameMonthlyImportTemplate implements WithMultipleSheets
 
 class OpnameMonthlyTemplateSheet implements FromArray, ShouldAutoSize, WithEvents, WithStyles, WithTitle
 {
-    use WithSifobiExcelStyles;
+    /** @var list<int> baris (1-indexed, posisi Excel) tempat kategori ditulis -- diisi array(), dibaca registerEvents() */
+    private array $categoryRows = [];
 
     /**
      * @param  Collection<int, \App\Modules\Inventory\Models\Item>  $items
@@ -66,21 +69,49 @@ class OpnameMonthlyTemplateSheet implements FromArray, ShouldAutoSize, WithEvent
     public function array(): array
     {
         $sorted = $this->items->sortBy(fn ($item) => $item->formSortKey($this->departmentId));
+        $grouped = $sorted->groupBy(fn ($item) => $item->categoryForDepartment($this->departmentId)?->name ?: 'Lainnya');
 
         $rows = [
-            array_merge(['Kategori', 'Item', 'SKU', 'Satuan Hitung'], $this->dates),
+            array_merge(['Item', 'SKU', 'Satuan Hitung'], $this->dates),
         ];
 
-        foreach ($sorted as $item) {
-            $rows[] = array_merge([
-                $item->categoryForDepartment($this->departmentId)?->name ?: 'Lainnya',
-                $item->name,
-                $item->canonical_sku,
-                $item->inventoryUnit?->abbreviation ?: $item->baseUnit?->abbreviation ?: '-',
-            ], array_fill(0, count($this->dates), ''));
+        foreach ($grouped as $category => $itemsInCategory) {
+            // +1 karena array() 0-indexed tapi baris Excel 1-indexed.
+            $this->categoryRows[] = count($rows) + 1;
+            $rows[] = array_merge([$category], array_fill(0, 2 + count($this->dates), ''));
+
+            foreach ($itemsInCategory as $item) {
+                $rows[] = array_merge([
+                    $item->name,
+                    $item->canonical_sku,
+                    $item->inventoryUnit?->abbreviation ?: $item->baseUnit?->abbreviation ?: '-',
+                ], array_fill(0, count($this->dates), ''));
+            }
         }
 
         return $rows;
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event): void {
+                $sheet = $event->sheet->getDelegate();
+                $lastCol = Coordinate::stringFromColumnIndex(3 + count($this->dates));
+
+                $sheet->freezePane('A2');
+                $sheet->getStyle("A1:{$lastCol}1")->applyFromArray([
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1B4332']],
+                ]);
+
+                foreach ($this->categoryRows as $row) {
+                    $category = (string) $sheet->getCell("A{$row}")->getValue();
+                    $sheet->setCellValue("A{$row}", '');
+                    CategoryDividerWriter::write($sheet, $row, 'A', $lastCol, $category);
+                }
+            },
+        ];
     }
 
     public function styles(Worksheet $sheet): array
@@ -100,7 +131,7 @@ class OpnameMonthlyInstructionSheet implements FromArray, ShouldAutoSize, WithSt
     {
         return [
             ['Kolom', 'Keterangan', 'Wajib?'],
-            ['Kategori', 'Kategori item, cuma informasi -- tidak perlu diubah', 'Tidak'],
+            ['(baris abu-abu)', 'Nama kategori sebagai baris pemisah -- cuma informasi, tidak perlu diubah', 'Tidak'],
             ['Item', 'Nama item, cuma informasi -- tidak perlu diubah', 'Tidak'],
             ['SKU', 'SKU item, cuma informasi -- tidak perlu diubah', 'Tidak'],
             ['Satuan Hitung', 'Satuan yang dipakai untuk SEMUA sel tanggal di baris itu -- cuma informasi, tidak perlu diubah', 'Tidak'],

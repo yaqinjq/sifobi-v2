@@ -54,7 +54,7 @@ class OpnameMonthlyImport implements WithMultipleSheets
         $dateColumns = [];
 
         foreach ($header as $index => $value) {
-            if ($index < 4) {
+            if ($index < 3) {
                 continue;
             }
 
@@ -67,14 +67,17 @@ class OpnameMonthlyImport implements WithMultipleSheets
 
         $items = [];
 
+        // Baris pemisah kategori (kolom "Item" kosong, SKU kosong) ikut
+        // dilewati di sini secara alami -- sama seperti baris benar-benar
+        // kosong, tidak perlu deteksi khusus.
         foreach ($rows->skip(1) as $row) {
-            $sku = trim((string) ($row[2] ?? ''));
+            $sku = trim((string) ($row[1] ?? ''));
 
             if ($sku === '') {
                 continue;
             }
 
-            $satuan = trim((string) ($row[3] ?? ''));
+            $satuan = trim((string) ($row[2] ?? ''));
             $qtyByDate = [];
 
             foreach ($dateColumns as $index => $date) {

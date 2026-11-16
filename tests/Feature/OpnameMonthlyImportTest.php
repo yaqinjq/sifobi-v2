@@ -50,7 +50,7 @@ function buildOpnameMonthlyXlsx(array $dates, array $qtyByDateBySku, string $fil
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('OPNAME_BULANAN');
 
-    $header = array_merge(['Kategori', 'Item', 'SKU', 'Satuan Hitung'], $dates);
+    $header = array_merge(['Item', 'SKU', 'Satuan Hitung'], $dates);
     foreach ($header as $col => $value) {
         $cell = $sheet->getCellByColumnAndRow($col + 1, 1);
         $cell->setValueExplicit($value, DataType::TYPE_STRING);
@@ -65,14 +65,13 @@ function buildOpnameMonthlyXlsx(array $dates, array $qtyByDateBySku, string $fil
 
     $row = 2;
     foreach (array_keys($skus) as $sku) {
-        $sheet->setCellValue("A{$row}", 'Bumbu');
+        $sheet->setCellValue("A{$row}", $sku);
         $sheet->setCellValue("B{$row}", $sku);
-        $sheet->setCellValue("C{$row}", $sku);
-        $sheet->setCellValue("D{$row}", 'GR');
+        $sheet->setCellValue("C{$row}", 'GR');
 
         foreach ($dates as $col => $date) {
             $qty = $qtyByDateBySku[$date][$sku] ?? '';
-            $sheet->setCellValueByColumnAndRow($col + 5, $row, $qty);
+            $sheet->setCellValueByColumnAndRow($col + 4, $row, $qty);
         }
         $row++;
     }

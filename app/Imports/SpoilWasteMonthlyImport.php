@@ -53,7 +53,7 @@ class SpoilWasteMonthlyImport implements WithMultipleSheets
         $dateColumns = [];
 
         foreach ($header as $index => $value) {
-            if ($index < 5) {
+            if ($index < 4) {
                 continue;
             }
 
@@ -66,15 +66,17 @@ class SpoilWasteMonthlyImport implements WithMultipleSheets
 
         $items = [];
 
+        // Baris pemisah kategori (kolom "Item"/SKU kosong) ikut dilewati di
+        // sini secara alami, sama seperti baris benar-benar kosong.
         foreach ($rows->skip(1) as $row) {
-            $sku = trim((string) ($row[2] ?? ''));
+            $sku = trim((string) ($row[1] ?? ''));
 
             if ($sku === '') {
                 continue;
             }
 
-            $satuan = trim((string) ($row[3] ?? ''));
-            $reasonLabel = trim((string) ($row[4] ?? ''));
+            $satuan = trim((string) ($row[2] ?? ''));
+            $reasonLabel = trim((string) ($row[3] ?? ''));
             $qtyByDate = [];
 
             foreach ($dateColumns as $index => $date) {
