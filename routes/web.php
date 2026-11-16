@@ -529,6 +529,12 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
         Route::post('/spoil-wastes/{spoil}/reject', [SpoilWasteController::class, 'reject'])
             ->middleware('permission:approve_spoil')
             ->name('spoil-wastes.reject');
+        Route::post('/spoil-wastes/bulk-delete', [SpoilWasteController::class, 'bulkDelete'])
+            ->middleware('permission:approve_spoil')
+            ->name('spoil-wastes.bulk-delete');
+        Route::delete('/spoil-wastes/{spoil}', [SpoilWasteController::class, 'destroy'])
+            ->middleware('permission:approve_spoil')
+            ->name('spoil-wastes.destroy');
 
         // Isi Massal lewat Excel -- padanan Opname, status tetap PENDING
         // (bukan auto-approve), jadi cukup permission record_spoil yang

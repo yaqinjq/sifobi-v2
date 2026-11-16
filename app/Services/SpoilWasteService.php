@@ -240,6 +240,33 @@ class SpoilWasteService
     }
 
     /**
+     * Hapus permanen 1 record Spoil & Waste, berapa pun statusnya. Kalau
+     * sudah APPROVED (sudah memotong stok lewat stock_mutations), saldo
+     * dikembalikan dulu lewat voidMutation() -- pola sama persis yang sudah
+     * dipakai reject() untuk sesi pending, dan dipakai
+     * sifobi:reset-spoil-wastes untuk pembersihan massal -- supaya
+     * qty_on_hand tidak ikut jadi salah/kurang setelah baris ini hilang.
+     */
+    public function delete(SpoilWaste $spoil, int $userId): void
+    {
+        DB::transaction(function () use ($spoil, $userId): void {
+            $spoil = SpoilWaste::query()->with('mutation')->lockForUpdate()->findOrFail($spoil->id);
+
+            if ($spoil->status === SpoilWaste::STATUS_APPROVED && $spoil->mutation) {
+                $this->stockLedgerService->voidMutation($spoil->mutation, [
+                    'reference_type' => SpoilWaste::class,
+                    'reference_id' => $spoil->id,
+                    'performed_by' => $userId,
+                    'void_reason' => 'Record spoil dihapus.',
+                    'notes' => 'Record spoil dihapus.',
+                ]);
+            }
+
+            $spoil->delete();
+        });
+    }
+
+    /**
      * @return array{0: string|null, 1: string|null, 2: array<string, mixed>|null, 3: SpoilWaste|null}
      */
     private function handlePhoto(mixed $file, int $tenantId): array

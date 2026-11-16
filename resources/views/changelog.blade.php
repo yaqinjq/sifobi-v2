@@ -8,13 +8,88 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
-    {{-- v2.52 --}}
+    {{-- v2.56 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
-                <h3 class="font-heading font-bold text-gray-900">v2.52 &mdash; 3 November 2026</h3>
+                <h3 class="font-heading font-bold text-gray-900">v2.56 &mdash; 16 November 2026</h3>
                 <span class="badge-info text-xs">Terbaru</span>
             </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Spoil & Waste: hapus 1 record & hapus massal</strong> -- tombol hapus per baris (mobile & desktop) plus pilih banyak baris sekaligus untuk dihapus bersamaan. Record yang sudah Approved otomatis dikembalikan dulu saldo stoknya (VOID_REVERSAL) sebelum benar-benar dihapus, supaya stok tidak ikut salah</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- v2.55 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <h3 class="font-heading font-bold text-gray-900">v2.55 &mdash; 16 November 2026</h3>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Template Opname & Spoil "Isi Massal" sekarang persis form kertas fisik</strong> -- kategori ditampilkan sebagai baris pemisah (bukan kolom), kolom GUDANG (saldo gudang) & SET OF (rasio konversi satuan) ditambahkan, Total & TOTAL Per Satuan berupa rumus Excel asli (otomatis terhitung ulang kalau angkanya diubah)</li>
+                    <li><strong>Spoil & Waste: fitur baru "Isi Massal lewat Excel"</strong> -- padanan Opname, item sesuai outlet+departemen sudah terisi di template, staf tinggal isi TGL/STOK/Kategori Alasan dari lembar hitung fisik. Setiap baris yang berhasil tetap berstatus Pending (butuh approval manual, bukan otomatis disetujui)</li>
+                    <li><strong>Laporan Opname & Spoil per Outlet</strong> (menu Laporan) -- download 1 file Excel per outlet, 1 sheet per departemen, pakai data yang sudah diinput di sistem, format identik form kertas lengkap dengan rumus</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Template "Import Bulanan" (Opname & Spoil) ikut dapat kategori sebagai baris pemisah, selaras dengan template Isi Massal</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Catatan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li>Kolom GUDANG Balance di Laporan Opname per Outlet menampilkan saldo gudang SAAT laporan di-download, bukan saldo historis persis tanggal laporan (belum ada mekanisme snapshot ledger "as of tanggal")</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- v2.54 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <h3 class="font-heading font-bold text-gray-900">v2.54 &mdash; 13 November 2026</h3>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Dashboard: perbandingan periode & tren 7 hari</strong> -- kartu Open Stock/Spoil/Omzet POS sekarang menampilkan perbandingan hari ini vs kemarin (warna hijau/merah sesuai arti baik/buruknya), plus grafik tren sederhana 7 hari terakhir untuk aktivitas mutasi stok & omzet POS</li>
+                    <li><strong>Opname: isi massal 1 sesi lewat template Excel</strong> -- halaman detail sesi Opname sekarang punya opsi download template berisi semua item sesi itu, isi angka hasil hitung fisik, lalu upload kembali -- alternatif cepat dari input manual satu-satu</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- v2.53 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <h3 class="font-heading font-bold text-gray-900">v2.53 &mdash; 12 November 2026</h3>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Tampilan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Redesign tampilan gaya Spark Admin</strong> -- palet warna hijau tua/lime, tombol & badge jadi bentuk pil, topbar baru di desktop (pencarian menu, tombol "+ Buat" cepat, notifikasi, profil), halaman login dirapikan</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- v2.52 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <h3 class="font-heading font-bold text-gray-900">v2.52 &mdash; 3 November 2026</h3>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">
             <div>

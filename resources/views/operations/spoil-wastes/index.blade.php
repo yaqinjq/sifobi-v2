@@ -23,7 +23,8 @@
     </x-slot:actions>
 </x-sf.page-header>
 
-<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4" x-data="{ selected: [] }">
+<div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4"
+     x-data="{ selected: [], selectedDelete: [], deleteOpen: false, deleteUrl: '', deleteName: '' }">
     @if($needsOutletSelection)
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             Akun Anda punya akses ke beberapa outlet. Pilih outlet aktif dulu untuk mencatat/melihat Spoil & Waste.
@@ -81,13 +82,29 @@
                             @endif
                         </div>
                     </div>
-                    <div class="flex justify-end">
-                        <x-icon-btn
-                            icon="view"
-                            label="Detail"
-                            color="gray"
-                            href="{{ route('operations.spoil-wastes.show', $spoil) }}"
-                        />
+                    <div class="flex items-center justify-between gap-2">
+                        @can('approve_spoil')
+                            <label class="flex items-center gap-2 text-xs text-gray-500">
+                                <input type="checkbox" x-model="selectedDelete" value="{{ $spoil->id }}" class="rounded border-gray-300 text-red-600">
+                                Pilih untuk hapus
+                            </label>
+                        @endcan
+                        <div class="flex items-center gap-2 ml-auto">
+                            @can('approve_spoil')
+                                <x-icon-btn
+                                    icon="delete"
+                                    label="Hapus"
+                                    color="red"
+                                    @click="deleteOpen = true; deleteUrl = @js(route('operations.spoil-wastes.destroy', $spoil)); deleteName = @js($spoil->item?->name ?? '-')"
+                                />
+                            @endcan
+                            <x-icon-btn
+                                icon="view"
+                                label="Detail"
+                                color="gray"
+                                href="{{ route('operations.spoil-wastes.show', $spoil) }}"
+                            />
+                        </div>
                     </div>
                 </div>
             </x-sf.card>
@@ -115,6 +132,7 @@
                                                @change="selected = $event.target.checked ? @js($pendingIds) : []">
                                     @endif
                                 </th>
+                                <th class="px-4 py-3 w-10" title="Pilih untuk hapus"></th>
                             @endcan
                             <th class="px-4 py-3">No</th>
                             <x-sf.sortable-th column="recorded_at" :sort="$sort" :direction="$direction">Waktu</x-sf.sortable-th>
@@ -136,6 +154,9 @@
                                         @if($spoil->status === \App\Modules\Operations\Models\SpoilWaste::STATUS_PENDING)
                                             <input type="checkbox" x-model="selected" value="{{ $spoil->id }}" class="rounded border-gray-300 text-primary-700">
                                         @endif
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <input type="checkbox" x-model="selectedDelete" value="{{ $spoil->id }}" class="rounded border-gray-300 text-red-600">
                                     </td>
                                 @endcan
                                 <td class="px-4 py-3 text-gray-500">{{ $spoilWastes->firstItem() + $loop->index }}</td>
@@ -161,18 +182,29 @@
                                 </td>
                                 <td class="px-4 py-3"><span class="{{ $spoil->status_badge_class }}">{{ $spoil->status }}</span></td>
                                 <td class="px-4 py-3 text-right">
-                                    <x-icon-btn
-                                        icon="view"
-                                        label="Detail"
-                                        color="gray"
-                                        size="sm"
-                                        href="{{ route('operations.spoil-wastes.show', $spoil) }}"
-                                    />
+                                    <div class="flex items-center justify-end gap-1">
+                                        @can('approve_spoil')
+                                            <x-icon-btn
+                                                icon="delete"
+                                                label="Hapus"
+                                                color="red"
+                                                size="sm"
+                                                @click="deleteOpen = true; deleteUrl = @js(route('operations.spoil-wastes.destroy', $spoil)); deleteName = @js($spoil->item?->name ?? '-')"
+                                            />
+                                        @endcan
+                                        <x-icon-btn
+                                            icon="view"
+                                            label="Detail"
+                                            color="gray"
+                                            size="sm"
+                                            href="{{ route('operations.spoil-wastes.show', $spoil) }}"
+                                        />
+                                    </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="px-4 py-10 text-center text-gray-500">Belum ada spoil.</td>
+                                <td colspan="12" class="px-4 py-10 text-center text-gray-500">Belum ada spoil.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -193,6 +225,33 @@
             button-label="Approve Terpilih"
             button-icon="ti-checks"
         />
+        <x-sf.bulk-action-bar
+            selected-var="selectedDelete"
+            route="{{ route('operations.spoil-wastes.bulk-delete') }}"
+            confirm-message="Hapus permanen __COUNT__ record spoil terpilih? Yang sudah Approved akan dikembalikan dulu stoknya."
+            button-label="Hapus Terpilih"
+            button-icon="ti-trash"
+        />
     @endcan
+
+    <div x-show="deleteOpen"
+         x-cloak
+         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-gray-900/40 p-4">
+        <div class="sf-card w-full max-w-sm p-4" @click.outside="deleteOpen = false">
+            <h2 class="font-heading font-semibold text-gray-900">Hapus record spoil?</h2>
+            <p class="text-sm text-gray-500 mt-2">
+                Record spoil untuk <span class="font-semibold text-gray-800" x-text="deleteName"></span> akan dihapus
+                permanen. Kalau sudah Approved, stok yang sempat terpotong akan dikembalikan dulu.
+            </p>
+            <div class="mt-4 flex gap-2">
+                <button type="button" class="sf-btn-secondary flex-1" @click="deleteOpen = false">Batal</button>
+                <form method="POST" :action="deleteUrl" class="flex-1">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="sf-btn-danger w-full">Hapus</button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection

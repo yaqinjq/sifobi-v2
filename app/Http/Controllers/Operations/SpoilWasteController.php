@@ -8,6 +8,7 @@ use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Concerns\ResolvesTableSort;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operations\BulkApproveSpoilWasteRequest;
+use App\Http\Requests\Operations\BulkDeleteSpoilWasteRequest;
 use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
@@ -392,6 +393,56 @@ class SpoilWasteController extends Controller
         return redirect()
             ->route('operations.spoil-wastes.show', $updated)
             ->with('warning', 'Spoil ditolak dan stok dikembalikan lewat VOID_REVERSAL.');
+    }
+
+    /**
+     * Hapus permanen 1 record -- berapa pun statusnya. Kalau sudah
+     * APPROVED, stok dikembalikan dulu lewat VOID_REVERSAL (lihat
+     * SpoilWasteService::delete()) sebelum baris benar-benar dihapus.
+     */
+    public function destroy(Request $request, SpoilWaste $spoil): RedirectResponse
+    {
+        $this->assertSpoilInScope($request, $spoil);
+
+        $this->spoilWasteService->delete($spoil, (int) $request->user()->id);
+
+        return redirect()
+            ->route('operations.spoil-wastes.index')
+            ->with('success', 'Record spoil berhasil dihapus.');
+    }
+
+    public function bulkDelete(BulkDeleteSpoilWasteRequest $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $userId = (int) $request->user()->id;
+        $requestedIds = array_map('intval', $request->input('ids', []));
+
+        $scopedQuery = $this->applySpoilRecordScope(
+            SpoilWaste::query()->whereIn('id', $requestedIds)->where('tenant_id', $tenantId),
+            $request
+        );
+
+        $spoilWastes = $scopedQuery->get();
+
+        $allowedIds = $spoilWastes->pluck('id')->all();
+        $rejectedIds = array_values(array_diff($requestedIds, $allowedIds));
+
+        $result = $this->runBulkAction(
+            $spoilWastes,
+            fn (SpoilWaste $spoil) => $this->spoilWasteService->delete($spoil, $userId),
+            fn (SpoilWaste $spoil) => "#{$spoil->id}"
+        );
+
+        foreach ($rejectedIds as $rejectedId) {
+            $result['errors'][] = "#{$rejectedId}: di luar scope Anda (outlet/departemen berbeda), dilewati.";
+        }
+        $result['failed'] = count($result['errors']);
+
+        return $this->bulkActionRedirect(
+            'operations.spoil-wastes.index',
+            $result,
+            "{$result['processed']} record spoil berhasil dihapus."
+        );
     }
 
     public function searchItems(Request $request): JsonResponse
