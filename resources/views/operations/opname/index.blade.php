@@ -104,7 +104,7 @@
                                 icon="delete"
                                 label="Hapus"
                                 color="red"
-                                @click="deleteOpen = true; deleteUrl = @js(route('operations.opname.destroy', $session)); deleteName = @js(($session->outlet?->name ?? '-').' - '.optional($session->opname_date)->format('d M Y'))"
+                                @click="deleteOpen = true; deleteUrl = {{ \Illuminate\Support\Js::from(route('operations.opname.destroy', $session)) }}; deleteName = {{ \Illuminate\Support\Js::from(($session->outlet?->name ?? '-').' - '.optional($session->opname_date)->format('d M Y')) }}"
                             />
                         @endcan
                         <x-icon-btn
@@ -177,7 +177,7 @@
                                                 label="Hapus"
                                                 color="red"
                                                 size="sm"
-                                                @click="deleteOpen = true; deleteUrl = @js(route('operations.opname.destroy', $session)); deleteName = @js(($session->outlet?->name ?? '-').' - '.optional($session->opname_date)->format('d M Y'))"
+                                                @click="deleteOpen = true; deleteUrl = {{ \Illuminate\Support\Js::from(route('operations.opname.destroy', $session)) }}; deleteName = {{ \Illuminate\Support\Js::from(($session->outlet?->name ?? '-').' - '.optional($session->opname_date)->format('d M Y')) }}"
                                             />
                                         @endcan
                                         <x-icon-btn

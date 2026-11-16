@@ -55,7 +55,7 @@
                                 icon="delete"
                                 label="Hapus"
                                 color="red"
-                                @click="deleteOpen = true; deleteUrl = @js(route('master-data.units.destroy', $unit)); deleteName = @js($unit->name)"
+                                @click="deleteOpen = true; deleteUrl = {{ \Illuminate\Support\Js::from(route('master-data.units.destroy', $unit)) }}; deleteName = {{ \Illuminate\Support\Js::from($unit->name) }}"
                             />
                         </div>
                     @endcan
@@ -119,7 +119,7 @@
                                                 label="Hapus"
                                                 color="red"
                                                 size="sm"
-                                                @click="deleteOpen = true; deleteUrl = @js(route('master-data.units.destroy', $unit)); deleteName = @js($unit->name)"
+                                                @click="deleteOpen = true; deleteUrl = {{ \Illuminate\Support\Js::from(route('master-data.units.destroy', $unit)) }}; deleteName = {{ \Illuminate\Support\Js::from($unit->name) }}"
                                             />
                                         @endcan
                                     </div>

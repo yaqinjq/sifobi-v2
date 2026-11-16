@@ -105,7 +105,7 @@
                                     icon="delete"
                                     label="Hapus"
                                     color="red"
-                                    @click="deleteOpen = true; deleteUrl = @js(route('operations.spoil-wastes.destroy', $spoil)); deleteName = @js($spoil->item?->name ?? '-')"
+                                    @click="deleteOpen = true; deleteUrl = {{ \Illuminate\Support\Js::from(route('operations.spoil-wastes.destroy', $spoil)) }}; deleteName = {{ \Illuminate\Support\Js::from($spoil->item?->name ?? '-') }}"
                                 />
                             @endcan
                             <x-icon-btn
@@ -193,7 +193,7 @@
                                                 label="Hapus"
                                                 color="red"
                                                 size="sm"
-                                                @click="deleteOpen = true; deleteUrl = @js(route('operations.spoil-wastes.destroy', $spoil)); deleteName = @js($spoil->item?->name ?? '-')"
+                                                @click="deleteOpen = true; deleteUrl = {{ \Illuminate\Support\Js::from(route('operations.spoil-wastes.destroy', $spoil)) }}; deleteName = {{ \Illuminate\Support\Js::from($spoil->item?->name ?? '-') }}"
                                             />
                                         @endcan
                                         <x-icon-btn
