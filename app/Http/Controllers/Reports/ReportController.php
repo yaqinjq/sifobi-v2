@@ -410,6 +410,109 @@ class ReportController extends Controller
     }
 
     /**
+     * Laporan Opname 1 outlet untuk 1 tanggal -- 1 sheet per departemen,
+     * layout identik form kertas (lihat OpnameOutletReportExport). Beda dari
+     * laporan lain di controller ini: outlet_id WAJIB tepat 1 (bukan
+     * "gabungan semua outlet milik user" seperti enforceOutletScope()),
+     * karena bentuknya memang 1 workbook per outlet, sama seperti form
+     * kertas aslinya.
+     */
+    public function opnamePerOutlet(Request $request): View
+    {
+        $tenantId = $this->tenantId($request);
+        $outlets = $this->kartuStokOutlets($request, $tenantId);
+
+        $outletId = $request->integer('outlet_id') ?: $outlets->first()?->id;
+        $this->assertOutletViewable($request, $tenantId, $outletId);
+
+        $date = $request->filled('date') ? $request->string('date')->toString() : now()->toDateString();
+
+        return view('laporan.opname-per-outlet', [
+            'outlets' => $outlets,
+            'outletId' => $outletId,
+            'date' => $date,
+        ]);
+    }
+
+    public function exportOpnamePerOutlet(Request $request): BinaryFileResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $validated = $request->validate([
+            'outlet_id' => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'date' => ['required', 'date'],
+        ]);
+        $this->assertOutletViewable($request, $tenantId, (int) $validated['outlet_id']);
+
+        $outletName = Outlet::query()->where('tenant_id', $tenantId)->findOrFail($validated['outlet_id'])->name;
+
+        return Excel::download(
+            new \App\Exports\Reports\OpnameOutletReportExport($tenantId, (int) $validated['outlet_id'], $validated['date'], $outletName),
+            "Laporan-Opname-{$validated['date']}.xlsx"
+        );
+    }
+
+    /**
+     * Laporan Spoil & Waste 1 outlet untuk 1 rentang tanggal -- 1 sheet per
+     * departemen, layout identik form kertas (lihat SpoilOutletReportExport).
+     */
+    public function spoilPerOutlet(Request $request): View
+    {
+        $tenantId = $this->tenantId($request);
+        $outlets = $this->kartuStokOutlets($request, $tenantId);
+
+        $outletId = $request->integer('outlet_id') ?: $outlets->first()?->id;
+        $this->assertOutletViewable($request, $tenantId, $outletId);
+
+        [$dateFrom, $dateTo] = $this->dateRange($request->only(['date_from', 'date_to']));
+
+        return view('laporan.spoil-per-outlet', [
+            'outlets' => $outlets,
+            'outletId' => $outletId,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+        ]);
+    }
+
+    public function exportSpoilPerOutlet(Request $request): BinaryFileResponse
+    {
+        $tenantId = $this->tenantId($request);
+        $validated = $request->validate([
+            'outlet_id' => ['required', 'integer', Rule::exists('outlets', 'id')->where('tenant_id', $tenantId)],
+            'date_from' => ['nullable', 'date'],
+            'date_to'   => ['nullable', 'date'],
+        ]);
+        $this->assertOutletViewable($request, $tenantId, (int) $validated['outlet_id']);
+
+        [$dateFrom, $dateTo] = $this->dateRange($validated);
+        $outletName = Outlet::query()->where('tenant_id', $tenantId)->findOrFail($validated['outlet_id'])->name;
+
+        return Excel::download(
+            new \App\Exports\Reports\SpoilOutletReportExport($tenantId, (int) $validated['outlet_id'], $dateFrom->toDateString(), $dateTo->toDateString(), $outletName),
+            "Laporan-Spoil-{$dateFrom->toDateString()}_{$dateTo->toDateString()}.xlsx"
+        );
+    }
+
+    /**
+     * Guard khusus laporan per-outlet (bentuknya 1 workbook per outlet,
+     * bukan "gabungan" seperti laporan lain) -- user dengan view_all_reports
+     * boleh outlet mana pun di tenant, selain itu WAJIB salah satu dari
+     * accessibleOutletIds() miliknya sendiri.
+     */
+    private function assertOutletViewable(Request $request, int $tenantId, ?int $outletId): void
+    {
+        abort_unless($outletId, 404, 'Outlet tidak ditemukan.');
+
+        $user = $request->user();
+
+        if ($user?->can('view_all_reports')) {
+            return;
+        }
+
+        $outletIds = $user?->accessibleOutletIds() ?? [];
+        abort_unless($outletIds === [] || in_array($outletId, $outletIds, true), 403, 'Anda tidak berwenang melihat laporan outlet ini.');
+    }
+
+    /**
      * Kartu Stok — kartu 1 item: saldo awal, daftar mutasi kronologis
      * (bukan terbalik seperti Laporan Mutasi), saldo berjalan dihitung di
      * PHP (bukan pakai balance_after tersimpan), lalu saldo akhir.

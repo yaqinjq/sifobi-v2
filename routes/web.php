@@ -487,6 +487,11 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::get('kartu-stok/export', [ReportController::class, 'exportKartuStokRingkasan'])->name('kartu-stok.export');
             Route::get('kartu-stok/{item}', [ReportController::class, 'kartuStokDetail'])->name('kartu-stok.detail');
             Route::get('kartu-stok/{item}/export', [ReportController::class, 'exportKartuStokDetail'])->name('kartu-stok.detail.export');
+
+            Route::get('opname-outlet', [ReportController::class, 'opnamePerOutlet'])->name('opname-outlet');
+            Route::get('opname-outlet/export', [ReportController::class, 'exportOpnamePerOutlet'])->name('opname-outlet.export');
+            Route::get('spoil-outlet', [ReportController::class, 'spoilPerOutlet'])->name('spoil-outlet');
+            Route::get('spoil-outlet/export', [ReportController::class, 'exportSpoilPerOutlet'])->name('spoil-outlet.export');
         });
 
     Route::prefix('operations')->name('operations.')->group(function (): void {
@@ -524,6 +529,19 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
         Route::post('/spoil-wastes/{spoil}/reject', [SpoilWasteController::class, 'reject'])
             ->middleware('permission:approve_spoil')
             ->name('spoil-wastes.reject');
+
+        // Isi Massal lewat Excel -- padanan Opname, status tetap PENDING
+        // (bukan auto-approve), jadi cukup permission record_spoil yang
+        // sama seperti catat manual, bukan approve_spoil.
+        Route::get('/spoil-wastes-fill', [SpoilWasteController::class, 'fill'])
+            ->middleware('permission:record_spoil')
+            ->name('spoil-wastes.fill');
+        Route::get('/spoil-wastes-fill/template', [SpoilWasteController::class, 'exportFillTemplate'])
+            ->middleware('permission:record_spoil')
+            ->name('spoil-wastes.fill-template');
+        Route::post('/spoil-wastes-fill/import', [SpoilWasteController::class, 'importFill'])
+            ->middleware('permission:record_spoil')
+            ->name('spoil-wastes.fill-import');
 
         // Import histori dari Excel otomatis approve tiap baris (lihat
         // SpoilWasteImport) — digerbang approve_spoil, bukan cuma

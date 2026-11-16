@@ -23,6 +23,14 @@
             <a href="{{ route('laporan.penerimaan') }}" class="sf-btn-primary min-h-11 w-full mt-2">Buka</a>
         </x-sf.card>
 
+        <x-sf.card title="Opname per Outlet" subtitle="1 file per outlet, 1 sheet per departemen, format sama persis form kertas">
+            <a href="{{ route('laporan.opname-outlet') }}" class="sf-btn-primary min-h-11 w-full mt-2">Buka</a>
+        </x-sf.card>
+
+        <x-sf.card title="Spoil & Waste per Outlet" subtitle="1 file per outlet, 1 sheet per departemen, format sama persis form kertas">
+            <a href="{{ route('laporan.spoil-outlet') }}" class="sf-btn-primary min-h-11 w-full mt-2">Buka</a>
+        </x-sf.card>
+
         @can('view_all_reports')
             <x-sf.card title="Ringkasan Stok Semua Outlet" subtitle="Breakdown nilai stok per outlet dan kategori">
                 <a href="{{ route('laporan.stok-summary') }}" class="sf-btn-primary min-h-11 w-full mt-2">Buka</a>
