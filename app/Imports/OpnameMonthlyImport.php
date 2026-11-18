@@ -266,41 +266,57 @@ class OpnameMonthlyImport implements WithMultipleSheets
                 continue;
             }
 
-            $reportedUpdates = [];
-            if ($row['in'] !== null) {
-                $reportedUpdates['reported_in_qty'] = $row['in'];
-            }
-            if ($row['out'] !== null) {
-                $reportedUpdates['reported_out_qty'] = $row['out'];
-            }
-            if ($row['spoil'] !== null) {
-                $reportedUpdates['reported_spoil_qty'] = $row['spoil'];
-            }
-            if ($reportedUpdates !== []) {
-                $opnameItem->update($reportedUpdates);
-            }
+            try {
+                $reportedUpdates = [];
+                if ($row['in'] !== null) {
+                    $reportedUpdates['reported_in_qty'] = $row['in'];
+                }
+                if ($row['out'] !== null) {
+                    $reportedUpdates['reported_out_qty'] = $row['out'];
+                }
+                if ($row['spoil'] !== null) {
+                    $reportedUpdates['reported_spoil_qty'] = $row['spoil'];
+                }
+                if ($reportedUpdates !== []) {
+                    $opnameItem->update($reportedUpdates);
+                }
 
-            if ($balanceLocked || $row['balance'] === null) {
-                continue;
+                if ($balanceLocked || $row['balance'] === null) {
+                    continue;
+                }
+
+                $item = $opnameItem->item;
+
+                // base_unit_id WAJIB dicek duluan: banyak item punya
+                // inventory_unit_id === base_unit_id (satuan inventory sama
+                // dengan satuan dasar) -- kalau cuma cocokkan ke abbreviation
+                // inventory_unit, item begini akan salah dikalikan
+                // inventory_ratio padahal seharusnya 1:1 (pola yang sama
+                // seperti perbaikan SpoilWasteService::calculateBaseQty()).
+                $isInventoryUnit = $row['satuan'] !== ''
+                    && $item?->inventoryUnit
+                    && (int) $item->inventory_unit_id !== (int) $item->base_unit_id
+                    && strcasecmp((string) $item->inventoryUnit->abbreviation, (string) $row['satuan']) === 0;
+
+                $whole = $isInventoryUnit ? $row['balance'] : '0';
+                $loose = $isInventoryUnit ? '0' : $row['balance'];
+
+                $service->updateItem($opnameItem, $whole, $loose);
+            } catch (Throwable $throwable) {
+                // Dibungkus dengan konteks item -- tanpa ini, 1 item dengan
+                // field rusak di DB (standard_cost/last_purchase_price/
+                // inventory_ratio non-numerik, lihat Decimal::normalize())
+                // menggagalkan SELURUH tanggal dengan pesan generik "Decimal
+                // value is invalid" tanpa petunjuk item mana yang jadi
+                // biang keladinya (dilaporkan user 2026-11-18, 8/8 tanggal
+                // gagal serentak -- ciri khas 1 item rusak yang muncul di
+                // semua tanggal, bukan kesalahan input per-sel).
+                throw new \RuntimeException(
+                    "[{$row['sku']}] {$row['item_name']}: {$throwable->getMessage()}",
+                    0,
+                    $throwable
+                );
             }
-
-            $item = $opnameItem->item;
-
-            // base_unit_id WAJIB dicek duluan: banyak item punya
-            // inventory_unit_id === base_unit_id (satuan inventory sama
-            // dengan satuan dasar) -- kalau cuma cocokkan ke abbreviation
-            // inventory_unit, item begini akan salah dikalikan
-            // inventory_ratio padahal seharusnya 1:1 (pola yang sama
-            // seperti perbaikan SpoilWasteService::calculateBaseQty()).
-            $isInventoryUnit = $row['satuan'] !== ''
-                && $item?->inventoryUnit
-                && (int) $item->inventory_unit_id !== (int) $item->base_unit_id
-                && strcasecmp((string) $item->inventoryUnit->abbreviation, (string) $row['satuan']) === 0;
-
-            $whole = $isInventoryUnit ? $row['balance'] : '0';
-            $loose = $isInventoryUnit ? '0' : $row['balance'];
-
-            $service->updateItem($opnameItem, $whole, $loose);
         }
 
         if ($balanceLocked || ! $hasAnyBalance) {

@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
@@ -74,6 +75,11 @@ class ProcessOpnameMonthlyImportJob implements ShouldQueue
                 } catch (Throwable $throwable) {
                     $failed++;
                     $errors[] = "{$dateRow['date']}: {$throwable->getMessage()}";
+                    Log::error('OpnameMonthlyImport gagal memproses 1 tanggal', [
+                        'run_id' => $run->id,
+                        'date' => $dateRow['date'],
+                        'exception' => $throwable,
+                    ]);
                 }
 
                 $run->forceFill([
