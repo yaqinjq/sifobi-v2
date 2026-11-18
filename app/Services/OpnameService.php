@@ -76,7 +76,19 @@ class OpnameService
             ]);
 
             foreach ($this->itemsForOpname($tenantId, $outletId, $type, $departmentId) as $item) {
-                $systemQty = $this->systemQty($tenantId, $outletId, (int) $item->id);
+                try {
+                    $systemQty = $this->systemQty($tenantId, $outletId, (int) $item->id);
+                } catch (\Throwable $throwable) {
+                    // Dibungkus dengan konteks item -- tanpa ini, 1 item dengan
+                    // saldo stok rusak (gagal lolos Decimal::normalize() di
+                    // systemQty()) menggagalkan SELURUH pembuatan sesi tanpa
+                    // petunjuk item mana biang keladinya.
+                    throw new \RuntimeException(
+                        "[{$item->canonical_sku}] {$item->name}: {$throwable->getMessage()}",
+                        0,
+                        $throwable
+                    );
+                }
 
                 // Sesi sudah di-scope ke satu departemen -- item yang masuk ke
                 // sini sudah pasti milik departemen tsb (lihat itemsForOpname()),
