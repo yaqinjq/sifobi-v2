@@ -8,12 +8,29 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.61 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.61 &mdash; 18 November 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Bug</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Data PO yang dikirim ke Wipro: catatan kosong sekarang dikirim sebagai teks kosong, bukan "null"</strong> -- kalau PO dibuat tanpa catatan, sistem Wipro tidak bisa menampilkan field tersebut di dokumen cetak karena menerima nilai kosong (null), bukan teks kosong (""). Sudah diperbaiki untuk catatan PO maupun catatan per-item</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.60 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.60 &mdash; 18 November 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

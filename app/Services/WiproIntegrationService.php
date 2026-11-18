@@ -120,13 +120,13 @@ class WiproIntegrationService
             'requested_by_name' => $po->requestedBy?->name,
             'requested_by_role' => $po->requestedBy?->primary_role,
             'requested_by_outlet' => $po->requestedBy?->outlet?->name,
-            'notes' => $po->notes,
+            'notes' => $po->notes ?? '',
             'items' => ($items ?? $po->items)->map(fn ($item) => [
                 'external_item_id' => $item->item_id,
                 'sku' => $item->item?->canonical_sku,
                 'qty' => (float) $item->qty_ordered,
                 'uom' => $item->unit?->code,
-                'notes' => $item->notes,
+                'notes' => $item->notes ?? '',
             ])->values()->all(),
         ];
     }
