@@ -679,7 +679,19 @@ class OpnameService
             ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
             ->sum('qty_on_hand');
 
-        return Decimal::toFixed((string) ($qty ?? 0), 6);
+        // bcadd, BUKAN Decimal::toFixed() -- qty_on_hand adalah kolom
+        // decimal BERTANDA (bisa negatif kalau stok sempat ke-oversold/
+        // overwithdraw sebelum sempat direkonsiliasi, state yang sah,
+        // bukan data rusak) dan dipakai apa adanya sebagai variance_qty
+        // default saat sesi dibuat (lihat beberapa baris di bawah).
+        // Decimal::normalize()'s regex sengaja menolak tanda minus
+        // (dirancang buat validasi INPUT fisik dari user, yang memang
+        // tidak boleh negatif) -- dipakai di sini akan melempar "Decimal
+        // value is invalid" setiap kali SATU item punya saldo OUTLET_DAILY
+        // negatif, menggagalkan pembuatan sesi utk SELURUH item lain di
+        // departemen itu juga (ditemukan 2026-11-18 lewat laporan user:
+        // import bulanan gagal 7/7 tanggal gara-gara 1 item negatif).
+        return bcadd((string) ($qty ?? 0), '0', 6);
     }
 
     private function physicalBaseQty(?Item $item, string $whole, string $loose): string
