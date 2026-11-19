@@ -8,12 +8,46 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.64 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.64 &mdash; 19 November 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Penerimaan Barang: "Isi dari Foto" -- baca otomatis item dari foto surat jalan (Beta)</strong> -- tombol baru di sebelah "Foto Surat Jalan/SJ" yang membaca foto dokumen pengiriman dan mengisi baris item (nama/qty/satuan) secara otomatis sebagai SARAN yang bisa dikoreksi, bukan langsung tersimpan. Baris yang item-nya tidak bisa dikenali tetap ditampilkan (ditandai "Dibaca otomatis, cek ulang") supaya tidak ada info yang hilang. Akurasi bergantung kualitas foto &amp; belum 100% -- ini memang disengaja sebagai alat bantu percepatan input, bukan pengganti pengecekan manual</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
+    {{-- v2.63 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.63 &mdash; 19 November 2026</h3>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Bug</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Penerimaan Barang: scan QR Surat Jalan Wipro tidak terbaca</strong> -- dokumen "Detail Order" yang dicetak Wipro sekarang menyertakan QR sendiri, tapi SIFOBI belum bisa mencocokkannya ke PO manapun sehingga scan selalu gagal "barcode tidak ditemukan". Sudah diperbaiki -- scan QR dari dokumen Wipro sekarang otomatis memilih PO &amp; pengiriman yang sesuai, sama seperti scan QR Box SIFOBI sendiri. Catatan: PO yang sudah dikirim Wipro SEBELUM pembaruan ini perlu dipilih manual lewat dropdown, hanya PO baru yang otomatis bisa discan</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.62 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.62 &mdash; 18 November 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

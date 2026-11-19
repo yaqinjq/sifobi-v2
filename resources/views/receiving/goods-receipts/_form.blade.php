@@ -108,7 +108,9 @@
           rows: @js($rows),
           allPoList: @js($shippedPos),
           initialPoId: @js(old('purchase_order_id', $receipt->purchase_order_id)),
-          initialShipmentId: @js(old('purchase_order_shipment_id', $receipt->purchase_order_shipment_id ?? null))
+          initialShipmentId: @js(old('purchase_order_shipment_id', $receipt->purchase_order_shipment_id ?? null)),
+          scanUrl: @js(route('api.goods-receipts.scan-photo')),
+          csrf: @js(csrf_token())
       })"
       @submit="handleSubmit($event)"
       class="space-y-4">
@@ -190,10 +192,19 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
                     </button>
+                    <button type="button"
+                            @click="scanDocumentPhoto()"
+                            :disabled="scanningDocument"
+                            class="sf-btn-secondary min-h-11 px-3 shrink-0 disabled:opacity-50"
+                            title="Isi baris item otomatis dari foto ini (beta)">
+                        <span x-show="!scanningDocument">Isi dari Foto</span>
+                        <span x-show="scanningDocument">Memproses…</span>
+                    </button>
                 </div>
                 @if($receipt->photo_document)
                     <p class="text-xs text-gray-500 mt-1">Foto lama tersimpan. Upload baru untuk mengganti.</p>
                 @endif
+                <p x-show="scanError" x-text="scanError" class="text-sm text-amber-700 mt-1"></p>
             </div>
             <div>
                 <label class="sf-label">Foto Invoice</label>
@@ -319,7 +330,14 @@
             <template x-for="(row, index) in rows" :key="row.key">
                 <div class="rounded-xl border border-gray-200 bg-white p-3 space-y-3">
                     <div class="flex items-center justify-between gap-3">
-                        <p class="text-sm font-semibold text-gray-900">Baris <span x-text="index + 1"></span></p>
+                        <div class="flex items-center gap-2">
+                            <p class="text-sm font-semibold text-gray-900">Baris <span x-text="index + 1"></span></p>
+                            <template x-if="row._ocr_suggested">
+                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1">
+                                    Dibaca otomatis, cek ulang
+                                </span>
+                            </template>
+                        </div>
                         <button type="button" @click="removeRow(index)" class="sf-btn-secondary min-h-11 px-3" x-show="rows.length > 1">Hapus</button>
                     </div>
 
@@ -566,6 +584,21 @@ document.addEventListener('alpine:init', () => {
                 }
             } catch (_) {}
 
+            // Try match as Wipro's own surat jalan QR -- sejak Nov 2026 Wipro
+            // mencetak QR di dokumen "Detail Order" mereka sendiri, isinya URL
+            // ke halaman order DI SISTEM WIPRO (mis. ".../orders/759"), bukan
+            // QR SIFOBI dan bukan barcode item. Dicocokkan ke PO lewat
+            // wipro_order_id (ID numerik mentah dari Wipro, lihat
+            // PushOrderToWiproJob) -- BUKAN wipro_order_number/external_reference
+            // yang ditampilkan di dokumen sebagai "NO. ORDER", karena itu bukan
+            // yang dikodekan di dalam QR.
+            const wiproMatch = /\/orders\/(\d+)\/?$/.exec(text);
+            if (wiproMatch) {
+                this.scanResult = 'QR Surat Jalan Wipro terdeteksi: order #' + wiproMatch[1];
+                component.applyWiproOrderUrl(wiproMatch[1]);
+                return;
+            }
+
             // Treat as item barcode
             this.scanResult = 'Barcode: ' + text;
             component.addItemByBarcode(text);
@@ -612,6 +645,10 @@ function goodsReceiptForm(config) {
         selectedShipmentId: initialShipmentId,
         currentPoShipments: initialPo ? (initialPo.shipments || []) : [],
         currentPoItems: initialPo ? (initialPo.items || []) : [],
+        scanUrl: config.scanUrl,
+        csrf: config.csrf,
+        scanningDocument: false,
+        scanError: '',
 
         addRow() {
             this.rows.push(blankRow());
@@ -704,6 +741,85 @@ function goodsReceiptForm(config) {
                 if (docEl && data.do) docEl.value = data.do;
                 if (invEl && data.inv) invEl.value = data.inv;
             });
+        },
+
+        applyWiproOrderUrl(wiproOrderId) {
+            const po = allPoList.find(p => p.wipro_order_id && String(p.wipro_order_id) === String(wiproOrderId));
+            if (!po) {
+                alert(
+                    'QR ini adalah Surat Jalan Wipro (order #' + wiproOrderId + '), tapi tidak ada PO yang cocok ' +
+                    'di daftar "Dikirim Vendor/Terkirim" sistem ini. Kemungkinan PO ini dikirim sebelum fitur scan ' +
+                    'ini aktif, atau sudah diterima semua sebelumnya -- silakan pilih PO secara manual dari dropdown di atas.'
+                );
+                return;
+            }
+            const poSelectEl = this.$refs.poSelect;
+            if (poSelectEl) poSelectEl.value = String(po.id);
+            this.loadPoItems(String(po.id), allPoList, this.$refs.poIdInput);
+        },
+
+        async scanDocumentPhoto() {
+            const input = document.querySelector('[name="photo_document"]');
+            if (!input || !input.files || !input.files[0]) {
+                alert('Pilih atau foto dokumen Surat Jalan dulu sebelum "Isi dari Foto".');
+                return;
+            }
+
+            this.scanningDocument = true;
+            this.scanError = '';
+
+            try {
+                const formData = new FormData();
+                formData.append('photo', input.files[0]);
+
+                const response = await fetch(this.scanUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: formData,
+                });
+                const data = await response.json();
+
+                if (!data.success) {
+                    this.scanError = data.message || 'OCR gagal membaca foto ini.';
+                    return;
+                }
+                if (!data.rows || data.rows.length === 0) {
+                    this.scanError = 'Tidak ada baris item yang terbaca dari foto ini.';
+                    return;
+                }
+
+                const scannedRows = data.rows.map((r) => {
+                    const item = r.item_id ? this.items.find((i) => Number(i.id) === Number(r.item_id)) : null;
+                    return {
+                        key: `${Date.now()}-${Math.random()}`,
+                        item_id: item ? String(item.id) : '',
+                        unit_id: item ? String(item.purchase_unit_id || item.inventory_unit_id || item.base_unit_id || '') : '',
+                        qty_ordered: '0',
+                        qty_received: r.qty != null ? String(r.qty) : '',
+                        unit_price: '0',
+                        expired_date: '',
+                        batch_code: '',
+                        notes: item ? '' : `Dibaca otomatis: "${r.raw_name}" — cek ulang & pilih item manual.`,
+                        variance_reason: '',
+                        existing_photo_path: '',
+                        existing_video_path: '',
+                        track_expiry: item ? item.track_expiry === true : false,
+                        _ocr_suggested: true,
+                    };
+                });
+
+                const stillBlank = this.rows.length === 1 && !this.rows[0].item_id && !this.rows[0].qty_received;
+                this.rows = stillBlank ? scannedRows : [...this.rows, ...scannedRows];
+                this.syncRowSelectsAfterRender();
+            } catch (e) {
+                this.scanError = 'Gagal menghubungi server OCR: ' + e.message;
+            } finally {
+                this.scanningDocument = false;
+            }
         },
 
         addItemByBarcode(barcode) {

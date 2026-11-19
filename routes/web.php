@@ -22,6 +22,7 @@ use App\Http\Controllers\Operations\OpnameMonthlyImportController;
 use App\Http\Controllers\Operations\SpoilWasteController;
 use App\Http\Controllers\Operations\SpoilWasteMonthlyImportController;
 use App\Http\Controllers\Receiving\GoodsReceiptController;
+use App\Http\Controllers\Receiving\GoodsReceiptOcrController;
 use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Procurement\PurchaseOrderController;
 use App\Http\Controllers\Production\MenuController;
@@ -327,6 +328,16 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
 
     Route::get('api/items/po-catalog', \App\Http\Controllers\Api\PoCatalogBrowseController::class)
         ->name('api.items.po-catalog');
+
+    // Path diawali 'api/' SENGAJA (meski didaftar di web.php, bukan api.php)
+    // -- bootstrap/app.php::shouldRenderJsonWhen() cuma balas JSON otomatis
+    // utk exception (mis. ValidationException) kalau path cocok 'api/*',
+    // selain itu Laravel redirect-back spt request web biasa. Endpoint ini
+    // tetap pakai middleware auth/permission sesi web yg sama (bukan token),
+    // cuma path-nya ikut konvensi yg sudah dipakai api/items/search-for-po dkk.
+    Route::post('api/goods-receipts/scan-photo', GoodsReceiptOcrController::class)
+        ->middleware('permission:create_goods_receipt')
+        ->name('api.goods-receipts.scan-photo');
 
     Route::middleware('permission:manage_units')->group(function (): void {
         Route::resource('master-data/units', UnitController::class)

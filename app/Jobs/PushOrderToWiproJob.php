@@ -43,6 +43,13 @@ class PushOrderToWiproJob implements ShouldQueue
 
         $po->forceFill([
             'external_reference'  => $result['wipro_order_number'] ?? $result['wipro_order_id'],
+            // ID numerik Wipro disimpan terpisah (bukan cuma dipakai sebagai
+            // fallback external_reference) karena QR di dokumen "Detail
+            // Order"/surat jalan yang dicetak Wipro sendiri berisi URL
+            // ".../orders/{wipro_order_id}" -- tanpa kolom ini, QR itu tidak
+            // bisa dicocokkan balik ke PO manapun saat discan di Penerimaan
+            // Barang (lihat GoodsReceiptController::formData()).
+            'wipro_order_id'      => $result['wipro_order_id'],
             'external_synced_at'  => now(),
             'external_sync_error' => null,
             'wipro_excluded_items' => $result['excluded_items'] ?: null,

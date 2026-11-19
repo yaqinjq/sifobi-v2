@@ -374,6 +374,7 @@ class GoodsReceiptController extends Controller
                     'needed_at'   => optional($po->needed_at)->format('d M Y'),
                     'shipped_at'  => optional($po->wipro_shipped_at)->format('d M Y'),
                     'dispatch_no' => $po->wipro_dispatch_number,
+                    'wipro_order_id' => $po->wipro_order_id,
                     'shipments'   => $po->shipments->map(fn ($s) => [
                         'id'             => $s->id,
                         'do_number'      => $s->do_number,
