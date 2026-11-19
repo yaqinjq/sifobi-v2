@@ -8,12 +8,29 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.67 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.67 &mdash; 19 November 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Bug</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Menu "Opname per Outlet" &amp; "Spoil &amp; Waste per Outlet" tidak muncul di sidebar Laporan</strong> -- kedua laporan ini (format identik form kertas fisik) sebenarnya sudah ada &amp; aktif, tapi link-nya cuma ditaruh di halaman grid /laporan, sementara menu sidebar "Laporan" punya daftar link sendiri yang lupa diupdate. Sudah ditambahkan ke sidebar, sejajar dengan Kartu Stok/Mutasi/Spoil/Penerimaan</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.66 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.66 &mdash; 19 November 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

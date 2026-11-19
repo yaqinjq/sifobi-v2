@@ -249,6 +249,16 @@
                                   {{ request()->routeIs('laporan.penerimaan') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
                             Penerimaan
                         </a>
+                        <a href="{{ route('laporan.opname-outlet') }}"
+                           class="block px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                                  {{ request()->routeIs('laporan.opname-outlet*') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
+                            Opname per Outlet
+                        </a>
+                        <a href="{{ route('laporan.spoil-outlet') }}"
+                           class="block px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                                  {{ request()->routeIs('laporan.spoil-outlet*') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
+                            Spoil & Waste per Outlet
+                        </a>
                         <a href="{{ route('laporan.stok-menipis') }}"
                            class="block px-3 py-2 rounded-xl text-sm font-medium transition-colors
                                   {{ request()->routeIs('laporan.stok-menipis') ? 'bg-primary-700 text-white' : 'text-primary-300 hover:text-white hover:bg-primary-700/50' }}">
