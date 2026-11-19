@@ -57,7 +57,13 @@ test('penerimaan barang diposting ke ledger pakai receipt_date yang diinput, buk
     expect($mutation->performed_at->toDateString())->toBe($pastDate->toDateString());
 });
 
-test('spoil waste tercatat dan diposting ke ledger pakai recorded_date yang diinput, bukan tanggal hari ini', function (): void {
+test('spoil waste tercatat pakai recorded_date yang diinput, bukan tanggal hari ini', function (): void {
+    // Sejak 2026-11-19, SpoilWasteService::approve() tidak lagi
+    // memposting apa pun ke ledger (lihat komentar di method itu) --
+    // jadi bagian test ini yang dulu mengecek performed_at mutasi ledger
+    // tidak lagi berlaku. Yang masih relevan & tetap dites: recorded_date
+    // yang diinput tetap tersimpan benar di record spoil-nya sendiri,
+    // bukan diam-diam diganti tanggal hari ini.
     $pastDate = now()->subMonth()->startOfMonth()->addDays(2);
 
     app(StockLedgerService::class)->receiveGoods([
@@ -86,10 +92,6 @@ test('spoil waste tercatat dan diposting ke ledger pakai recorded_date yang diin
 
     $approved = $spoilService->approve($spoil, (int) $this->admin->id, 'ok');
 
-    $mutation = \App\Modules\Stock\Models\StockMutation::query()
-        ->where('reference_type', \App\Modules\Operations\Models\SpoilWaste::class)
-        ->where('reference_id', $approved->id)
-        ->firstOrFail();
-
-    expect($mutation->performed_at->toDateString())->toBe($pastDate->toDateString());
+    expect($approved->recorded_at->toDateString())->toBe($pastDate->toDateString())
+        ->and($approved->mutation_id)->toBeNull();
 });

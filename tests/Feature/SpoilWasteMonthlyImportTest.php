@@ -110,6 +110,10 @@ test('preview classifies cells as creatable, update_unposted, update_posted, or 
     ], $this->admin->id);
 
     // 11-03: sudah ada laporan APPROVED (sudah posting) dengan qty beda.
+    // Sejak 2026-11-19 approve() biasa tidak lagi membuat mutasi ledger
+    // (lihat SpoilWasteService::approve()) -- row_status "update_posted"
+    // di preview() cuma relevan lagi utk data LEGACY (dari sebelum
+    // perubahan itu), jadi disimulasikan manual di sini.
     $posted = app(SpoilWasteService::class)->record([
         'tenant_id' => $this->tenant->id,
         'outlet_id' => $this->outlet->id,
@@ -120,7 +124,26 @@ test('preview classifies cells as creatable, update_unposted, update_posted, or 
         'recorded_date' => '2026-11-03',
         'reason_category' => SpoilWaste::REASON_RUSAK,
     ], $this->admin->id);
-    app(SpoilWasteService::class)->approve($posted, $this->admin->id);
+    $legacyMutation = app(StockLedgerService::class)->spoilWaste([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'item_id' => $this->item->id,
+        'unit_id' => $this->item->base_unit_id,
+        'stock_target' => StockMutation::TARGET_OUTLET_DAILY,
+        'qty_change' => '-4.000000',
+        'reference_type' => SpoilWaste::class,
+        'reference_id' => $posted->id,
+        'performed_by' => $this->admin->id,
+        'performed_at' => $posted->recorded_at,
+        'notes' => 'Simulasi data legacy utk test.',
+    ]);
+    $posted->forceFill([
+        'status' => SpoilWaste::STATUS_APPROVED,
+        'approval_status' => SpoilWaste::STATUS_APPROVED,
+        'approved_by' => $this->admin->id,
+        'approved_at' => now(),
+        'mutation_id' => $legacyMutation->id,
+    ])->save();
 
     // 11-04: sudah ada laporan APPROVED dengan qty & alasan SAMA persis.
     $unchanged = app(SpoilWasteService::class)->record([
@@ -165,7 +188,14 @@ test('preview classifies cells as creatable, update_unposted, update_posted, or 
     @unlink($path);
 });
 
-test('job creates, updates pending, and void+recreates approved cells, processed in ascending date order', function (): void {
+test('job creates, updates pending, and re-approves already-approved cells, processed in ascending date order', function (): void {
+    // Sejak 2026-11-19, approve() tidak lagi menyentuh stock ledger sama
+    // sekali (lihat SpoilWasteService::approve()) -- jadi mutation_id
+    // SELALU null, dan jalur "void+recreate" di
+    // SpoilWasteMonthlyImport::processCell() (dipicu kalau mutation_id
+    // TERISI) tidak lagi bisa kejadian utk data baru. Baris ini jadi
+    // lewat jalur "existing tanpa mutation" (reset ke PENDING, approve
+    // ulang) -- itu yang dites di sini sekarang.
     app(StockLedgerService::class)->openStock([
         'tenant_id' => $this->tenant->id,
         'outlet_id' => $this->outlet->id,
@@ -176,8 +206,7 @@ test('job creates, updates pending, and void+recreates approved cells, processed
         'performed_by' => $this->admin->id,
     ]);
 
-    // 11-02: laporan APPROVED existing qty=4 -- akan diganti jadi qty=9
-    // lewat void+recreate.
+    // 11-02: laporan APPROVED existing qty=4 -- akan diganti jadi qty=9.
     $posted = app(SpoilWasteService::class)->record([
         'tenant_id' => $this->tenant->id,
         'outlet_id' => $this->outlet->id,
@@ -189,7 +218,7 @@ test('job creates, updates pending, and void+recreates approved cells, processed
         'reason_category' => SpoilWaste::REASON_RUSAK,
     ], $this->admin->id);
     app(SpoilWasteService::class)->approve($posted, $this->admin->id);
-    $oldMutationId = $posted->fresh()->mutation_id;
+    expect($posted->fresh()->mutation_id)->toBeNull();
 
     $path = buildSpoilMonthlyXlsx(
         ['2026-11-01', '2026-11-02'],
@@ -237,13 +266,7 @@ test('job creates, updates pending, and void+recreates approved cells, processed
     $updated = SpoilWaste::query()->where('item_id', $this->item->id)->whereDate('recorded_date', '2026-11-02')->firstOrFail();
     expect($updated->status)->toBe(SpoilWaste::STATUS_APPROVED)
         ->and((string) $updated->qty_in_base_unit)->toBe('9.000000')
-        ->and($updated->mutation_id)->not->toBe($oldMutationId);
-
-    $hasVoidReversal = StockMutation::query()
-        ->where('source_mutation_id', $oldMutationId)
-        ->where('mutation_type', StockMutation::TYPE_VOID_REVERSAL)
-        ->exists();
-    expect($hasVoidReversal)->toBeTrue();
+        ->and($updated->mutation_id)->toBeNull();
 
     $balance = StockBalance::query()
         ->where('item_id', $this->item->id)
@@ -251,33 +274,45 @@ test('job creates, updates pending, and void+recreates approved cells, processed
         ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
         ->firstOrFail();
 
-    // 1000 awal - 2 (01) - 9 (02, nilai baru menggantikan 4 yang lama) = 989.
-    expect((string) $balance->qty_on_hand)->toBe('989.000000');
+    // Saldo tidak tersentuh sama sekali oleh spoil approve (lihat catatan
+    // di atas) -- tetap 1000 seperti openStock() di awal.
+    expect((string) $balance->qty_on_hand)->toBe('1000.000000');
 });
 
 test('job isolates a failing cell and still processes the rest', function (): void {
-    app(StockLedgerService::class)->openStock([
-        'tenant_id' => $this->tenant->id,
-        'outlet_id' => $this->outlet->id,
-        'item_id' => $this->item->id,
-        'unit_id' => $this->item->base_unit_id,
-        'stock_target' => StockMutation::TARGET_OUTLET_DAILY,
-        'qty' => '5',
-        'performed_by' => $this->admin->id,
-    ]);
+    // Sejak 2026-11-19, approve() tidak lagi menolak karena stok kurang
+    // (lihat SpoilWasteService::approve()) -- jadi failure mode yang
+    // dites di sini diganti ke kategori alasan yang tidak dikenali
+    // (SpoilWasteMonthlyImport::processCell() masih menolak itu), satu-
+    // satunya error per-cell yang masih mungkin terjadi sekarang. Kolom
+    // "Kategori Alasan" di template ini per-ITEM-ROW (bukan per tanggal),
+    // jadi item kedua dipakai khusus utk tanggal yang sengaja dibuat
+    // gagal, item pertama tetap dapat alasan yang valid utk tanggal lain.
+    $secondItem = Item::query()->where('canonical_sku', 'MKO-SUSU-UHT')->firstOrFail();
+    $secondItem->update(['primary_department_id' => $this->bar->id]);
 
-    // Tanggal 02 minta qty 100 -- jauh melebihi saldo (5), harus gagal di
-    // approve() tapi tidak boleh menghentikan tanggal 01 & 03.
     $path = buildSpoilMonthlyXlsx(
         ['2026-11-01', '2026-11-02', '2026-11-03'],
         [
             '2026-11-01' => ['MKO-AJINOMOTO-500GR' => '1'],
-            '2026-11-02' => ['MKO-AJINOMOTO-500GR' => '100'],
+            '2026-11-02' => ['MKO-SUSU-UHT' => '3'],
             '2026-11-03' => ['MKO-AJINOMOTO-500GR' => '1'],
         ],
         'Rusak/Cacat',
         'spoil-monthly-apply-fail.xlsx'
     );
+
+    // Timpa kolom "Kategori Alasan" (D) khusus baris MKO-SUSU-UHT jadi
+    // label yang tidak dikenali sistem -- satu-satunya cara bikin 1 sel
+    // gagal tanpa ikut menggagalkan baris item pertama.
+    $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+    $sheet = $spreadsheet->getSheetByName('SPOIL_BULANAN');
+    for ($row = 2; $row <= $sheet->getHighestRow(); $row++) {
+        if ($sheet->getCell('B'.$row)->getValue() === 'MKO-SUSU-UHT') {
+            $sheet->setCellValue('D'.$row, 'Alasan Ngawur Tidak Dikenal');
+        }
+    }
+    (new Xlsx($spreadsheet))->save($path);
 
     $run = MonthlyImportRun::query()->create([
         'tenant_id' => $this->tenant->id,
@@ -288,7 +323,7 @@ test('job isolates a failing cell and still processes the rest', function (): vo
             'month' => '2026-11',
             'selected_cell_keys' => [
                 "2026-11-01:{$this->item->id}",
-                "2026-11-02:{$this->item->id}",
+                "2026-11-02:{$secondItem->id}",
                 "2026-11-03:{$this->item->id}",
             ],
         ],
@@ -309,11 +344,9 @@ test('job isolates a failing cell and still processes the rest', function (): vo
         ->and($run->errors)->toHaveCount(1);
 
     $day1 = SpoilWaste::query()->where('item_id', $this->item->id)->whereDate('recorded_date', '2026-11-01')->firstOrFail();
-    $day2 = SpoilWaste::query()->where('item_id', $this->item->id)->whereDate('recorded_date', '2026-11-02')->firstOrFail();
     $day3 = SpoilWaste::query()->where('item_id', $this->item->id)->whereDate('recorded_date', '2026-11-03')->firstOrFail();
 
     expect($day1->status)->toBe(SpoilWaste::STATUS_APPROVED)
-        ->and($day2->status)->toBe(SpoilWaste::STATUS_PENDING)
-        ->and($day2->mutation_id)->toBeNull()
-        ->and($day3->status)->toBe(SpoilWaste::STATUS_APPROVED);
+        ->and($day3->status)->toBe(SpoilWaste::STATUS_APPROVED)
+        ->and(SpoilWaste::query()->where('item_id', $secondItem->id)->whereDate('recorded_date', '2026-11-02')->exists())->toBeFalse();
 });

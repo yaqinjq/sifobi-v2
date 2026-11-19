@@ -7,8 +7,6 @@ use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\UnitConversion;
 use App\Modules\Operations\Models\SpoilWaste;
-use App\Modules\Stock\Models\StockBalance;
-use App\Modules\Stock\Models\StockMutation;
 use App\Notifications\WorkflowNotification;
 use App\Support\Decimal;
 use Illuminate\Database\Eloquent\Builder;
@@ -126,57 +124,20 @@ class SpoilWasteService
                 ]);
             }
 
-            // Pemotongan stok resmi terjadi DI SINI (saat approve), bukan
-            // saat record() -- lihat catatan di record(). Guard mutation_id
-            // supaya idempoten (aman dipanggil ulang) DAN kompatibel dengan
-            // row lama dari sebelum perubahan ini (yang mutation_id-nya
-            // sudah terisi sejak record()).
-            if ($spoil->mutation_id === null) {
-                $stockTarget = StockMutation::TARGET_OUTLET_DAILY;
-
-                $balance = StockBalance::query()
-                    ->where('tenant_id', $spoil->tenant_id)
-                    ->where('outlet_id', $spoil->outlet_id)
-                    ->where('item_id', $spoil->item_id)
-                    ->where('stock_target', $stockTarget)
-                    ->lockForUpdate()
-                    ->first();
-
-                if (! $balance || bccomp((string) $balance->qty_on_hand, (string) $spoil->qty_in_base_unit, 6) < 0) {
-                    // Pesan sama persis dengan yang dulu ada di record() --
-                    // cuma sekarang muncul saat approve, bukan saat staf
-                    // mencatat. Dilempar SEBELUM spoil di-update apa pun --
-                    // transaksi rollback, status tetap PENDING, PIC bisa
-                    // coba approve lagi nanti setelah Opname menyusul.
-                    $message = $balance === null
-                        ? "Stok untuk item \"{$spoil->item?->name}\" di outlet ini belum pernah tercatat di sistem. Lakukan Opname (hitung fisik) untuk item ini dulu, lalu minta atasan/manager Anda menyetujuinya -- setelah disetujui, stok otomatis tercatat dan spoil ini bisa langsung di-approve."
-                        : "Stok untuk item \"{$spoil->item?->name}\" tercatat hanya {$balance->qty_on_hand} (base unit), tidak cukup untuk jumlah yang di-spoil. Kalau menurut hitungan fisik sebenarnya lebih banyak, lakukan Opname ulang dan minta atasan/manager Anda menyetujuinya dulu sebelum approve spoil ini lagi.";
-
-                    throw ValidationException::withMessages(['status' => $message]);
-                }
-
-                $mutation = $this->stockLedgerService->spoilWaste([
-                    'tenant_id' => $spoil->tenant_id,
-                    'outlet_id' => $spoil->outlet_id,
-                    'item_id' => $spoil->item_id,
-                    'unit_id' => $spoil->item?->base_unit_id ?: $spoil->unit_id,
-                    'stock_target' => $stockTarget,
-                    'qty_change' => $spoil->qty_in_base_unit,
-                    'reference_type' => SpoilWaste::class,
-                    'reference_id' => $spoil->id,
-                    'performed_by' => $userId,
-                    'performed_at' => $spoil->recorded_at,
-                    'notes' => "Spoil: {$spoil->reason_category}",
-                    'metadata' => [
-                        'spoil_waste_id' => $spoil->id,
-                        'stock_target' => $stockTarget,
-                        'duplicate_ref_id' => $spoil->duplicate_ref_id,
-                    ],
-                ]);
-
-                $spoil->mutation_id = $mutation->id;
-            }
-
+            // Pemotongan stok ke ledger SENGAJA TIDAK dilakukan di approve()
+            // untuk sementara (keputusan pimpinan 2026-11-19): banyak outlet
+            // baru mulai pakai sistem & belum sempat Opname semua item,
+            // sehingga validasi stok-cukup yang dulu ada di sini (cek
+            // StockBalance + StockLedgerService::spoilWaste()) HAMPIR SELALU
+            // menolak approve ("stok belum pernah tercatat"/"stok tidak
+            // cukup") padahal kebijakan sekarang: SEMUA spoil wajib bisa
+            // tercatat dulu, pengurangan stoknya dihitung belakangan setelah
+            // Opname menyusul. $spoil->mutation_id sengaja dibiarkan null --
+            // delete()/reject() sudah null-safe terhadap mutation kosong
+            // (lihat delete(), cek `$spoil->mutation` dulu). Kalau nanti mau
+            // diaktifkan lagi (mis. per-outlet setelah Opname-nya selesai),
+            // kembalikan blok lama dari riwayat git (hapus komentar ini,
+            // lihat commit sebelum 2026-11-19 di file ini).
             $spoil->status = SpoilWaste::STATUS_APPROVED;
             $spoil->approval_status = SpoilWaste::STATUS_APPROVED;
             $spoil->approved_by = $userId;

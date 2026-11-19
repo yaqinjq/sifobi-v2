@@ -47,7 +47,43 @@ function currentBalance($case): string
         ->value('qty_on_hand');
 }
 
-test('spoil yang sudah approved: dihapus, mutasi ikut terhapus, saldo stok dikembalikan', function (): void {
+/**
+ * Sejak 2026-11-19, SpoilWasteService::approve() TIDAK LAGI memotong
+ * ledger stok sama sekali (lihat komentar di method itu) -- tapi
+ * perintah sifobi:reset-spoil-wastes TETAP perlu bisa membersihkan data
+ * LEGACY (spoil yang di-approve SEBELUM perubahan itu, yang mutasinya
+ * beneran ada di stock_mutations). Helper ini mensimulasikan bentuk data
+ * legacy tsb secara langsung (bukan lewat approve() yang sekarang sudah
+ * tidak membuat mutasi), supaya jalur reversal command ini tetap teruji.
+ */
+function simulateLegacyApprovedSpoil($case, SpoilWaste $spoil, string $qtyBaseUnit): SpoilWaste
+{
+    $mutation = app(StockLedgerService::class)->spoilWaste([
+        'tenant_id' => $case->tenant->id,
+        'outlet_id' => $case->outlet->id,
+        'item_id' => $spoil->item_id,
+        'unit_id' => $spoil->item->base_unit_id,
+        'stock_target' => StockMutation::TARGET_OUTLET_DAILY,
+        'qty_change' => $qtyBaseUnit,
+        'reference_type' => SpoilWaste::class,
+        'reference_id' => $spoil->id,
+        'performed_by' => $case->admin->id,
+        'performed_at' => $spoil->recorded_at,
+        'notes' => 'Simulasi data legacy utk test.',
+    ]);
+
+    $spoil->forceFill([
+        'status' => SpoilWaste::STATUS_APPROVED,
+        'approval_status' => SpoilWaste::STATUS_APPROVED,
+        'approved_by' => $case->admin->id,
+        'approved_at' => now(),
+        'mutation_id' => $mutation->id,
+    ])->save();
+
+    return $spoil->fresh();
+}
+
+test('spoil approve sekarang: TIDAK memotong stok sama sekali (kebijakan 2026-11-19)', function (): void {
     $spoil = app(SpoilWasteService::class)->record([
         'tenant_id' => $this->tenant->id,
         'outlet_id' => $this->outlet->id,
@@ -60,6 +96,23 @@ test('spoil yang sudah approved: dihapus, mutasi ikut terhapus, saldo stok dikem
 
     app(SpoilWasteService::class)->approve($spoil, (int) $this->admin->id);
 
+    expect($spoil->fresh()->mutation_id)->toBeNull()
+        ->and(currentBalance($this))->toBe('100.000000'); // tidak berubah sama sekali.
+});
+
+test('spoil approved LEGACY (data sebelum 2026-11-19): dihapus, mutasi ikut terhapus, saldo stok dikembalikan', function (): void {
+    $spoil = app(SpoilWasteService::class)->record([
+        'tenant_id' => $this->tenant->id,
+        'outlet_id' => $this->outlet->id,
+        'department_id' => null,
+        'item_id' => $this->item->id,
+        'qty_loose' => 10,
+        'reason_category' => SpoilWaste::REASON_RUSAK,
+        'recorded_date' => now()->toDateString(),
+    ], (int) $this->admin->id);
+
+    $spoil = simulateLegacyApprovedSpoil($this, $spoil, '-10.000000');
+
     expect(currentBalance($this))->toBe('90.000000');
 
     Artisan::call('sifobi:reset-spoil-wastes', ['tenant_code' => 'MKO', '--yes' => true]);
@@ -69,7 +122,7 @@ test('spoil yang sudah approved: dihapus, mutasi ikut terhapus, saldo stok dikem
         ->and(currentBalance($this))->toBe('100.000000');
 });
 
-test('spoil approved lalu di-void (reversal): saldo tidak diganggu karena nett sudah 0', function (): void {
+test('spoil approved LEGACY lalu di-void (reversal): saldo tidak diganggu karena nett sudah 0', function (): void {
     $spoil = app(SpoilWasteService::class)->record([
         'tenant_id' => $this->tenant->id,
         'outlet_id' => $this->outlet->id,
@@ -80,7 +133,7 @@ test('spoil approved lalu di-void (reversal): saldo tidak diganggu karena nett s
         'recorded_date' => now()->toDateString(),
     ], (int) $this->admin->id);
 
-    $spoil = app(SpoilWasteService::class)->approve($spoil, (int) $this->admin->id);
+    $spoil = simulateLegacyApprovedSpoil($this, $spoil, '-15.000000');
     expect(currentBalance($this))->toBe('85.000000');
 
     // Simulasikan kasus legacy: mutasi spoil yang sudah ada di-void lewat
@@ -142,7 +195,7 @@ test('laporan dry-run menghitung jumlah spoil yang pernah menyentuh ledger denga
         'reason_category' => SpoilWaste::REASON_RUSAK,
         'recorded_date' => now()->toDateString(),
     ], (int) $this->admin->id);
-    app(SpoilWasteService::class)->approve($spoilA, (int) $this->admin->id);
+    simulateLegacyApprovedSpoil($this, $spoilA, '-10.000000');
 
     $spoilB = app(SpoilWasteService::class)->record([
         'tenant_id' => $this->tenant->id,
@@ -153,7 +206,7 @@ test('laporan dry-run menghitung jumlah spoil yang pernah menyentuh ledger denga
         'reason_category' => SpoilWaste::REASON_RUSAK,
         'recorded_date' => now()->toDateString(),
     ], (int) $this->admin->id);
-    app(SpoilWasteService::class)->approve($spoilB, (int) $this->admin->id);
+    simulateLegacyApprovedSpoil($this, $spoilB, '-5.000000');
 
     Artisan::call('sifobi:reset-spoil-wastes', ['tenant_code' => 'MKO', '--dry-run' => true]);
     $output = Artisan::output();
@@ -178,5 +231,5 @@ test('dry-run tidak menghapus atau mengubah apa pun', function (): void {
     Artisan::call('sifobi:reset-spoil-wastes', ['tenant_code' => 'MKO', '--dry-run' => true]);
 
     expect(SpoilWaste::query()->whereKey($spoil->id)->exists())->toBeTrue()
-        ->and(currentBalance($this))->toBe('90.000000');
+        ->and(currentBalance($this))->toBe('100.000000'); // approve() sekarang tidak menyentuh stok.
 });

@@ -82,7 +82,7 @@ test('guest cannot access spoil and opname pages', function (): void {
     $this->get(route('operations.opname.index'))->assertRedirect('/login');
 });
 
-test('recording spoil only creates an observation -- ledger is untouched until approved', function (): void {
+test('recording spoil only creates an observation -- ledger stays untouched even after approved (kebijakan 2026-11-19)', function (): void {
     Storage::fake('public');
     $staff = operationUser('STAFF_BAR');
     $pic = operationUser('PIC_OUTLET');
@@ -121,7 +121,7 @@ test('recording spoil only creates an observation -- ledger is untouched until a
         ->assertRedirect();
 
     expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_APPROVED)
-        ->and($spoil->mutation_id)->not->toBeNull(); // baru sekarang ledger tersentuh.
+        ->and($spoil->mutation_id)->toBeNull(); // approve() sengaja tidak menyentuh ledger (lihat SpoilWasteService::approve()).
 
     $balanceAfterApprove = StockBalance::query()
         ->where('item_id', $this->item->id)
@@ -129,7 +129,7 @@ test('recording spoil only creates an observation -- ledger is untouched until a
         ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
         ->firstOrFail();
 
-    expect((string) $balanceAfterApprove->qty_on_hand)->toBe('4000.000000');
+    expect((string) $balanceAfterApprove->qty_on_hand)->toBe('5000.000000'); // tetap tidak berubah.
 });
 
 test('storing multiple spoil items in one submission creates one record per item', function (): void {
@@ -256,12 +256,13 @@ test('duplicate spoil photo is detected by sha256 hash', function (): void {
         ->and($second->duplicate_ref_id)->toBe($first->id);
 });
 
-test('spoil with no stock balance at all can still be RECORDED, but approve gives an actionable message pointing to Opname', function (): void {
+test('spoil with no stock balance at all can be recorded AND approved immediately (kebijakan 2026-11-19)', function (): void {
     $staff = operationUser('STAFF_BAR');
     $pic = operationUser('PIC_OUTLET');
     // SENGAJA tidak seedDailyBalance() -- item ini belum pernah tercatat
-    // stoknya sama sekali di outlet ini.
-
+    // stoknya sama sekali di outlet ini. Sebelum 2026-11-19 approve() akan
+    // menolak kasus ini (lihat riwayat test ini di git) -- sekarang harus
+    // berhasil langsung, tanpa menyentuh ledger sama sekali.
     $spoil = app(SpoilWasteService::class)->record([
         'tenant_id' => $this->tenant->id,
         'outlet_id' => $this->outlet->id,
@@ -273,26 +274,15 @@ test('spoil with no stock balance at all can still be RECORDED, but approve give
         'reason_category' => SpoilWaste::REASON_RUSAK,
     ], $staff->id);
 
-    expect($spoil->status)->toBe(SpoilWaste::STATUS_PENDING); // RECORD berhasil walau belum ada stok.
+    expect($spoil->status)->toBe(SpoilWaste::STATUS_PENDING);
 
-    $caught = null;
+    app(SpoilWasteService::class)->approve($spoil, $pic->id);
 
-    try {
-        app(SpoilWasteService::class)->approve($spoil, $pic->id);
-    } catch (ValidationException $exception) {
-        $caught = $exception;
-    }
-
-    $message = $caught ? collect($caught->errors())->flatten()->implode(' ') : '';
-
-    expect($caught)->not->toBeNull()
-        ->and($message)->toContain('belum pernah tercatat')
-        ->and($message)->toContain('Opname')
-        ->and($message)->toContain($this->item->name)
-        ->and($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_PENDING); // tetap PENDING, bisa dicoba lagi.
+    expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_APPROVED)
+        ->and($spoil->mutation_id)->toBeNull();
 });
 
-test('spoil with an insufficient (but non-zero) balance reports the actual qty on hand and suggests Opname, at approve time', function (): void {
+test('spoil with an insufficient (but non-zero) balance is still approved immediately, stock stays as-is (kebijakan 2026-11-19)', function (): void {
     $staff = operationUser('STAFF_BAR');
     $pic = operationUser('PIC_OUTLET');
     seedDailyBalance($this, '3'); // cuma 3 tersedia, staf coba spoil 10.
@@ -310,20 +300,18 @@ test('spoil with an insufficient (but non-zero) balance reports the actual qty o
 
     expect($spoil->status)->toBe(SpoilWaste::STATUS_PENDING);
 
-    $caught = null;
+    app(SpoilWasteService::class)->approve($spoil, $pic->id);
 
-    try {
-        app(SpoilWasteService::class)->approve($spoil, $pic->id);
-    } catch (ValidationException $exception) {
-        $caught = $exception;
-    }
+    expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_APPROVED)
+        ->and($spoil->mutation_id)->toBeNull();
 
-    $message = $caught ? collect($caught->errors())->flatten()->implode(' ') : '';
+    $balance = StockBalance::query()
+        ->where('item_id', $this->item->id)
+        ->where('outlet_id', $this->outlet->id)
+        ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
+        ->firstOrFail();
 
-    expect($caught)->not->toBeNull()
-        ->and($message)->toContain('3')
-        ->and($message)->toContain('Opname')
-        ->and($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_PENDING);
+    expect((string) $balance->qty_on_hand)->toBe('3.000000'); // tidak berubah walau qty spoil (10) > saldo (3).
 });
 
 test('rejecting spoil creates void reversal and restores balance', function (): void {
@@ -467,7 +455,14 @@ test('recording and rejecting a spoil in a unit that genuinely differs from the 
         ->and((string) $balanceAfterReject->qty_on_hand)->toBe('5000.000000');
 });
 
-test('full real-world flow: spoil recorded with no stock, Opname establishes it afterward, spoil approve then succeeds', function (): void {
+test('full real-world flow: spoil bisa langsung di-approve walau outlet belum pernah di-Opname sama sekali (kebijakan 2026-11-19)', function (): void {
+    // Sebelum 2026-11-19: approve() menolak spoil ini sampai Opname
+    // menyusul dulu (lihat riwayat test ini di git). Pimpinan minta semua
+    // spoil wajib BISA tercatat duluan selama masa transisi (banyak
+    // outlet baru mulai pakai sistem, belum sempat Opname semua item) --
+    // pengurangan stoknya dihitung belakangan, BUKAN langsung lewat
+    // approve() spoil. Test ini membuktikan skenario yang dilaporkan user
+    // persis itu sekarang berhasil tanpa langkah Opname apa pun dulu.
     $staff = operationUser('STAFF_BAR');
     $pic = operationUser('PIC_OUTLET');
     // SENGAJA tidak seedDailyBalance() -- persis skenario yang dilaporkan:
@@ -487,12 +482,19 @@ test('full real-world flow: spoil recorded with no stock, Opname establishes it 
 
     expect($spoil->status)->toBe(SpoilWaste::STATUS_PENDING);
 
-    // Gagal dulu -- belum ada stok sama sekali.
-    expect(fn () => app(SpoilWasteService::class)->approve($spoil, $pic->id))
-        ->toThrow(ValidationException::class);
-    expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_PENDING);
+    app(SpoilWasteService::class)->approve($spoil, $pic->id);
 
-    // Opname menyusul: staf hitung fisik (20), PIC approve -> stok 20 resmi tercatat.
+    expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_APPROVED)
+        ->and($spoil->mutation_id)->toBeNull();
+
+    expect(StockBalance::query()
+        ->where('item_id', $this->item->id)
+        ->where('outlet_id', $this->outlet->id)
+        ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
+        ->exists())->toBeFalse(); // approve() tidak membuat baris stock_balances apa pun.
+
+    // Opname menyusul kapan pun nanti -- tetap berfungsi normal, TIDAK
+    // perlu tahu-menahu soal spoil yang sudah di-approve sebelumnya.
     $session = app(OpnameService::class)->startSession([
         'tenant_id' => $this->tenant->id,
         'outlet_id' => $this->outlet->id,
@@ -505,19 +507,16 @@ test('full real-world flow: spoil recorded with no stock, Opname establishes it 
     app(OpnameService::class)->submit($session->fresh(), $staff->id);
     app(OpnameService::class)->approve($session->fresh(), $pic->id);
 
-    // Sekarang spoil yang tadi gagal, berhasil di-approve.
-    app(SpoilWasteService::class)->approve($spoil->fresh(), $pic->id);
-
-    expect($spoil->refresh()->status)->toBe(SpoilWaste::STATUS_APPROVED)
-        ->and($spoil->mutation_id)->not->toBeNull();
-
     $balance = StockBalance::query()
         ->where('item_id', $this->item->id)
         ->where('outlet_id', $this->outlet->id)
         ->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
         ->firstOrFail();
 
-    expect((string) $balance->qty_on_hand)->toBe('15.000000'); // 20 (opname) - 5 (spoil).
+    // Saldo jadi 20 persis dari hasil hitung fisik Opname -- TIDAK
+    // dikurangi 5 dari spoil yang sudah di-approve duluan, karena spoil
+    // itu memang belum pernah menyentuh ledger sama sekali.
+    expect((string) $balance->qty_on_hand)->toBe('20.000000');
 });
 
 test('bulk approve only processes pending spoil waste rows', function (): void {

@@ -65,7 +65,7 @@ test('deleting a pending spoil record has no stock impact', function (): void {
     expect(SpoilWaste::query()->find($spoil->id))->toBeNull();
 });
 
-test('deleting an approved spoil record reverses the stock deduction', function (): void {
+test('deleting an approved spoil record has no stock impact (approve tidak lagi menyentuh ledger sejak 2026-11-19)', function (): void {
     $spoil = spoilRecordFor($this, '7');
     app(SpoilWasteService::class)->approve($spoil, $this->admin->id);
 
@@ -73,7 +73,7 @@ test('deleting an approved spoil record reverses the stock deduction', function 
         ->where('tenant_id', $this->tenant->id)->where('outlet_id', $this->outlet->id)
         ->where('item_id', $this->item->id)->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
         ->firstOrFail();
-    expect((string) $balanceBefore->qty_on_hand)->toBe('93.000000');
+    expect((string) $balanceBefore->qty_on_hand)->toBe('100.000000'); // approve() tidak memotong stok.
 
     $response = $this->actingAs($this->admin)->delete(route('operations.spoil-wastes.destroy', $spoil));
     $response->assertSessionHas('success');
@@ -84,7 +84,7 @@ test('deleting an approved spoil record reverses the stock deduction', function 
         ->where('tenant_id', $this->tenant->id)->where('outlet_id', $this->outlet->id)
         ->where('item_id', $this->item->id)->where('stock_target', StockMutation::TARGET_OUTLET_DAILY)
         ->firstOrFail();
-    expect((string) $balanceAfter->qty_on_hand)->toBe('100.000000');
+    expect((string) $balanceAfter->qty_on_hand)->toBe('100.000000'); // tidak ada apa pun utk dibalikkan.
 });
 
 test('bulk delete removes multiple records regardless of status', function (): void {
