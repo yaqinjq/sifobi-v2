@@ -8,12 +8,29 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.65 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.65 &mdash; 19 November 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Peningkatan</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Export Excel Kartu Stok Ringkasan sekarang rincian per tanggal</strong> -- sebelumnya file Excel-nya cuma menampilkan total 1 angka untuk seluruh rentang tanggal (beda dari tampilan layarnya yang sudah per hari). Sekarang export-nya sama persis dengan layar: kolom IN/OUT/SPOIL/BAL untuk setiap tanggal dalam rentang yang difilter, plus Saldo Awal &amp; Saldo Akhir</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.64 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.64 &mdash; 19 November 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

@@ -156,3 +156,63 @@ test('pencarian nama item di Kartu Stok Ringkasan tidak error', function (): voi
 
     $response->assertOk();
 });
+
+test('export Excel Kartu Stok Ringkasan menampilkan rincian IN/OUT/SPOIL/BAL per tanggal, bukan cuma total', function (): void {
+    $ledger = app(StockLedgerService::class);
+
+    $ledger->receiveGoods([
+        'tenant_id'    => $this->tenant->id,
+        'outlet_id'    => $this->outlet->id,
+        'item_id'      => $this->item->id,
+        'unit_id'      => $this->item->inventory_unit_id,
+        'qty'          => 100,
+        'performed_at' => now()->subDays(2),
+    ]);
+
+    $ledger->spoilWaste([
+        'tenant_id'    => $this->tenant->id,
+        'outlet_id'    => $this->outlet->id,
+        'item_id'      => $this->item->id,
+        'unit_id'      => $this->item->inventory_unit_id,
+        'qty'          => 10,
+        'performed_at' => now()->subDay(),
+    ]);
+
+    $downloadPath = storage_path('framework/testing/kartu-stok-ringkasan-export.xlsx');
+    \Illuminate\Support\Facades\File::ensureDirectoryExists(dirname($downloadPath));
+    $content = $this->actingAs($this->user)->get(route('laporan.kartu-stok.export', [
+        'outlet_id' => $this->outlet->id,
+        'date_from' => now()->subDays(2)->toDateString(),
+        'date_to'   => now()->toDateString(),
+    ]))->streamedContent();
+    file_put_contents($downloadPath, $content);
+
+    $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($downloadPath);
+    $sheet = $spreadsheet->getActiveSheet();
+
+    // Header baris 4-5: SKU..Saldo Awal (A-E) lalu per tanggal 4 sub-kolom.
+    expect($sheet->getCell('A4')->getValue())->toBe('SKU');
+    expect($sheet->getCell('F4')->getValue())->not->toBeNull(); // label tanggal hari ke-1
+    expect($sheet->getCell('F5')->getValue())->toBe('IN');
+    expect($sheet->getCell('G5')->getValue())->toBe('OUT');
+    expect($sheet->getCell('H5')->getValue())->toBe('SPOIL');
+    expect($sheet->getCell('I5')->getValue())->toBe('BAL');
+
+    $targetRow = null;
+    for ($row = 6; $row <= $sheet->getHighestRow(); $row++) {
+        if ($sheet->getCell('A'.$row)->getValue() === $this->item->canonical_sku) {
+            $targetRow = $row;
+            break;
+        }
+    }
+
+    expect($targetRow)->not->toBeNull();
+
+    // Rentang 3 hari (H-2..H): kolom F-I = H-2, J-M = H-1, N-Q = H.
+    // Masuk 100 terjadi H-2, spoil 10 terjadi H-1 -- harus nempel di sel
+    // tanggalnya masing-masing, bukan ketimpuk ke saldo awal/hari lain.
+    expect((float) $sheet->getCell('F'.$targetRow)->getValue())->toBe(100.0); // IN H-2
+    expect((float) $sheet->getCell('I'.$targetRow)->getValue())->toBe(100.0); // BAL H-2
+    expect((float) $sheet->getCell('L'.$targetRow)->getValue())->toBe(-10.0); // SPOIL H-1
+    expect((float) $sheet->getCell('M'.$targetRow)->getValue())->toBe(90.0); // BAL H-1
+});
