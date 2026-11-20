@@ -8,12 +8,29 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.69 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.69 &mdash; 20 November 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Halaman Spoil &amp; Waste: filter Outlet &amp; Departemen untuk role di atas PIC</strong> -- Super Admin, Admin, General Finance, Manager Area, dan role Asisten Super Admin sekarang bisa melihat spoil semua outlet (yang boleh diakses akunnya) &amp; semua departemen, lalu menyaringnya per outlet/departemen. Kolom Outlet ikut ditampilkan di daftar. Hak ini bisa diberikan ke role lain lewat Settings &gt; Role, centang "Lihat Spoil Semua Outlet &amp; Dept.". Hak approve/tolak/hapus TIDAK berubah</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.68 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.68 &mdash; 20 November 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

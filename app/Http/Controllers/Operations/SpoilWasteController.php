@@ -44,12 +44,19 @@ class SpoilWasteController extends Controller
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
         [$sort, $direction] = $this->resolveTableSort($request, ['recorded_at', 'qty_in_base_unit', 'status'], 'recorded_at', 'desc');
 
+        $user = $request->user();
+        // Filter outlet & departemen cuma utk yang memang bisa melihat lintas
+        // outlet/departemen (Super Admin & pemegang view_all_spoil).
+        $canFilterScope = $this->isSuperAdmin($request) || $user->can('view_all_spoil');
+
         $query = SpoilWaste::query()
             ->with(['outlet', 'department', 'item', 'menu', 'unit', 'createdBy.roles'])
             ->where('tenant_id', $tenantId);
-        $query = $this->applySpoilRecordScope($query, $request);
+        $query = $this->applySpoilRecordScope($query, $request, forViewing: true);
 
         $query = $query
+            ->when($canFilterScope && $request->filled('outlet_id'), fn ($q) => $q->where('outlet_id', $request->integer('outlet_id')))
+            ->when($canFilterScope && $request->filled('department_id'), fn ($q) => $q->where('department_id', $request->integer('department_id')))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')->upper()->toString()))
             ->when($request->input('range') === '7', fn ($q) => $q->whereDate('recorded_date', '>=', now()->subDays(7)->toDateString()))
             ->when($request->input('range') === '30', fn ($q) => $q->whereDate('recorded_date', '>=', now()->subDays(30)->toDateString()))
@@ -78,21 +85,45 @@ class SpoilWasteController extends Controller
                 ->where('tenant_id', $tenantId)
                 ->where('is_duplicate_photo', true)
                 ->where('status', SpoilWaste::STATUS_PENDING),
-            $request
+            $request,
+            forViewing: true
         )->count();
 
-        $user = $request->user();
         $activeOutletId = $this->effectiveSpoilOutletId($request);
 
+        // Pilihan filter dibatasi outlet yang memang boleh dilihat akun ini
+        // (Super Admin / akun tanpa outlet = semua outlet tenant).
+        $filterOutletIds = $this->isSuperAdmin($request) ? [] : $user->accessibleOutletIds();
+        $filterOutlets = $canFilterScope
+            ? Outlet::query()
+                ->where('tenant_id', $tenantId)
+                ->when($filterOutletIds !== [], fn ($q) => $q->whereIn('id', $filterOutletIds))
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
+        $filterDepartments = $canFilterScope
+            ? Department::query()->where('tenant_id', $tenantId)->orderBy('name')->get(['id', 'name'])
+            : collect();
+
+        $filteredOutletName = $canFilterScope && $request->filled('outlet_id')
+            ? $filterOutlets->firstWhere('id', $request->integer('outlet_id'))?->name
+            : null;
+
         return view('operations.spoil-wastes.index', [
+            'canFilterScope' => $canFilterScope,
+            'filterOutlets' => $filterOutlets,
+            'filterDepartments' => $filterDepartments,
+            'headerSubtitle' => $canFilterScope
+                ? ($filteredOutletName ?? 'Semua outlet')
+                : ($activeOutletId ? Outlet::query()->where('tenant_id', $tenantId)->find($activeOutletId)?->name : null),
             'spoilWastes' => $query,
             'duplicateCount' => $duplicateCount,
             'perPage' => $perPage,
             'perPageOptions' => $perPageOptions,
             'sort' => $sort,
             'direction' => $direction,
-            'needsOutletSelection' => ! $this->isSuperAdmin($request) && $user?->hasMultipleOutlets() && ! $activeOutletId,
-            'activeOutletName' => $activeOutletId ? Outlet::query()->where('tenant_id', $tenantId)->find($activeOutletId)?->name : null,
+            // Pemegang filter tidak perlu memilih outlet aktif dulu hanya untuk melihat.
+            'needsOutletSelection' => ! $canFilterScope && $user?->hasMultipleOutlets() && ! $activeOutletId,
             'canSwitchOutlet' => (bool) $user?->hasMultipleOutlets(),
         ]);
     }
@@ -270,7 +301,7 @@ class SpoilWasteController extends Controller
             'mutation',
         ]);
 
-        $this->assertSpoilInScope($request, $spoil);
+        $this->assertSpoilInScope($request, $spoil, forViewing: true);
 
         return view('operations.spoil-wastes.show', [
             'spoil' => $spoil,
@@ -298,7 +329,7 @@ class SpoilWasteController extends Controller
      */
     public function photo(Request $request, SpoilWaste $spoil): \Symfony\Component\HttpFoundation\Response
     {
-        $this->assertSpoilInScope($request, $spoil);
+        $this->assertSpoilInScope($request, $spoil, forViewing: true);
 
         $path = $spoil->photo ?: $spoil->photo_path;
         abort_if(! $path, 404);
@@ -930,12 +961,21 @@ class SpoilWasteController extends Controller
      * @param  \Illuminate\Database\Eloquent\Builder<SpoilWaste>  $query
      * @return \Illuminate\Database\Eloquent\Builder<SpoilWaste>
      */
-    private function applySpoilRecordScope($query, Request $request)
+    private function applySpoilRecordScope($query, Request $request, bool $forViewing = false)
     {
         $query = $query->where('tenant_id', $request->user()->tenant_id);
 
         if ($this->isSuperAdmin($request)) {
             return $query;
+        }
+
+        // Cuma utk MELIHAT (index): role ber-view_all_spoil lihat semua
+        // departemen di outlet yang boleh diakses akunnya. Bulk approve/
+        // hapus SENGAJA tetap pakai scope lama di bawah ($forViewing=false).
+        if ($forViewing && $request->user()->can('view_all_spoil')) {
+            $outletIds = array_map('intval', $request->user()->accessibleOutletIds());
+
+            return $outletIds === [] ? $query : $query->whereIn('outlet_id', $outletIds);
         }
 
         if (! $this->hasValidSpoilScope($request)) {
@@ -963,13 +1003,26 @@ class SpoilWasteController extends Controller
      * dibuktikan lewat test (lihat SpoilWasteDepartmentScopingFeatureTest)
      * -- bukan cuma diasumsikan aman dari perilaku Eloquent.
      */
-    private function assertSpoilInScope(Request $request, SpoilWaste $spoil): void
+    private function assertSpoilInScope(Request $request, SpoilWaste $spoil, bool $forViewing = false): void
     {
         $user = $request->user();
 
         abort_if((int) $spoil->tenant_id !== (int) $user->tenant_id, 404, 'Spoil tidak ditemukan.');
 
         if ($this->isSuperAdmin($request)) {
+            return;
+        }
+
+        // show()/photo() saja -- approve/reject/hapus tetap scope lama.
+        if ($forViewing && $user->can('view_all_spoil')) {
+            $outletIds = array_map('intval', $user->accessibleOutletIds());
+
+            abort_if(
+                $outletIds !== [] && ! in_array((int) $spoil->outlet_id, $outletIds, true),
+                403,
+                'Spoil ini di luar outlet yang boleh Anda akses.'
+            );
+
             return;
         }
 

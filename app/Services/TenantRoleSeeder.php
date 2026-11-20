@@ -53,6 +53,7 @@ class TenantRoleSeeder
             'approve_spoil',
             'input_spoil_waste',
             'approve_spoil_waste',
+            'view_all_spoil',
             'create_po',
             'approve_po',
             'view_reports',
@@ -87,6 +88,7 @@ class TenantRoleSeeder
             'ADMIN'       => $permissions,
             'GENERAL_FINANCE' => [
                 'view_all_po',
+                'view_all_spoil',
                 'view_dashboard',
                 'manage_settings',
                 'manage_stock_configs',
@@ -148,6 +150,7 @@ class TenantRoleSeeder
                 'record_spoil',
                 'approve_spoil',
                 'approve_spoil_waste',
+                'view_all_spoil',
                 'manage_calendar_events',
                 'view_reports',
                 'view_all_reports',

@@ -3,7 +3,7 @@
 @section('title', 'Spoil & Waste')
 
 @section('content')
-<x-sf.page-header title="Spoil & Waste" subtitle="{{ $activeOutletName ?? auth()->user()->outlet->name ?? 'Semua outlet' }}">
+<x-sf.page-header title="Spoil & Waste" subtitle="{{ $headerSubtitle ?? auth()->user()->outlet->name ?? 'Semua outlet' }}">
     <x-slot:actions>
         @if($canSwitchOutlet)
             <a href="{{ route('operations.spoil-wastes.select-outlet') }}" class="sf-btn-secondary min-h-11 px-3 text-xs">Ganti Outlet</a>
@@ -51,6 +51,20 @@
 
     <x-sf.card>
         <form method="GET" action="{{ route('operations.spoil-wastes.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            @if($canFilterScope)
+                <select name="outlet_id" class="sf-input text-base min-h-11">
+                    <option value="">Semua outlet</option>
+                    @foreach($filterOutlets as $filterOutlet)
+                        <option value="{{ $filterOutlet->id }}" @selected((string) request('outlet_id') === (string) $filterOutlet->id)>{{ $filterOutlet->name }}</option>
+                    @endforeach
+                </select>
+                <select name="department_id" class="sf-input text-base min-h-11">
+                    <option value="">Semua departemen</option>
+                    @foreach($filterDepartments as $filterDepartment)
+                        <option value="{{ $filterDepartment->id }}" @selected((string) request('department_id') === (string) $filterDepartment->id)>{{ $filterDepartment->name }}</option>
+                    @endforeach
+                </select>
+            @endif
             <select name="status" class="sf-input text-base min-h-11">
                 <option value="">Semua status</option>
                 <option value="PENDING" @selected(request('status') === 'PENDING')>Pending</option>
@@ -84,6 +98,9 @@
                         @endif
                         <div class="min-w-0 flex-1">
                             <p class="font-semibold text-gray-900 truncate">{{ $spoil->subjectName() }} @if($spoil->isMenu())<span class="badge-menu-item">Menu</span>@endif</p>
+                            @if($canFilterScope)
+                                <p class="text-sm text-gray-500">Outlet: {{ $spoil->outlet?->name ?? '-' }}</p>
+                            @endif
                             <p class="text-sm text-gray-500">Dept: {{ $spoil->department?->name ?? '-' }} | Qty: {{ $spoil->qty }} {{ $spoil->unit?->abbreviation }}</p>
                             <p class="text-sm text-gray-500">Alasan: {{ $spoil->reason_label }}</p>
                             <p class="text-xs text-gray-400 mt-1">Diinput oleh {{ $spoil->createdBy?->name ?? '-' }}@if($spoil->createdBy) ({{ $spoil->createdBy->primary_role }})@endif</p>
@@ -146,6 +163,9 @@
                             <th class="px-4 py-3">No</th>
                             <x-sf.sortable-th column="recorded_at" :sort="$sort" :direction="$direction">Waktu</x-sf.sortable-th>
                             <th class="px-4 py-3">Item</th>
+                            @if($canFilterScope)
+                                <th class="px-4 py-3">Outlet</th>
+                            @endif
                             <th class="px-4 py-3">Dept</th>
                             <x-sf.sortable-th column="qty_in_base_unit" :sort="$sort" :direction="$direction" align="right">Qty</x-sf.sortable-th>
                             <th class="px-4 py-3">Alasan</th>
@@ -166,6 +186,9 @@
                                 <td class="px-4 py-3 text-gray-500">{{ $spoilWastes->firstItem() + $loop->index }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ optional($spoil->recorded_at)->format('d M H:i') }}</td>
                                 <td class="px-4 py-3 font-semibold text-gray-900">{{ $spoil->subjectName() }} @if($spoil->isMenu())<span class="badge-menu-item">Menu</span>@endif</td>
+                                @if($canFilterScope)
+                                    <td class="px-4 py-3">{{ $spoil->outlet?->name ?? '-' }}</td>
+                                @endif
                                 <td class="px-4 py-3">{{ $spoil->department?->name ?? '-' }}</td>
                                 <td class="px-4 py-3 text-right">{{ $spoil->qty }} {{ $spoil->unit?->abbreviation }}</td>
                                 <td class="px-4 py-3">{{ $spoil->reason_label }}</td>
@@ -208,7 +231,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="px-4 py-10 text-center text-gray-500">Belum ada spoil.</td>
+                                <td colspan="{{ $canFilterScope ? 12 : 11 }}" class="px-4 py-10 text-center text-gray-500">Belum ada spoil.</td>
                             </tr>
                         @endforelse
                     </tbody>

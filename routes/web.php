@@ -510,8 +510,10 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             ->middleware('permission:record_spoil')
             ->name('spoil-wastes.search-items');
 
+        // index/show/photo = baca-saja -- view_all_spoil (role di atas PIC)
+        // boleh masuk walau tidak punya record_spoil (mis. General Finance).
         Route::get('/spoil-wastes', [SpoilWasteController::class, 'index'])
-            ->middleware('permission:record_spoil')
+            ->middleware('permission:record_spoil|view_all_spoil')
             ->name('spoil-wastes.index');
         Route::get('/spoil-wastes-select-outlet', [SpoilWasteController::class, 'selectOutlet'])
             ->middleware('permission:record_spoil')
@@ -526,10 +528,10 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             ->middleware('permission:record_spoil')
             ->name('spoil-wastes.store');
         Route::get('/spoil-wastes/{spoil}', [SpoilWasteController::class, 'show'])
-            ->middleware('permission:record_spoil')
+            ->middleware('permission:record_spoil|view_all_spoil')
             ->name('spoil-wastes.show');
         Route::get('/spoil-wastes/{spoil}/photo', [SpoilWasteController::class, 'photo'])
-            ->middleware('permission:record_spoil')
+            ->middleware('permission:record_spoil|view_all_spoil')
             ->name('spoil-wastes.photo');
         Route::post('/spoil-wastes/bulk-approve', [SpoilWasteController::class, 'bulkApprove'])
             ->middleware('permission:approve_spoil')

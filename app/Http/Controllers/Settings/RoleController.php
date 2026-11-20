@@ -244,6 +244,7 @@ class RoleController extends Controller
                 'input_spoil_waste'  => 'Input Spoil/Waste',
                 'approve_spoil'      => 'Approve Spoil',
                 'approve_spoil_waste' => 'Approve Waste',
+                'view_all_spoil'     => 'Lihat Spoil Semua Outlet & Dept.',
             ],
             'Penerimaan Barang (GR)' => [
                 'view_goods_receipt'    => 'Lihat GR',
