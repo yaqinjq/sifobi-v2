@@ -31,10 +31,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div>
-                    <label class="sf-label">Bulan</label>
-                    <input type="month" x-model="month" class="sf-input text-base min-h-11">
-                </div>
+                @include('operations.partials.month-year-select')
             </div>
             <div class="mt-4 flex flex-col sm:flex-row gap-2">
                 <button type="button" @click="downloadTemplate()" :disabled="!canDownload" class="sf-btn-secondary min-h-11 px-4 disabled:opacity-50">Download Template</button>
