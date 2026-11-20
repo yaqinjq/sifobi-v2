@@ -23,6 +23,9 @@ use Throwable;
  */
 class SpoilWasteMonthlyImport implements WithMultipleSheets
 {
+    /** Keterangan detail kalau kolom KET tanggal itu kosong (& format lama). */
+    private const DEFAULT_DETAIL = 'Import bulanan';
+
     private SpoilWasteMonthlyGridSheetImport $grid;
 
     public function __construct()
@@ -39,7 +42,14 @@ class SpoilWasteMonthlyImport implements WithMultipleSheets
     }
 
     /**
-     * @return array{dates: list<string>, items: list<array{sku: string, satuan: string, reason_label: string, qty_by_date: array<string, string>}>}
+     * Dua format diterima:
+     * - BARU: header 2 baris, tiap tanggal 3 sub-kolom QTY | ALASAN | KET
+     *   (baris 2 kolom E berisi "QTY"). Data mulai baris 3.
+     * - LAMA: 1 kolom QTY per tanggal, header 1 baris -- file yang sudah
+     *   telanjur diisi tim tetap bisa diupload.
+     * ALASAN kosong = pakai "Kategori Alasan (default)" di kolom D.
+     *
+     * @return array{dates: list<string>, items: list<array{sku: string, satuan: string, cells: array<string, array{qty: string, reason_label: string, note: ?string}>}>}
      */
     public function parseGrid(): array
     {
@@ -50,10 +60,18 @@ class SpoilWasteMonthlyImport implements WithMultipleSheets
         }
 
         $header = $rows->first();
+        $subHeader = $rows->get(1);
+        $isPerDateReason = strtoupper(trim((string) ($subHeader[4] ?? ''))) === 'QTY';
+
+        // index kolom QTY => tanggal
         $dateColumns = [];
 
         foreach ($header as $index => $value) {
             if ($index < 4) {
+                continue;
+            }
+
+            if ($isPerDateReason && strtoupper(trim((string) ($subHeader[$index] ?? ''))) !== 'QTY') {
                 continue;
             }
 
@@ -68,7 +86,7 @@ class SpoilWasteMonthlyImport implements WithMultipleSheets
 
         // Baris pemisah kategori (kolom "Item"/SKU kosong) ikut dilewati di
         // sini secara alami, sama seperti baris benar-benar kosong.
-        foreach ($rows->skip(1) as $row) {
+        foreach ($rows->skip($isPerDateReason ? 2 : 1) as $row) {
             $sku = trim((string) ($row[1] ?? ''));
 
             if ($sku === '') {
@@ -76,8 +94,8 @@ class SpoilWasteMonthlyImport implements WithMultipleSheets
             }
 
             $satuan = trim((string) ($row[2] ?? ''));
-            $reasonLabel = trim((string) ($row[3] ?? ''));
-            $qtyByDate = [];
+            $defaultReason = trim((string) ($row[3] ?? ''));
+            $cells = [];
 
             foreach ($dateColumns as $index => $date) {
                 $raw = $row[$index] ?? null;
@@ -86,14 +104,21 @@ class SpoilWasteMonthlyImport implements WithMultipleSheets
                     continue;
                 }
 
-                $qtyByDate[$date] = Decimal::toFixed(trim((string) $raw), 6);
+                $reason = $isPerDateReason ? trim((string) ($row[$index + 1] ?? '')) : '';
+                $note = $isPerDateReason ? trim((string) ($row[$index + 2] ?? '')) : '';
+
+                $cells[$date] = [
+                    'qty' => Decimal::toFixed(trim((string) $raw), 6),
+                    'reason_label' => $reason !== '' ? $reason : $defaultReason,
+                    'note' => $note !== '' ? $note : null,
+                ];
             }
 
-            if (empty($qtyByDate)) {
+            if (empty($cells)) {
                 continue;
             }
 
-            $items[] = ['sku' => $sku, 'satuan' => $satuan, 'reason_label' => $reasonLabel, 'qty_by_date' => $qtyByDate];
+            $items[] = ['sku' => $sku, 'satuan' => $satuan, 'cells' => $cells];
         }
 
         return ['dates' => array_values($dateColumns), 'items' => $items];
@@ -118,10 +143,10 @@ class SpoilWasteMonthlyImport implements WithMultipleSheets
                 continue;
             }
 
-            $reasonCategory = $this->reasonCategory($itemRow['reason_label']);
-
-            foreach ($itemRow['qty_by_date'] as $date => $qty) {
-                [$qtyWhole, $qtyLoose, $qtyBase] = $this->splitQty($item, $itemRow['satuan'], $qty);
+            foreach ($itemRow['cells'] as $date => $cellData) {
+                $reasonCategory = $this->reasonCategory($cellData['reason_label']);
+                $reasonDetail = $cellData['note'] ?? self::DEFAULT_DETAIL;
+                [$qtyWhole, $qtyLoose, $qtyBase] = $this->splitQty($item, $itemRow['satuan'], $cellData['qty']);
 
                 $existing = SpoilWaste::query()
                     ->where('tenant_id', $tenantId)
@@ -136,8 +161,10 @@ class SpoilWasteMonthlyImport implements WithMultipleSheets
                 if ($existing) {
                     $sameQty = bccomp((string) $existing->qty_in_base_unit, $qtyBase, 6) === 0;
                     $sameReason = $existing->reason_category === $reasonCategory;
+                    // KET kosong di file = "tidak mengubah keterangan", bukan beda.
+                    $sameDetail = $cellData['note'] === null || (string) $existing->reason_detail === $cellData['note'];
 
-                    if ($sameQty && $sameReason) {
+                    if ($sameQty && $sameReason && $sameDetail) {
                         $rowStatus = 'unchanged';
                     } else {
                         $rowStatus = $existing->mutation_id === null ? 'update_unposted' : 'update_posted';
@@ -151,7 +178,9 @@ class SpoilWasteMonthlyImport implements WithMultipleSheets
                     'sku' => $item->canonical_sku,
                     'satuan' => $itemRow['satuan'],
                     'reason_category' => $reasonCategory,
-                    'reason_label' => $itemRow['reason_label'],
+                    'reason_label' => $cellData['reason_label'],
+                    'reason_detail' => $reasonDetail,
+                    'note' => $cellData['note'],
                     'qty_whole' => $qtyWhole,
                     'qty_loose' => $qtyLoose,
                     'qty_in_base_unit' => $qtyBase,
@@ -200,9 +229,14 @@ class SpoilWasteMonthlyImport implements WithMultipleSheets
             'qty_loose' => $cell['qty_loose'],
             'qty_in_base_unit' => $cell['qty_in_base_unit'],
             'reason_category' => $cell['reason_category'],
-            'reason_detail' => 'Import bulanan',
-            'notes' => 'Import bulanan',
         ];
+
+        // KET diisi -> pakai itu. KET kosong -> keterangan record lama
+        // (mis. yang ditulis staf lewat form) tidak ditimpa; record baru
+        // dapat "Import bulanan".
+        $detail = ($cell['note'] ?? null) ?? $existing?->reason_detail ?? self::DEFAULT_DETAIL;
+        $fields['reason_detail'] = $detail;
+        $fields['notes'] = $detail;
 
         if ($existing && $existing->mutation_id !== null) {
             DB::transaction(function () use ($existing, $fields, $userId, $service, $ledger): void {

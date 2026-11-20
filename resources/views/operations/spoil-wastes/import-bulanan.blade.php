@@ -7,7 +7,7 @@
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-6xl mx-auto w-full space-y-4" x-data="spoilMonthlyImport()">
     <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Begitu 1 sel dicentang & diproses, laporan spoil tanggal itu <strong>langsung disetujui</strong> dan stok langsung terpotong -- tidak ada approve manual terpisah sesudahnya. Proses penyimpanan berjalan di belakang layar, pantau progressnya di bawah.
+        Begitu 1 sel dicentang & diproses, laporan spoil tanggal itu <strong>langsung disetujui</strong> -- tidak ada approve manual terpisah sesudahnya. Alasan &amp; keterangan bisa berbeda per tanggal (kolom ALASAN &amp; KET di template). Proses penyimpanan berjalan di belakang layar, pantau progressnya di bawah.
     </div>
 
     <template x-if="step === 'upload'">
@@ -94,6 +94,12 @@
                                                        :disabled="cellFor(date, itemName).row_status === 'unchanged' || (cellFor(date, itemName).row_status === 'update_posted' && !confirmOverwrite)"
                                                        @change="toggleCell(date, itemName, $event.target.checked)">
                                                 <span x-text="cellFor(date, itemName).qty_whole !== '0.000000' ? cellFor(date, itemName).qty_whole : cellFor(date, itemName).qty_loose"></span>
+                                                <span class="text-xs leading-tight"
+                                                      :class="cellFor(date, itemName).reason_category ? 'text-gray-500' : 'text-red-600 font-semibold'"
+                                                      x-text="cellFor(date, itemName).reason_category ? cellFor(date, itemName).reason_label : 'Alasan ?'"></span>
+                                                <span x-show="cellFor(date, itemName).reason_detail !== 'Import bulanan'"
+                                                      class="text-xs leading-tight text-gray-400 italic"
+                                                      x-text="cellFor(date, itemName).reason_detail"></span>
                                             </label>
                                         </template>
                                     </td>

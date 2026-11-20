@@ -350,3 +350,87 @@ test('job isolates a failing cell and still processes the rest', function (): vo
         ->and($day3->status)->toBe(SpoilWaste::STATUS_APPROVED)
         ->and(SpoilWaste::query()->where('item_id', $secondItem->id)->whereDate('recorded_date', '2026-11-02')->exists())->toBeFalse();
 });
+
+test('template baru: tiap tanggal punya QTY | ALASAN | KET, alasan & keterangan bisa beda per tanggal', function (): void {
+    // Kasus nyata dari user: 1 item spoil tgl 1 (Rusak/Cacat, "gosong") dan
+    // tgl 3 dengan alasan lain -- dulu cuma ada 1 "Kategori Alasan (default)"
+    // per baris utk SEMUA tanggal. Test ini download template ASLI (bukan
+    // fixture tangan) supaya header 2 baris + merge tanggal ikut teruji.
+    $downloadPath = storage_path('framework/testing/spoil-monthly-real-template.xlsx');
+    File::ensureDirectoryExists(dirname($downloadPath));
+    file_put_contents($downloadPath, $this->actingAs($this->admin)->get(route('operations.spoil-wastes.import-bulanan.template', [
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->bar->id,
+        'month' => '2026-11',
+    ]))->streamedContent());
+
+    $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($downloadPath);
+    $sheet = $spreadsheet->getSheetByName('SPOIL_BULANAN');
+
+    // Tgl 1 = kolom E/F/G, tgl 2 = H/I/J, tgl 3 = K/L/M.
+    expect($sheet->getCell('E1')->getValue())->toBe('2026-11-01')
+        ->and($sheet->getCell('E2')->getValue())->toBe('QTY')
+        ->and($sheet->getCell('F2')->getValue())->toBe('ALASAN')
+        ->and($sheet->getCell('G2')->getValue())->toBe('KET')
+        ->and($sheet->getCell('K1')->getValue())->toBe('2026-11-03');
+
+    $targetRow = null;
+    for ($row = 3; $row <= $sheet->getHighestRow(); $row++) {
+        if ($sheet->getCell('B'.$row)->getValue() === $this->item->canonical_sku) {
+            $targetRow = $row;
+            break;
+        }
+    }
+    expect($targetRow)->not->toBeNull();
+
+    // Dropdown alasan terpasang di kolom ALASAN.
+    $validations = $sheet->getDataValidationCollection();
+    expect(collect($validations)->contains(fn ($v) => str_contains((string) $v->getSqref(), 'F3:F')))->toBeTrue();
+
+    $sheet->setCellValue('D'.$targetRow, 'Kadaluarsa');    // default
+    $sheet->setCellValue('E'.$targetRow, 2);               // tgl 1
+    $sheet->setCellValue('F'.$targetRow, 'Rusak/Cacat');
+    $sheet->setCellValue('G'.$targetRow, 'gosong');
+    $sheet->setCellValue('K'.$targetRow, 1);               // tgl 3, ALASAN kosong -> default
+    (new Xlsx($spreadsheet))->save($downloadPath);
+
+    $cells = collect($this->actingAs($this->admin)->post(route('operations.spoil-wastes.import-bulanan.preview'), [
+        'outlet_id' => $this->outlet->id,
+        'department_id' => $this->bar->id,
+        'month' => '2026-11',
+        'file' => uploadSpoilMonthlyFile($downloadPath),
+    ])->assertOk()->json('cells'))->keyBy('date');
+
+    expect($cells)->toHaveCount(2)
+        ->and($cells['2026-11-01']['reason_category'])->toBe(SpoilWaste::REASON_RUSAK)
+        ->and($cells['2026-11-01']['reason_detail'])->toBe('gosong')
+        ->and($cells['2026-11-03']['reason_category'])->toBe(SpoilWaste::REASON_EXPIRED)
+        ->and($cells['2026-11-03']['reason_detail'])->toBe('Import bulanan');
+
+    $run = MonthlyImportRun::query()->create([
+        'tenant_id' => $this->tenant->id,
+        'type' => MonthlyImportRun::TYPE_SPOIL,
+        'scope' => [
+            'outlet_id' => $this->outlet->id,
+            'department_id' => $this->bar->id,
+            'month' => '2026-11',
+            'selected_cell_keys' => ["2026-11-01:{$this->item->id}", "2026-11-03:{$this->item->id}"],
+        ],
+        'status' => MonthlyImportRun::STATUS_QUEUED,
+        'upload_path' => 'tmp-imports/test-spoil-monthly-per-date-reason.xlsx',
+        'created_by' => $this->admin->id,
+    ]);
+    Storage::disk('local')->put($run->upload_path, file_get_contents($downloadPath));
+
+    (new ProcessSpoilWasteMonthlyImportJob($run->id))->handle(app(SpoilWasteService::class), app(StockLedgerService::class));
+
+    expect($run->fresh()->failed_units)->toBe(0);
+
+    $day1 = SpoilWaste::query()->where('item_id', $this->item->id)->whereDate('recorded_date', '2026-11-01')->firstOrFail();
+    $day3 = SpoilWaste::query()->where('item_id', $this->item->id)->whereDate('recorded_date', '2026-11-03')->firstOrFail();
+
+    expect($day1->reason_category)->toBe(SpoilWaste::REASON_RUSAK)
+        ->and($day1->reason_detail)->toBe('gosong')
+        ->and($day1->status)->toBe(SpoilWaste::STATUS_APPROVED)
+        ->and($day3->reason_category)->toBe(SpoilWaste::REASON_EXPIRED);
+});
