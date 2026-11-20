@@ -35,7 +35,7 @@ class SpoilOutletReportExport implements WithMultipleSheets
             ->where('outlet_id', $this->outletId)
             ->where('status', SpoilWaste::STATUS_APPROVED)
             ->whereBetween('recorded_date', [$this->dateFrom, $this->dateTo])
-            ->with(['item.category', 'item.inventoryUnit', 'item.baseUnit', 'department'])
+            ->with(['item.category', 'item.inventoryUnit', 'item.baseUnit', 'menu.category', 'department'])
             ->get();
 
         $grouped = $records->groupBy(fn ($spoil) => $spoil->department?->name ?? 'Lintas Departemen');
@@ -108,14 +108,33 @@ class SpoilOutletReportDeptSheet implements FromArray, WithEvents, WithTitle
             AfterSheet::class => function (AfterSheet $event): void {
                 $sheet = $event->sheet->getDelegate();
 
+                // Spoil menu (tanpa item) ditaruh setelah semua bahan baku,
+                // dikelompokkan per kategori menu.
                 $sorted = $this->records->sortBy(
-                    fn ($spoil) => $spoil->item?->formSortKey(null) ?? ''
+                    fn ($spoil) => $spoil->item?->formSortKey(null)
+                        ?? '~'.($spoil->menu?->category?->name ?? '').' '.($spoil->menu?->name ?? '')
                 );
 
                 $rows = [];
 
                 foreach ($sorted as $spoil) {
                     $item = $spoil->item;
+
+                    if ($item === null && $spoil->menu !== null) {
+                        $rows[] = [
+                            'category' => 'MENU - '.($spoil->menu->category?->name ?? 'Lainnya'),
+                            'kode_item' => $spoil->menu->code ?? '-',
+                            'item_name' => $spoil->menu->name,
+                            'satuan' => 'porsi',
+                            'tgl' => optional($spoil->recorded_date)->toDateString(),
+                            'stok' => (float) $spoil->qty,
+                            'price_per_unit' => (float) ($spoil->menu->selling_price ?? 0),
+                            'reason_category' => $spoil->reason_category,
+                            'note' => $spoil->notes,
+                        ];
+
+                        continue;
+                    }
 
                     $rows[] = [
                         'category' => $item?->categoryForDepartment(null)?->name ?: 'Lainnya',

@@ -60,8 +60,9 @@
                 </x-slot:header>
                 <div class="px-4 pb-4 space-y-4">
                     <div class="relative">
-                        <label class="sf-label">Item/Bahan Baku *</label>
-                        <input type="hidden" :name="`items[${index}][item_id]`" :value="row.selectedItem?.id || ''">
+                        <label class="sf-label">Bahan Baku / Menu *</label>
+                        <input type="hidden" :name="`items[${index}][item_id]`" :value="row.selectedItem?.type === 'item' ? row.selectedItem.id : ''">
+                        <input type="hidden" :name="`items[${index}][menu_id]`" :value="row.selectedItem?.type === 'menu' ? row.selectedItem.id : ''">
                         <input type="text"
                                x-model="row.searchQuery"
                                @input="clearStaleSelection(row)"
@@ -69,34 +70,51 @@
                                @focus="searchItems(row)"
                                @keydown.escape="row.showSearch = false"
                                class="sf-input text-base min-h-11"
-                               placeholder="Ketik nama atau SKU item"
+                               placeholder="Ketik nama/kode bahan baku atau menu"
                                autocomplete="off"
                                required>
-                        <div x-show="row.showSearch" x-cloak @click.outside="row.showSearch = false" class="absolute z-40 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
-                            <template x-for="item in row.searchResults" :key="item.id">
+                        <div x-show="row.showSearch" x-cloak @click.outside="row.showSearch = false" class="absolute z-40 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden max-h-80 overflow-y-auto">
+                            <template x-for="item in row.searchResults" :key="`${item.type}-${item.id}`">
                                 <button type="button" @click="selectItem(row, item)" class="w-full text-left px-4 py-3 hover:bg-primary-50 border-b border-gray-100 last:border-0">
-                                    <span class="block text-sm font-semibold text-gray-900" x-text="item.name"></span>
-                                    <span class="block text-xs text-gray-500" x-text="`${item.sku} | Stok: ${item.qty_on_hand} ${item.base_unit}`"></span>
+                                    <span class="flex items-center gap-2">
+                                        <span class="text-sm font-semibold text-gray-900" x-text="item.name"></span>
+                                        <span x-show="item.type === 'menu'" class="badge-menu-item">Menu</span>
+                                        <span x-show="item.type === 'item'" class="badge-draft">Bahan Baku</span>
+                                    </span>
+                                    <span class="block text-xs text-gray-500"
+                                          x-text="item.type === 'menu'
+                                              ? `${item.sku || '-'}${item.category ? ' | ' + item.category : ''}`
+                                              : `${item.sku} | Stok: ${item.qty_on_hand} ${item.base_unit}`"></span>
                                 </button>
                             </template>
-                            <div x-show="row.searchResults.length === 0" class="px-4 py-3 text-sm text-gray-500">Item tidak ditemukan.</div>
+                            <div x-show="row.searchResults.length === 0" class="px-4 py-3 text-sm text-gray-500">Bahan baku / menu tidak ditemukan.</div>
                         </div>
                         <p class="text-xs text-amber-600 mt-1" x-show="row.searchQuery && !row.selectedItem" x-cloak>
-                            ⚠ Belum ada item terpilih -- klik salah satu hasil pencarian di atas dulu.
+                            ⚠ Belum ada yang terpilih -- klik salah satu hasil pencarian di atas dulu.
                         </p>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <template x-if="row.selectedItem?.type === 'menu'">
                         <div>
-                            <label class="sf-label">Jumlah Terbuang Utuh <span class="text-gray-400 font-normal normal-case" x-text="row.selectedItem ? `(${row.selectedItem.inventory_unit})` : ''"></span></label>
+                            <label class="sf-label">Jumlah Terbuang (porsi)</label>
                             <input type="text" :name="`items[${index}][qty_whole]`" x-model="row.qtyWhole" @input="calcBase(row)" inputmode="decimal" class="sf-input text-base min-h-11" placeholder="0">
                         </div>
-                        <div>
-                            <label class="sf-label">Jumlah Terbuang Ecer <span class="text-gray-400 font-normal normal-case" x-text="row.selectedItem ? `(${row.selectedItem.base_unit})` : ''"></span></label>
-                            <input type="text" :name="`items[${index}][qty_loose]`" x-model="row.qtyLoose" @input="calcBase(row)" inputmode="decimal" class="sf-input text-base min-h-11" placeholder="0">
+                    </template>
+                    <template x-if="row.selectedItem?.type !== 'menu'">
+                        <div class="space-y-2">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="sf-label">Jumlah Terbuang Utuh <span class="text-gray-400 font-normal normal-case" x-text="row.selectedItem ? `(${row.selectedItem.inventory_unit})` : ''"></span></label>
+                                    <input type="text" :name="`items[${index}][qty_whole]`" x-model="row.qtyWhole" @input="calcBase(row)" inputmode="decimal" class="sf-input text-base min-h-11" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="sf-label">Jumlah Terbuang Ecer <span class="text-gray-400 font-normal normal-case" x-text="row.selectedItem ? `(${row.selectedItem.base_unit})` : ''"></span></label>
+                                    <input type="text" :name="`items[${index}][qty_loose]`" x-model="row.qtyLoose" @input="calcBase(row)" inputmode="decimal" class="sf-input text-base min-h-11" placeholder="0">
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-400">Isi minimal salah satu. <strong>Utuh</strong> = satuan kemasan/inventory (mis. DUS, KARTON). <strong>Ecer</strong> = satuan dasar/eceran (mis. PCS, GRAM).</p>
                         </div>
-                    </div>
-                    <p class="text-xs text-gray-400">Isi minimal salah satu. <strong>Utuh</strong> = satuan kemasan/inventory (mis. DUS, KARTON). <strong>Ecer</strong> = satuan dasar/eceran (mis. PCS, GRAM).</p>
+                    </template>
 
                     <div class="rounded-xl bg-gray-50 px-4 py-3 text-sm">
                         <div class="flex justify-between gap-3">
@@ -186,6 +204,10 @@ function spoilForm() {
 
             const url = new URL(@js(route('operations.spoil-wastes.search-items')), window.location.origin);
             url.searchParams.set('q', q);
+            // Menu difilter per brand outlet -- server cuma memakai ini utk
+            // Super Admin, outlet staf selalu diambil dari akunnya sendiri.
+            const outletId = this.$root.querySelector('select[name="outlet_id"]')?.value;
+            if (outletId) url.searchParams.set('outlet_id', outletId);
 
             const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
             row.searchResults = await response.json();
@@ -195,6 +217,7 @@ function spoilForm() {
             row.selectedItem = item;
             row.searchQuery = item.name;
             row.showSearch = false;
+            if (item.type === 'menu') row.qtyLoose = '';
             this.calcBase(row);
         },
         clearStaleSelection(row) {

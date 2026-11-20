@@ -81,7 +81,7 @@
                         <span class="text-xs text-gray-500">{{ \Illuminate\Support\Carbon::parse($spoil->recorded_at)->format('d M H:i') }}</span>
                     </div>
                     <div>
-                        <p class="font-semibold text-gray-900">{{ $spoil->item_name }}</p>
+                        <p class="font-semibold text-gray-900">{{ $spoil->item_name }} @if($spoil->menu_id)<span class="badge-menu-item">Menu</span>@endif</p>
                         <p class="text-xs text-gray-500">{{ $spoil->outlet_name }} | {{ $spoil->department_name ?? '-' }}</p>
                     </div>
                     <p class="text-sm text-gray-700">Qty: {{ number_format((float) $spoil->qty, 4, ',', '.') }} {{ $spoil->unit }}</p>
@@ -128,7 +128,7 @@
                             <tr>
                                 <td class="px-4 py-3 text-gray-600">{{ \Illuminate\Support\Carbon::parse($spoil->recorded_at)->format('d M Y H:i') }}</td>
                                 <td class="px-4 py-3">
-                                    <p class="font-semibold text-gray-900">{{ $spoil->item_name }}</p>
+                                    <p class="font-semibold text-gray-900">{{ $spoil->item_name }} @if($spoil->menu_id)<span class="badge-menu-item">Menu</span>@endif</p>
                                     <p class="text-xs text-gray-500">{{ $spoil->canonical_sku }}</p>
                                 </td>
                                 <td class="px-4 py-3">{{ $spoil->outlet_name }}</td>

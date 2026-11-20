@@ -8,6 +8,7 @@ use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Inventory\Models\Unit;
+use App\Modules\Production\Models\Menu;
 use App\Modules\Stock\Models\StockMutation;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -38,6 +39,7 @@ class SpoilWaste extends Model
         'outlet_id',
         'department_id',
         'item_id',
+        'menu_id',
         'unit_id',
         'qty',
         'qty_whole',
@@ -75,7 +77,7 @@ class SpoilWaste extends Model
     {
         return LogOptions::defaults()
             ->useLogName('operations')
-            ->logOnly(['status', 'approval_status', 'outlet_id', 'department_id', 'item_id', 'qty', 'reason_category', 'reason_detail', 'approval_notes'])
+            ->logOnly(['status', 'approval_status', 'outlet_id', 'department_id', 'item_id', 'menu_id', 'qty', 'reason_category', 'reason_detail', 'approval_notes'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
     }
@@ -111,6 +113,26 @@ class SpoilWaste extends Model
     public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class);
+    }
+
+    public function menu(): BelongsTo
+    {
+        return $this->belongsTo(Menu::class);
+    }
+
+    public function isMenu(): bool
+    {
+        return $this->menu_id !== null;
+    }
+
+    public function subjectName(): string
+    {
+        return $this->item?->name ?? $this->menu?->name ?? '-';
+    }
+
+    public function subjectCode(): ?string
+    {
+        return $this->item?->canonical_sku ?? $this->menu?->code;
     }
 
     public function unit(): BelongsTo

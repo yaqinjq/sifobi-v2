@@ -127,13 +127,18 @@ class ReportController extends Controller
                 'sw.photo',
                 'sw.photo_path',
                 'sw.is_duplicate_photo',
-                'i.name as item_name',
-                'i.canonical_sku',
+                'sw.menu_id',
+                DB::raw('COALESCE(i.name, m.name) as item_name'),
+                DB::raw('COALESCE(i.canonical_sku, m.code) as canonical_sku'),
                 'o.name as outlet_name',
                 'd.name as department_name',
                 'u.abbreviation as unit',
             ])
-            ->orderBy($sort, $direction)
+            ->when(
+                $sort === 'i.name',
+                fn ($query) => $query->orderByRaw('COALESCE(i.name, m.name) '.($direction === 'asc' ? 'asc' : 'desc')),
+                fn ($query) => $query->orderBy($sort, $direction),
+            )
             ->paginate($perPage)
             ->withQueryString();
 
@@ -642,11 +647,15 @@ class ReportController extends Controller
      */
     private function spoilQuery(int $tenantId, array $filters, Carbon $dateFrom, Carbon $dateTo): \Illuminate\Database\Query\Builder
     {
+        // LEFT JOIN items/menus/units -- spoil bisa untuk bahan baku
+        // (item_id) ATAU menu (menu_id); INNER JOIN ke items dulu diam-diam
+        // membuang semua baris spoil menu dari laporan & total.
         return DB::table('spoil_wastes as sw')
-            ->join('items as i', 'i.id', '=', 'sw.item_id')
+            ->leftJoin('items as i', 'i.id', '=', 'sw.item_id')
+            ->leftJoin('menus as m', 'm.id', '=', 'sw.menu_id')
             ->join('outlets as o', 'o.id', '=', 'sw.outlet_id')
             ->leftJoin('departments as d', 'd.id', '=', 'sw.department_id')
-            ->join('units as u', 'u.id', '=', 'sw.unit_id')
+            ->leftJoin('units as u', 'u.id', '=', 'sw.unit_id')
             ->where('sw.tenant_id', $tenantId)
             ->whereBetween('sw.recorded_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
             ->when($filters['outlet_id'] ?? null, fn ($query, $outletId) => $query->where('sw.outlet_id', $outletId))

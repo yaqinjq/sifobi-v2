@@ -13,6 +13,7 @@ use App\Modules\Core\Models\Department;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
 use App\Modules\Operations\Models\SpoilWaste;
+use App\Modules\Production\Models\Menu;
 use App\Modules\Stock\Models\StockBalance;
 use App\Modules\Stock\Models\StockMutation;
 use App\Services\SpoilWasteService;
@@ -44,7 +45,7 @@ class SpoilWasteController extends Controller
         [$sort, $direction] = $this->resolveTableSort($request, ['recorded_at', 'qty_in_base_unit', 'status'], 'recorded_at', 'desc');
 
         $query = SpoilWaste::query()
-            ->with(['outlet', 'department', 'item', 'unit', 'createdBy.roles'])
+            ->with(['outlet', 'department', 'item', 'menu', 'unit', 'createdBy.roles'])
             ->where('tenant_id', $tenantId);
         $query = $this->applySpoilRecordScope($query, $request);
 
@@ -56,9 +57,13 @@ class SpoilWasteController extends Controller
             ->when($request->input('filter') === 'duplicate', fn ($q) => $q->where('is_duplicate_photo', true))
             ->when($request->filled('q'), function ($q) use ($request): void {
                 $search = '%'.$request->string('q')->trim().'%';
-                $q->whereHas('item', fn ($itemQuery) => $itemQuery
-                    ->where('name', 'like', $search)
-                    ->orWhere('canonical_sku', 'like', $search));
+                $q->where(fn ($subject) => $subject
+                    ->whereHas('item', fn ($itemQuery) => $itemQuery
+                        ->where('name', 'like', $search)
+                        ->orWhere('canonical_sku', 'like', $search))
+                    ->orWhereHas('menu', fn ($menuQuery) => $menuQuery
+                        ->where('name', 'like', $search)
+                        ->orWhere('code', 'like', $search)));
             })
             ->orderBy($sort, $direction)
             ->paginate($perPage)
@@ -199,7 +204,8 @@ class SpoilWasteController extends Controller
                 'outlet_id' => $validated['outlet_id'],
                 'department_id' => $validated['department_id'],
                 'recorded_date' => $validated['recorded_date'],
-                'item_id' => $item['item_id'],
+                'item_id' => $item['item_id'] ?? null,
+                'menu_id' => $item['menu_id'] ?? null,
                 'qty_whole' => $item['qty_whole'] ?? null,
                 'qty_loose' => $item['qty_loose'] ?? null,
                 'reason_category' => $item['reason_category'],
@@ -239,6 +245,7 @@ class SpoilWasteController extends Controller
             'items' => [
                 [
                     'item_id' => $request->input('item_id'),
+                    'menu_id' => $request->input('menu_id'),
                     'qty_whole' => $request->input('qty_whole'),
                     'qty_loose' => $request->input('qty_loose'),
                     'reason_category' => $request->input('reason_category'),
@@ -255,6 +262,7 @@ class SpoilWasteController extends Controller
             'department',
             'item.baseUnit',
             'item.inventoryUnit',
+            'menu.category',
             'unit',
             'createdBy.roles',
             'approvedBy',
@@ -501,7 +509,7 @@ class SpoilWasteController extends Controller
             ->limit(20)
             ->get();
 
-        return response()->json($items->map(function (Item $item) use ($tenantId, $outletId): array {
+        $itemResults = $items->map(function (Item $item) use ($tenantId, $outletId): array {
             $balance = StockBalance::query()
                 ->where('tenant_id', $tenantId)
                 ->where('outlet_id', $outletId)
@@ -510,6 +518,7 @@ class SpoilWasteController extends Controller
                 ->first();
 
             return [
+                'type' => 'item',
                 'id' => $item->id,
                 'name' => $item->name,
                 'sku' => $item->canonical_sku,
@@ -520,7 +529,53 @@ class SpoilWasteController extends Controller
                 'inventory_ratio' => (float) ($item->inventory_ratio ?: 1),
                 'qty_on_hand' => (float) ($balance?->qty_on_hand ?? 0),
             ];
-        }));
+        });
+
+        $menuResults = $this->searchableMenus($tenantId, $outletId, $search)
+            ->map(fn (Menu $menu): array => [
+                'type' => 'menu',
+                'id' => $menu->id,
+                'name' => $menu->name,
+                'sku' => $menu->code,
+                'category' => $menu->category?->name,
+                'base_unit' => 'porsi',
+                'inventory_unit' => null,
+                'inventory_ratio' => 1,
+                'qty_on_hand' => null,
+            ]);
+
+        return response()->json($itemResults->concat($menuResults)->values());
+    }
+
+    /**
+     * Menu yang boleh dicatat spoil di 1 outlet = menu aktif milik BRAND
+     * outlet itu (menu Ah Pek cuma muncul di outlet Ah Pek). Sengaja TIDAK
+     * difilter departemen -- menu tidak punya departemen. Tanpa outlet
+     * yang jelas, tidak ada menu sama sekali.
+     *
+     * @return Collection<int, Menu>
+     */
+    private function searchableMenus(int $tenantId, int $outletId, string $search): Collection
+    {
+        $brandId = $outletId > 0
+            ? Outlet::query()->where('tenant_id', $tenantId)->whereKey($outletId)->value('brand_id')
+            : null;
+
+        if (! $brandId) {
+            return new Collection;
+        }
+
+        return Menu::query()
+            ->where('tenant_id', $tenantId)
+            ->where('brand_id', $brandId)
+            ->where('is_active', true)
+            ->with('category')
+            ->when($search !== '', fn ($query) => $query->where(fn ($inner) => $inner
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('code', 'like', "%{$search}%")))
+            ->orderBy('name')
+            ->limit(10)
+            ->get();
     }
 
     /**
@@ -592,8 +647,15 @@ class SpoilWasteController extends Controller
             ],
             'recorded_date' => ['required', 'date'],
             'items' => ['required', 'array', 'min:1'],
+            // Tiap baris WAJIB tepat satu: bahan baku (item_id) ATAU menu
+            // (menu_id) -- dicek eksplisit di loop bawah.
+            'items.*.menu_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('menus', 'id')->where('tenant_id', $tenantId)->where('is_active', true),
+            ],
             'items.*.item_id' => [
-                'required',
+                'nullable',
                 'integer',
                 Rule::exists('items', 'id')->where('tenant_id', $tenantId),
                 // Pertahanan sisi server -- item_id tidak boleh cuma
@@ -625,12 +687,34 @@ class SpoilWasteController extends Controller
             'items.*.photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
+        // Outlet yang benar-benar dipakai store() -- non-superadmin selalu
+        // outlet akun-nya sendiri, bukan outlet_id kiriman form.
+        $effectiveOutletId = $isSuperAdmin
+            ? (int) $validated['outlet_id']
+            : (int) ($this->effectiveSpoilOutletId($request) ?? 0);
+        $outletBrandId = Outlet::query()->where('tenant_id', $tenantId)->whereKey($effectiveOutletId)->value('brand_id');
+
         foreach ($validated['items'] as $index => $item) {
+            $itemNumber = $index + 1;
+            $hasItem = ! empty($item['item_id']);
+            $hasMenu = ! empty($item['menu_id']);
+
+            if ($hasItem === $hasMenu) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.item_id" => "Baris #{$itemNumber}: pilih satu bahan baku atau menu dari daftar saran.",
+                ]);
+            }
+
+            if ($hasMenu && (int) Menu::query()->whereKey($item['menu_id'])->value('brand_id') !== (int) $outletBrandId) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.menu_id" => "Baris #{$itemNumber}: menu ini bukan milik brand outlet yang dipilih.",
+                ]);
+            }
+
             $qtyWhole = Decimal::toFixed($item['qty_whole'] ?? '0', 6);
             $qtyLoose = Decimal::toFixed($item['qty_loose'] ?? '0', 6);
 
             if (bccomp($qtyWhole, '0.000000', 6) <= 0 && bccomp($qtyLoose, '0.000000', 6) <= 0) {
-                $itemNumber = $index + 1;
                 throw ValidationException::withMessages([
                     "items.{$index}.qty_whole" => "Item #{$itemNumber}: isi minimal salah satu Jumlah Terbuang Utuh atau Ecer, harus lebih dari 0.",
                 ]);

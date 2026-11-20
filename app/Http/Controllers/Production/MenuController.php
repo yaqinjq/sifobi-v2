@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Production\BulkDestroyMenuRequest;
+use App\Imports\MenuImport;
 use App\Modules\Core\Models\Brand;
 use App\Modules\Production\Models\Menu;
 use App\Modules\Production\Models\MenuCategory;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
 
 class MenuController extends Controller
 {
@@ -44,6 +46,46 @@ class MenuController extends Controller
         $categories = MenuCategory::query()->where('tenant_id', $tenantId)->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get();
 
         return view('production.menus.create', compact('brands', 'categories'));
+    }
+
+    public function importForm(Request $request): View
+    {
+        $tenantId = $this->tenantId($request);
+
+        // Jumlah outlet per brand ditampilkan supaya user memilih brand yang
+        // SAMA dengan brand outlet-outletnya -- pencarian spoil menu
+        // difilter per brand outlet (SpoilWasteController::searchableMenus()).
+        $brands = Brand::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'ACTIVE')
+            ->withCount('outlets')
+            ->orderBy('name')
+            ->get();
+
+        return view('production.menus.import', compact('brands'));
+    }
+
+    public function import(Request $request): RedirectResponse
+    {
+        $tenantId = $this->tenantId($request);
+
+        $validated = $request->validate([
+            'brand_id' => ['required', 'integer', Rule::exists('brands', 'id')->where('tenant_id', $tenantId)],
+            'file'     => ['required', 'file', 'mimes:xlsx,xls', 'max:10240'],
+        ]);
+
+        $import = new MenuImport($tenantId, (int) $validated['brand_id']);
+        Excel::import($import, $request->file('file'));
+        $summary = $import->summary();
+
+        $message = "Import menu selesai: {$summary['inserted']} baru, {$summary['updated']} diperbarui"
+            .($summary['categories_created'] > 0 ? ", {$summary['categories_created']} kategori baru" : '')
+            .($summary['skipped'] > 0 ? ", {$summary['skipped']} baris kosong dilewati" : '').'.';
+
+        return redirect()
+            ->route('production.menus.index')
+            ->with('success', $message)
+            ->with('import_errors', $summary['errors']);
     }
 
     public function store(Request $request): RedirectResponse

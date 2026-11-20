@@ -8,12 +8,36 @@
 
 <div class="px-4 py-5 pb-28 lg:px-6 lg:py-6 max-w-3xl mx-auto w-full space-y-6">
 
+    {{-- v2.68 --}}
+    <x-sf.card>
+        <x-slot:header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-heading font-bold text-gray-900">v2.68 &mdash; 20 November 2026</h3>
+                <span class="badge-info text-xs">Terbaru</span>
+            </div>
+        </x-slot:header>
+        <div class="px-4 pb-4 space-y-3 text-sm">
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Fitur Baru</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Spoil &amp; Waste sekarang bisa mencatat MENU, bukan cuma bahan baku</strong> -- di form Catat Spoil, saat mengetik nama, saran yang muncul mencakup bahan baku DAN menu (diberi label "Bahan Baku" / "Menu"). Menu yang muncul hanya menu milik brand outlet tersebut. Jumlah spoil menu dicatat per porsi. Menu tetap tersimpan terpisah dari master bahan baku, jadi tidak ikut muncul di Opname, PO, maupun Kartu Stok</li>
+                    <li><strong>Import Master Menu dari Excel</strong> -- tombol "Import Excel" baru di halaman Menu &amp; Resep. File export "Master Menu" dari POS bisa langsung diupload apa adanya; menu dengan kode yang sama akan diperbarui (tidak dobel), kategori menu dibuat otomatis, dan kode yang dipakai 2 menu berbeda dilaporkan, bukan diam-diam ditimpa</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800 mb-1.5">Perbaikan Bug</p>
+                <ul class="space-y-1 text-gray-600 pl-4 list-disc">
+                    <li><strong>Laporan &amp; export Spoil sekarang ikut menampilkan spoil menu</strong> -- sebelumnya laporan hanya mengambil baris yang punya bahan baku, sehingga catatan spoil menu akan hilang dari laporan dan totalnya</li>
+                </ul>
+            </div>
+        </div>
+    </x-sf.card>
+
     {{-- v2.67 --}}
     <x-sf.card>
         <x-slot:header>
             <div class="flex items-center justify-between flex-wrap gap-2">
                 <h3 class="font-heading font-bold text-gray-900">v2.67 &mdash; 19 November 2026</h3>
-                <span class="badge-info text-xs">Terbaru</span>
             </div>
         </x-slot:header>
         <div class="px-4 pb-4 space-y-3 text-sm">

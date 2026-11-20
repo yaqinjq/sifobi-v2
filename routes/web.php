@@ -870,6 +870,9 @@ Route::middleware(['auth', \App\Http\Middleware\SetPermissionsTeam::class])->gro
             Route::get('/menus', [MenuController::class, 'index'])->name('menus.index');
             Route::get('/menus/create', [MenuController::class, 'create'])->name('menus.create');
             Route::post('/menus', [MenuController::class, 'store'])->name('menus.store');
+            // Harus SEBELUM /menus/{menu} -- kalau tidak "import" ditangkap sbg {menu}.
+            Route::get('/menus/import', [MenuController::class, 'importForm'])->name('menus.import-form');
+            Route::post('/menus/import', [MenuController::class, 'import'])->name('menus.import');
             Route::get('/menus/{menu}', [MenuController::class, 'show'])->name('menus.show');
             Route::get('/menus/{menu}/edit', [MenuController::class, 'edit'])->name('menus.edit');
             Route::put('/menus/{menu}', [MenuController::class, 'update'])->name('menus.update');

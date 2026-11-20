@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\User;
 use App\Modules\Core\Models\Outlet;
 use App\Modules\Inventory\Models\Item;
+use App\Modules\Inventory\Models\Unit;
 use App\Modules\Inventory\Models\UnitConversion;
 use App\Modules\Operations\Models\SpoilWaste;
+use App\Modules\Production\Models\Menu;
 use App\Notifications\WorkflowNotification;
 use App\Support\Decimal;
 use Illuminate\Database\Eloquent\Builder;
@@ -32,8 +34,12 @@ class SpoilWasteService
         $spoil = DB::transaction(function () use ($data, $userId): SpoilWaste {
             $tenantId = (int) $data['tenant_id'];
             $outletId = (int) $data['outlet_id'];
-            $item = $this->itemForTenant((int) $data['item_id'], $tenantId);
             $this->assertOutletBelongsToTenant($outletId, $tenantId);
+
+            // Spoil MENU (bukan bahan baku): menu tidak punya satuan/rasio --
+            // dihitung per porsi (rasio 1) dengan unit PORSI milik tenant.
+            $menu = ! empty($data['menu_id']) ? $this->menuForTenant((int) $data['menu_id'], $tenantId) : null;
+            $item = $menu ? null : $this->itemForTenant((int) ($data['item_id'] ?? 0), $tenantId);
 
             // Dua jalur input didukung: form manual mengirim qty_whole (satuan
             // inventory, mis. DUS) + qty_loose (satuan dasar, mis. PCS/GRAM)
@@ -42,7 +48,13 @@ class SpoilWasteService
             // data lama & template import yang sudah ada tetap jalan apa adanya.
             $usesWholeLoose = array_key_exists('qty_whole', $data) || array_key_exists('qty_loose', $data);
 
-            if ($usesWholeLoose) {
+            if ($menu) {
+                $unitId = $this->portionUnitId($tenantId);
+                $qtyWhole = $usesWholeLoose ? Decimal::toFixed($data['qty_whole'] ?? '0', 6) : null;
+                $qtyLoose = $usesWholeLoose ? Decimal::toFixed($data['qty_loose'] ?? '0', 6) : null;
+                $qty = $usesWholeLoose ? bcadd($qtyWhole, $qtyLoose, 6) : Decimal::toFixed($data['qty'], 6);
+                $qtyInBase = $qty;
+            } elseif ($usesWholeLoose) {
                 $qtyWhole = Decimal::toFixed($data['qty_whole'] ?? '0', 6);
                 $qtyLoose = Decimal::toFixed($data['qty_loose'] ?? '0', 6);
                 $ratio = Decimal::toFixed($item->inventory_ratio ?: '1', 6);
@@ -75,7 +87,8 @@ class SpoilWasteService
                 'tenant_id' => $tenantId,
                 'outlet_id' => $outletId,
                 'department_id' => $data['department_id'] ?? null,
-                'item_id' => $item->id,
+                'item_id' => $item?->id,
+                'menu_id' => $menu?->id,
                 'unit_id' => $unitId,
                 'qty' => $qty,
                 'qty_whole' => $qtyWhole,
@@ -99,13 +112,13 @@ class SpoilWasteService
                 'notes' => $data['reason_detail'] ?? null,
             ]);
 
-            return $spoil->refresh()->load(['outlet', 'department', 'item', 'unit', 'mutation', 'duplicateReference']);
+            return $spoil->refresh()->load(['outlet', 'department', 'item', 'menu', 'unit', 'mutation', 'duplicateReference']);
         });
 
         $approvers = $this->spoilApprovers($spoil);
         Notification::send($approvers, new WorkflowNotification(
-            "Spoil {$spoil->item?->name} perlu persetujuan",
-            "Catatan spoil/waste {$spoil->item?->name} di {$spoil->outlet?->name} menunggu persetujuan Anda.",
+            "Spoil {$spoil->subjectName()} perlu persetujuan",
+            "Catatan spoil/waste {$spoil->subjectName()} di {$spoil->outlet?->name} menunggu persetujuan Anda.",
             route('operations.spoil-wastes.show', $spoil),
             'operations',
         ));
@@ -116,7 +129,7 @@ class SpoilWasteService
     public function approve(SpoilWaste $spoil, int $userId, string $notes = ''): SpoilWaste
     {
         $spoil = DB::transaction(function () use ($spoil, $userId, $notes): SpoilWaste {
-            $spoil = SpoilWaste::query()->with('item')->lockForUpdate()->findOrFail($spoil->id);
+            $spoil = SpoilWaste::query()->with(['item', 'menu'])->lockForUpdate()->findOrFail($spoil->id);
 
             if ($spoil->status !== SpoilWaste::STATUS_PENDING) {
                 throw ValidationException::withMessages([
@@ -149,8 +162,8 @@ class SpoilWasteService
         });
 
         $spoil->createdBy?->notify(new WorkflowNotification(
-            "Spoil {$spoil->item?->name} disetujui",
-            "Catatan spoil/waste {$spoil->item?->name} yang Anda catat sudah disetujui.",
+            "Spoil {$spoil->subjectName()} disetujui",
+            "Catatan spoil/waste {$spoil->subjectName()} yang Anda catat sudah disetujui.",
             route('operations.spoil-wastes.show', $spoil),
             'operations',
         ));
@@ -191,8 +204,8 @@ class SpoilWasteService
         });
 
         $spoil->createdBy?->notify(new WorkflowNotification(
-            "Spoil {$spoil->item?->name} ditolak",
-            "Catatan spoil/waste {$spoil->item?->name} yang Anda catat ditolak. Alasan: {$reason}",
+            "Spoil {$spoil->subjectName()} ditolak",
+            "Catatan spoil/waste {$spoil->subjectName()} yang Anda catat ditolak. Alasan: {$reason}",
             route('operations.spoil-wastes.show', $spoil),
             'operations',
         ));
@@ -328,6 +341,34 @@ class SpoilWasteService
         }
 
         return $item;
+    }
+
+    private function menuForTenant(int $menuId, int $tenantId): Menu
+    {
+        $menu = Menu::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->find($menuId);
+
+        if (! $menu) {
+            throw ValidationException::withMessages([
+                'menu_id' => 'Menu tidak valid atau sudah nonaktif.',
+            ]);
+        }
+
+        return $menu;
+    }
+
+    /**
+     * Satuan "porsi" utk spoil menu -- spoil_wastes.unit_id wajib terisi,
+     * dan seeder standar tidak punya satuan porsi (cuma GR/KG/ML/L/PCS/...).
+     */
+    private function portionUnitId(int $tenantId): int
+    {
+        return (int) Unit::withoutGlobalScopes()->firstOrCreate(
+            ['tenant_id' => $tenantId, 'code' => 'PORSI'],
+            ['name' => 'Porsi', 'abbreviation' => 'porsi', 'decimal_places' => 0, 'status' => 'ACTIVE'],
+        )->id;
     }
 
     private function assertOutletBelongsToTenant(int $outletId, int $tenantId): void

@@ -3,7 +3,7 @@
 @section('title', 'Detail Spoil')
 
 @section('content')
-<x-sf.page-header title="Detail Spoil" subtitle="{{ $spoil->item?->name ?? '-' }}" back="{{ route('operations.spoil-wastes.index') }}" />
+<x-sf.page-header title="Detail Spoil" subtitle="{{ $spoil->subjectName() }}" back="{{ route('operations.spoil-wastes.index') }}" />
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-4xl mx-auto w-full space-y-4">
     @if($errors->any())
@@ -23,9 +23,15 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
-                <p class="text-gray-500">Item</p>
-                <p class="font-semibold text-gray-900">{{ $spoil->item?->name ?? '-' }}</p>
-                <p class="text-xs text-gray-500">{{ $spoil->item?->canonical_sku ?? '-' }}</p>
+                <p class="text-gray-500">{{ $spoil->isMenu() ? 'Menu' : 'Item' }}</p>
+                <p class="font-semibold text-gray-900">
+                    {{ $spoil->subjectName() }}
+                    @if($spoil->isMenu())<span class="badge-menu-item">Menu</span>@endif
+                </p>
+                <p class="text-xs text-gray-500">
+                    {{ $spoil->subjectCode() ?? '-' }}
+                    @if($spoil->isMenu() && $spoil->menu?->category) | {{ $spoil->menu->category->name }}@endif
+                </p>
             </div>
             <div>
                 <p class="text-gray-500">Departemen</p>
@@ -33,7 +39,9 @@
             </div>
             <div>
                 <p class="text-gray-500">Qty Terbuang</p>
-                @if($spoil->qty_whole !== null || $spoil->qty_loose !== null)
+                @if($spoil->isMenu())
+                    <p class="font-semibold text-gray-900">{{ rtrim(rtrim((string) $spoil->qty_in_base_unit, '0'), '.') ?: '0' }} porsi</p>
+                @elseif($spoil->qty_whole !== null || $spoil->qty_loose !== null)
                     <p class="font-semibold text-gray-900">
                         {{ rtrim(rtrim((string) $spoil->qty_whole, '0'), '.') ?: '0' }} {{ $spoil->item?->inventoryUnit?->abbreviation }}
                         + {{ rtrim(rtrim((string) $spoil->qty_loose, '0'), '.') ?: '0' }} {{ $spoil->item?->baseUnit?->abbreviation }}
@@ -41,7 +49,9 @@
                 @else
                     <p class="font-semibold text-gray-900">{{ $spoil->qty }} {{ $spoil->unit?->abbreviation }}</p>
                 @endif
-                <p class="text-xs text-gray-500">Total: {{ $spoil->qty_in_base_unit }} {{ $spoil->item?->baseUnit?->abbreviation }}</p>
+                @unless($spoil->isMenu())
+                    <p class="text-xs text-gray-500">Total: {{ $spoil->qty_in_base_unit }} {{ $spoil->item?->baseUnit?->abbreviation }}</p>
+                @endunless
             </div>
             <div>
                 <p class="text-gray-500">Alasan</p>

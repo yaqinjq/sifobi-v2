@@ -83,7 +83,7 @@
                             <div class="h-16 w-16 rounded-xl bg-gray-100"></div>
                         @endif
                         <div class="min-w-0 flex-1">
-                            <p class="font-semibold text-gray-900 truncate">{{ $spoil->item?->name ?? '-' }}</p>
+                            <p class="font-semibold text-gray-900 truncate">{{ $spoil->subjectName() }} @if($spoil->isMenu())<span class="badge-menu-item">Menu</span>@endif</p>
                             <p class="text-sm text-gray-500">Dept: {{ $spoil->department?->name ?? '-' }} | Qty: {{ $spoil->qty }} {{ $spoil->unit?->abbreviation }}</p>
                             <p class="text-sm text-gray-500">Alasan: {{ $spoil->reason_label }}</p>
                             <p class="text-xs text-gray-400 mt-1">Diinput oleh {{ $spoil->createdBy?->name ?? '-' }}@if($spoil->createdBy) ({{ $spoil->createdBy->primary_role }})@endif</p>
@@ -105,7 +105,7 @@
                                     icon="delete"
                                     label="Hapus"
                                     color="red"
-                                    @click="deleteOpen = true; deleteUrl = {{ \Illuminate\Support\Js::from(route('operations.spoil-wastes.destroy', $spoil)) }}; deleteName = {{ \Illuminate\Support\Js::from($spoil->item?->name ?? '-') }}"
+                                    @click="deleteOpen = true; deleteUrl = {{ \Illuminate\Support\Js::from(route('operations.spoil-wastes.destroy', $spoil)) }}; deleteName = {{ \Illuminate\Support\Js::from($spoil->subjectName()) }}"
                                 />
                             @endcan
                             <x-icon-btn
@@ -165,7 +165,7 @@
                                 @endcan
                                 <td class="px-4 py-3 text-gray-500">{{ $spoilWastes->firstItem() + $loop->index }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ optional($spoil->recorded_at)->format('d M H:i') }}</td>
-                                <td class="px-4 py-3 font-semibold text-gray-900">{{ $spoil->item?->name ?? '-' }}</td>
+                                <td class="px-4 py-3 font-semibold text-gray-900">{{ $spoil->subjectName() }} @if($spoil->isMenu())<span class="badge-menu-item">Menu</span>@endif</td>
                                 <td class="px-4 py-3">{{ $spoil->department?->name ?? '-' }}</td>
                                 <td class="px-4 py-3 text-right">{{ $spoil->qty }} {{ $spoil->unit?->abbreviation }}</td>
                                 <td class="px-4 py-3">{{ $spoil->reason_label }}</td>
@@ -193,7 +193,7 @@
                                                 label="Hapus"
                                                 color="red"
                                                 size="sm"
-                                                @click="deleteOpen = true; deleteUrl = {{ \Illuminate\Support\Js::from(route('operations.spoil-wastes.destroy', $spoil)) }}; deleteName = {{ \Illuminate\Support\Js::from($spoil->item?->name ?? '-') }}"
+                                                @click="deleteOpen = true; deleteUrl = {{ \Illuminate\Support\Js::from(route('operations.spoil-wastes.destroy', $spoil)) }}; deleteName = {{ \Illuminate\Support\Js::from($spoil->subjectName()) }}"
                                             />
                                         @endcan
                                         <x-icon-btn

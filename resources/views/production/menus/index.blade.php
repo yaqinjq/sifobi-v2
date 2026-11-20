@@ -10,10 +10,25 @@
 />
 
 <div class="px-4 py-5 lg:px-6 lg:py-6 max-w-5xl mx-auto w-full space-y-5">
+    @if(session('import_errors'))
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p class="font-semibold mb-1">{{ count(session('import_errors')) }} baris tidak diimport:</p>
+            <ul class="list-disc pl-5 space-y-0.5">
+                @foreach(array_slice(session('import_errors'), 0, 20) as $importError)
+                    <li>{{ $importError }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="flex flex-wrap justify-end gap-2">
         <a href="{{ route('production.hpp-calculator.index') }}" class="sf-btn-secondary inline-flex min-h-11 items-center gap-2">
             <i class="ti ti-calculator text-base" aria-hidden="true"></i>
             <span>Coba Kalkulator HPP Dulu</span>
+        </a>
+        <a href="{{ route('production.menus.import-form') }}" class="sf-btn-secondary inline-flex min-h-11 items-center gap-2">
+            <i class="ti ti-file-import text-base" aria-hidden="true"></i>
+            <span>Import Excel</span>
         </a>
         <a href="{{ route('production.menus.create') }}" class="sf-btn-primary inline-flex min-h-11 items-center gap-2">
             <i class="ti ti-plus text-base" aria-hidden="true"></i>

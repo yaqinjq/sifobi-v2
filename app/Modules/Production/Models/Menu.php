@@ -4,6 +4,7 @@ namespace App\Modules\Production\Models;
 
 use App\Models\Scopes\TenantScope;
 use App\Modules\Core\Models\Brand;
+use App\Modules\Operations\Models\SpoilWaste;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -61,7 +62,10 @@ class Menu extends Model
 
     public function canHardDelete(): bool
     {
-        return $this->recipes()->doesntExist();
+        // spoil_wastes.menu_id restrictOnDelete -- menu yang sudah pernah
+        // dicatat spoil cuma boleh dinonaktifkan, riwayat spoil tidak boleh hilang.
+        return $this->recipes()->doesntExist()
+            && ! SpoilWaste::withoutGlobalScopes()->where('menu_id', $this->id)->exists();
     }
 
     public function getActivitylogOptions(): LogOptions

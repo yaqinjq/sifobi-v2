@@ -80,11 +80,13 @@ class SpoilExport implements FromArray, ShouldAutoSize, WithEvents
     {
         [$dateFrom, $dateTo] = $this->dateRange();
 
+        // LEFT JOIN items/menus -- lihat ReportController::spoilQuery().
         return DB::table('spoil_wastes as sw')
-            ->join('items as i', 'i.id', '=', 'sw.item_id')
+            ->leftJoin('items as i', 'i.id', '=', 'sw.item_id')
+            ->leftJoin('menus as m', 'm.id', '=', 'sw.menu_id')
             ->join('outlets as o', 'o.id', '=', 'sw.outlet_id')
             ->leftJoin('departments as d', 'd.id', '=', 'sw.department_id')
-            ->join('units as u', 'u.id', '=', 'sw.unit_id')
+            ->leftJoin('units as u', 'u.id', '=', 'sw.unit_id')
             ->where('sw.tenant_id', $this->tenantId)
             ->whereBetween('sw.recorded_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
             ->when($this->filters['outlet_id'] ?? null, fn ($query, $outletId) => $query->where('sw.outlet_id', $outletId))
@@ -96,8 +98,8 @@ class SpoilExport implements FromArray, ShouldAutoSize, WithEvents
                 'sw.reason_category',
                 'sw.status',
                 'sw.is_duplicate_photo',
-                'i.name as item_name',
-                'i.canonical_sku',
+                DB::raw('COALESCE(i.name, m.name) as item_name'),
+                DB::raw('COALESCE(i.canonical_sku, m.code) as canonical_sku'),
                 'o.name as outlet_name',
                 'd.name as department_name',
                 'u.abbreviation as unit',
