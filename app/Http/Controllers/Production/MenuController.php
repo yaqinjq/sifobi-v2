@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Production;
 
 use App\Http\Controllers\Concerns\HasBulkAction;
 use App\Http\Controllers\Concerns\HasPerPageSelector;
+use App\Http\Controllers\Concerns\ResolvesTableSort;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Production\BulkDestroyMenuRequest;
 use App\Imports\MenuImport;
 use App\Modules\Core\Models\Brand;
 use App\Modules\Production\Models\Menu;
 use App\Modules\Production\Models\MenuCategory;
+use App\Modules\Production\Models\Recipe;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -21,21 +23,103 @@ class MenuController extends Controller
 {
     use HasBulkAction;
     use HasPerPageSelector;
+    use ResolvesTableSort;
+
+    /** Filter "Status Resep" di daftar menu. */
+    public const RECIPE_FILTERS = [
+        'approved' => 'Sudah disetujui',
+        'pending'  => 'Menunggu persetujuan',
+        'draft'    => 'Masih draft / ditolak',
+        'none'     => 'Belum ada resep',
+    ];
 
     public function index(Request $request): View
     {
         $tenantId = $this->tenantId($request);
         [$perPage, $perPageOptions] = $this->perPageAndOptions($request, 20);
+        [$sort, $direction] = $this->resolveTableSort($request, ['name', 'code', 'selling_price'], 'name');
 
-        $menus = Menu::query()
+        $filters = [
+            'q'         => trim((string) $request->string('q')),
+            'brand_id'  => $request->integer('brand_id') ?: null,
+            'category'  => $request->string('category')->toString(),
+            'recipe'    => array_key_exists($request->string('recipe')->toString(), self::RECIPE_FILTERS) ? $request->string('recipe')->toString() : '',
+            'status'    => in_array($request->string('status')->toString(), ['active', 'inactive', 'all'], true) ? $request->string('status')->toString() : 'active',
+        ];
+
+        // Semua filter KECUALI kategori -- dipakai juga utk hitungan chip
+        // kategori supaya angkanya ikut menyesuaikan pencarian/brand/status.
+        $base = Menu::query()
             ->where('tenant_id', $tenantId)
-            ->with(['brand', 'category', 'recipes' => fn ($q) => $q->limit(1)])
-            ->withCount('recipes')
+            ->when($filters['q'] !== '', fn ($q) => $q->where(fn ($inner) => $inner
+                ->where('name', 'like', "%{$filters['q']}%")
+                ->orWhere('code', 'like', "%{$filters['q']}%")))
+            ->when($filters['brand_id'], fn ($q, $brandId) => $q->where('brand_id', $brandId))
+            ->when($filters['status'] === 'active', fn ($q) => $q->where('is_active', true))
+            ->when($filters['status'] === 'inactive', fn ($q) => $q->where('is_active', false))
+            ->when($filters['recipe'] === 'approved', fn ($q) => $q->whereHas('recipes', fn ($r) => $r->where('status', Recipe::STATUS_APPROVED)))
+            ->when($filters['recipe'] === 'pending', fn ($q) => $q->whereHas('recipes', fn ($r) => $r->where('status', Recipe::STATUS_SUBMITTED)))
+            ->when($filters['recipe'] === 'draft', fn ($q) => $q->has('recipes')
+                ->whereDoesntHave('recipes', fn ($r) => $r->whereIn('status', [Recipe::STATUS_APPROVED, Recipe::STATUS_SUBMITTED])))
+            ->when($filters['recipe'] === 'none', fn ($q) => $q->doesntHave('recipes'));
+
+        $categoryCounts = (clone $base)
+            ->selectRaw('menu_category_id, COUNT(*) as total')
+            ->groupBy('menu_category_id')
+            ->pluck('total', 'menu_category_id');
+
+        $menus = (clone $base)
+            ->when($filters['category'] === 'none', fn ($q) => $q->whereNull('menu_category_id'))
+            ->when(ctype_digit($filters['category']), fn ($q) => $q->where('menu_category_id', (int) $filters['category']))
+            ->with([
+                'brand',
+                'category',
+                'recipes' => fn ($q) => $q->select(['id', 'menu_id', 'version_number', 'status', 'volume_production']),
+                'approvedRecipes.ingredients.item',
+                'approvedRecipes.ingredients.buyUnit',
+                'approvedRecipes.ingredients.recipeUnit',
+                'approvedRecipes.otherCosts',
+            ])
+            ->orderBy($sort, $direction)
             ->orderBy('name')
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('production.menus.index', compact('menus', 'perPage', 'perPageOptions'));
+        // HPP dari resep DISETUJUI versi terbaru (approvedRecipes sudah urut
+        // version_number desc). Dihitung per halaman saja, bukan semua menu.
+        $hppByMenu = $menus->getCollection()->mapWithKeys(function (Menu $menu): array {
+            $recipe = $menu->approvedRecipes->first();
+
+            return [$menu->id => $recipe ? $recipe->hpp()['hpp_per_unit'] : null];
+        });
+
+        $categories = MenuCategory::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('id', $categoryCounts->keys()->filter())
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $brands = Brand::query()
+            ->where('tenant_id', $tenantId)
+            ->whereHas('menus')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('production.menus.index', [
+            'menus'          => $menus,
+            'perPage'        => $perPage,
+            'perPageOptions' => $perPageOptions,
+            'sort'           => $sort,
+            'direction'      => $direction,
+            'filters'        => $filters,
+            'categories'     => $categories,
+            'categoryCounts' => $categoryCounts,
+            'totalCount'     => $categoryCounts->sum(),
+            'brands'         => $brands,
+            'hppByMenu'      => $hppByMenu,
+            'recipeFilters'  => self::RECIPE_FILTERS,
+        ]);
     }
 
     public function create(Request $request): View

@@ -33,6 +33,11 @@ class Brand extends Model
         return $this->hasMany(Outlet::class);
     }
 
+    public function menus(): HasMany
+    {
+        return $this->hasMany(\App\Modules\Production\Models\Menu::class);
+    }
+
     protected static function booted(): void
     {
         static::addGlobalScope(new TenantScope);
